@@ -10,7 +10,11 @@ startenv.sh
 *.rst
 data/
 pan_output*/
-config/
+credentials.json
+eddy_params.json
+freebash.sh
+license.txt
+panpipeconfig.config
 atlas/
 TemplateFlow
 
