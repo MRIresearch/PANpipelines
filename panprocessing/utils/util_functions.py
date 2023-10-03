@@ -492,14 +492,14 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
     if not os.path.exists(script_dir):
         os.makedirs(script_dir)
     script_file = os.path.join(script_dir,script_base + '.pbs')
-    labels_file = os.path.join(script_dir,script_base + '.json')
+    labels_file = os.path.join(script_dir,script_base + '.config')
     updateParams(panpipe_labels, "RUNTIME_CONFIG_FILE", labels_file)
 
     create_script(headerfile,templatefile,panpipe_labels, script_file)
     updateParams(panpipe_labels, "PIPELINE_SCRIPT", script_file)
     dependencies = getDependencies(job_ids,panpipe_labels)
     
-    outlog =f"log-%A_%a_{pipeline}_{datelabel}.out"
+    outlog =f"log-%A_%a_{pipeline}_{datelabel}.panout"
     jobname = f"{pipeline}_pan"
 
     array = create_array(participants, participants_file)
