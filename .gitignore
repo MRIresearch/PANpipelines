@@ -9,6 +9,7 @@ startenv.sh
 *.html
 *.rst
 data/
+run_pan.sh
 pan_output*/
 credentials.json
 eddy_params.json
