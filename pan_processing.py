@@ -9,7 +9,7 @@ import os
 import logging
 import sys
 
-__version__=0.1
+__version__="0.2.0"
 
 datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 logger = logging.getLogger()
@@ -30,11 +30,13 @@ def parse_params():
     parser.add_argument("--participants_file", type=PathExists, help="list of participants")
     parser.add_argument("--pipelines", nargs="+")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
-    parser.add_argument('--version', action='version', version='%(prog)s 1')
+    parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=__version__))
     return parser
 
 parser=parse_params()
 args, unknown_args = parser.parse_known_args()
+
+print(f"Running {__file__} v{__version__}")
 
 runtime_labels={}
 panpipe_labels={}
