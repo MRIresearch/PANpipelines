@@ -9,7 +9,7 @@ import os
 import logging
 import sys
 
-__version__="0.2.0"
+__version__="0.1.0"
 
 datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 logger = logging.getLogger()
