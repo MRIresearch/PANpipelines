@@ -1,7 +1,8 @@
 __all__ = [
-    "pipelines",
-    "nodes",
     "utils",
-    "workflows",
+    "Factory",
+    "pipelines",
     "scripts"
+    "workflows",
+    "nodes"
 ]

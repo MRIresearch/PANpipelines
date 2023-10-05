@@ -1,6 +1,7 @@
 from panprocessing.pipelines import *
 from panprocessing.scripts import *
 from panprocessing.utils.util_functions import *
+from panprocessing import Factory
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from functools import partial
 import json
@@ -10,7 +11,9 @@ import datetime
 import logging
 import sys
 
-__version__=0.1
+__version__="0.2.0"
+
+panFactory = Factory.getPANFactory()
 
 datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 logger = logging.getLogger()
@@ -28,11 +31,13 @@ def parse_params():
     parser.add_argument("config_file", type=PathExists, help="Pipeline Configuration File")
     parser.add_argument("pipeline", help="single running pipeline")
     parser.add_argument("credentials", help="credential file")
-    parser.add_argument('--version', action='version', version='%(prog)s 1')
+    parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=__version__))
     return parser
 
 parser=parse_params()
 args, unknown_args = parser.parse_known_args()
+
+print(f"Running {__file__} v{__version__}")
 
 panpipe_labels={}
 panpipe_labels = updateParams(panpipe_labels,'PWD',str(os.getcwd()))
@@ -97,12 +102,12 @@ if ARRAY_INDEX is not None and ARRAY_INDEX in os.environ.keys():
     
         getSubjectBids(panpipe_labels,bids_dir,participant_label,xnat_project,cred_user,cred_password)
 
-        pan_pipe_line=eval('{}.{}'.format(pipeline_class,pipeline_class))
+        panProcessor = panFactory.get_processflow(pipeline_class)
 
         pipeline_outdir_subject = os.path.join(pipeline_outdir,"sub-"+participant_label)
 
-        panpipe = pan_pipe_line(panpipe_labels,pipeline_outdir_subject, participant_label, name=pipeline,logging=logging,execution=execution_json)
-        panpipe.run()
+        PanProc = panProcessor(panpipe_labels,pipeline_outdir_subject, participant_label, name=pipeline,logging=logging,execution=execution_json)
+        PanProc.run()
 
         datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") 
         labels_base=pipeline + "_" + datelabel + ".json"

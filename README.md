@@ -1,2 +1,3 @@
 # PANpipelines
-Processing and analysis pipelines for the PAN Project
+---
+This repository contains all the necessary scripts for reproducing the steps taken to preprocess and analyze MRI data collected during the Precision Aging Network (PAN) project.
