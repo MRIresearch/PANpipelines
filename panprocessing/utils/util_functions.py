@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 import os
+import numpy as np
 import pandas as pd
 import datetime
 import subprocess
@@ -8,6 +9,13 @@ import shlex
 import json
 import glob
 import tempfile
+import math
+import multiprocessing as mp
+from panprocessing import Factory
+import logging
+
+
+panFactory = Factory.getPANFactory()
 
 def path_exists(path, parser):
     """Ensure a given path exists."""
@@ -427,13 +435,30 @@ def get_value_bytype(vartype,varstring):
     return varvalue
 
 def create_array(participants, participants_file):
-    df = pd.read_table(participants_file)
-    array=[]
-    for participant in participants:
-        array.append(str(df[df["xnat_subject_label"]==participant].index.values[0] + 1))
 
-    array.sort()
-    return  ",".join(array)
+    if participants is not None and len(participants) > 0:
+        array=[]
+        for participant in participants:
+            array.append(str(df[df["xnat_subject_label"]==participant].index.values[0] + 1))
+
+        array.sort()
+        return  ",".join(array)
+    else:
+        return "1:" + str(len(df))
+
+def get_projectmap(participants, participants_file):
+    df = pd.read_table(participants_file)
+
+    if participants is not None and len(participants) > 0:
+        project_list=[]
+        for participant in participants:
+            project_list.append(str(df[df["xnat_subject_label"]==participant].project.values[0]))
+        return  [ participants, project_list ]
+    else:
+        participant_list = df["xnat_subject_label"].tolist()
+        project_list = df["project"].tolist()
+        return  [ participant_list, project_list ]
+
 
 def create_script(header,template,panpipe_labels, script_file):
     with open(header,"r") as infile:
@@ -479,7 +504,7 @@ def getDependencies(job_ids,panpipe_labels,logging=None):
 
 
 
-def submit_script(participants, participants_file, pipeline, panpipe_labels,job_ids, logging=None, script_dir=None):
+def submit_script(participants, participants_file, pipeline, panpipe_labels,job_ids, analysis_level, logging=None, script_dir=None):
     headerfile=getParams(panpipe_labels,"SLURM_HEADER")
     templatefile=getParams(panpipe_labels,"SLURM_TEMPLATE")
     datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") 
@@ -599,3 +624,63 @@ def getTransName(fromfile, tofile):
     if fromfile is not None and tofile is not None:
         return "from-" + os.path.basename(fromfile).split(".")[0] + "_" + "to-" + os.path.basename(tofile).split(".")[0]
         
+def runSingleSubject(participant_label, xnat_project, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json):
+    panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
+    panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_PROJECT",xnat_project)
+
+    pipeline_outdir=os.path.join(pipeline_outdir,xnat_project)
+    if not os.path.exists(pipeline_outdir):
+        os.makedirs(pipeline_outdir,exist_ok=True)
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
+
+    datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    LOGFILE=os.path.join(pipeline_outdir,f"{datelabel}_{participant_label}_{xnat_project}_{pipeline}_pan_processing.log")
+    file_handler = logging.FileHandler(LOGFILE)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    logging.info(f"Running Pan Processing - {pipeline} pipeline for {participant_label}")
+    logging.info(f"start logging to {LOGFILE}")
+
+    
+    getSubjectBids(panpipe_labels,bids_dir,participant_label,xnat_project,cred_user,cred_password)
+
+    panProcessor = panFactory.get_processflow(pipeline_class)
+
+    pipeline_outdir_subject = os.path.join(pipeline_outdir,"sub-"+participant_label)
+
+    PanProc = panProcessor(panpipe_labels,pipeline_outdir_subject, participant_label, name=pipeline,logging=logging,execution=execution_json)
+    PanProc.run()
+
+    datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") 
+    labels_base=pipeline + "_" + datelabel + ".json"
+    export_file=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),f"{participant_label}_{labels_base}")                            
+    export_labels(panpipe_labels,export_file)
+
+def getProcNums(panpipe_labels):
+
+    procnum_list=[mp.cpu_count()]
+
+    try:
+        pipeline_count = int(getParams(panpipe_labels,"PIPELINE_THREADS"))
+        procnum_list.append(pipeline_count)
+    except ValueError as ve:
+        pass
+    
+
+    try:
+        ENV_PROCS = getParams(panpipe_labels,"ENV_PROCS")
+        if ENV_PROCS is not None and ENV_PROCS in os.environ.keys():
+            env_count = int(os.environ[ENV_PROCS])
+        procnum_list.append(env_count)
+    except ValueError as ve:
+        pass
+    
+    return int(np.min(np.array(procnum_list)))
+
+
+

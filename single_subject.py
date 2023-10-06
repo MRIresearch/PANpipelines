@@ -15,7 +15,6 @@ __version__="0.1.0"
 
 panFactory = Factory.getPANFactory()
 
-datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
@@ -81,22 +80,23 @@ if ARRAY_INDEX is not None and ARRAY_INDEX in os.environ.keys():
     df = pd.read_table(participants_file)
     if participant_index <= len(df):
         participant_label = drop_sub(df['bids_participant_id'].iloc[participant_index - 1])
-        panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
-
         xnat_project = df['project'].iloc[participant_index - 1]
+
+        panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
         panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_PROJECT",xnat_project)
 
         pipeline_outdir=os.path.join(pipeline_outdir,xnat_project)
         if not os.path.exists(pipeline_outdir):
             os.makedirs(pipeline_outdir,exist_ok=True)
 
+        datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         LOGFILE=os.path.join(pipeline_outdir,f"{datelabel}_{participant_label}_{xnat_project}_{pipeline}_pan_processing.log")
         file_handler = logging.FileHandler(LOGFILE)
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
-        logging.info(f"Running Pan Processing - {pipeline} pipeline")
+        logging.info(f"Running Pan Processing - {pipeline} pipeline for {participant_label}")
         logging.info(f"start logging to {LOGFILE}")
 
     
