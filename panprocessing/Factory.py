@@ -1,4 +1,3 @@
-from panprocessing.utils import *
 from panprocessing.pipelines import *
 from panprocessing.scripts import *
 import glob

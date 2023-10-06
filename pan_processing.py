@@ -1,5 +1,3 @@
-from panprocessing.pipelines import *
-from panprocessing.scripts import *
 from panprocessing.utils.util_functions import *
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from functools import partial
@@ -8,8 +6,12 @@ import pandas as pd
 import os
 import logging
 import sys
+import multiprocessing as mp
+from functools import partial
 
 __version__="0.1.0"
+
+PROCESSING_OPTIONS=["slurm", "local"]
 
 datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 logger = logging.getLogger()
@@ -106,20 +108,73 @@ for pipeline in pipelines:
     updateParams(panpipe_labels, "PIPELINE", pipeline)
     panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels,pipeline)
     analysis_level = getParams(panpipe_labels,"ANALYSIS_LEVEL")
-    analysis_node = getParams(panpipe_labels,"ANALYSIS_NODE")
 
-    if analysis_level == "group":
-        updateParams(panpipe_labels, "SLURM_TEMPLATE", getParams(panpipe_labels,"SLURM_GROUP_TEMPLATE"))
+    processing_environment=getParams(panpipe_labels,"PROCESSING_ENVIRONMENT") 
+
+    if processing_environment is None  or processing_environment not in PROCESSING_OPTIONS:
+        processing_environment = "slurm"
+
+    if processing_environment == "slurm":
+        analysis_node = getParams(panpipe_labels,"ANALYSIS_NODE")
+
+        if analysis_level == "group":
+            updateParams(panpipe_labels, "SLURM_TEMPLATE", getParams(panpipe_labels,"SLURM_GROUP_TEMPLATE"))
+        else:
+            updateParams(panpipe_labels, "SLURM_TEMPLATE", getParams(panpipe_labels,"SLURM_PARTICIPANT_TEMPLATE"))
+
+        if analysis_node == "gpu":
+            updateParams(panpipe_labels, "SLURM_HEADER", getParams(panpipe_labels,"SLURM_GPU_HEADER"))
+        else:
+            updateParams(panpipe_labels, "SLURM_HEADER", getParams(panpipe_labels,"SLURM_CPU_HEADER"))
+
+        # analysis_level seems somewhat redundant at the script level as we pass in the required SLURM TEMPLATE
+        # perhaps we can replace <<PYTHON_SCRIPT>> with single_subject.py or group.py depending on level?
+        jobid = submit_script(participant_label, participants_file, pipeline, panpipe_labels,job_ids, analysis_level, logging)
+
+        job_ids[pipeline]=jobid
+
+    elif processing_environment == "local":
+
+        if analysis_level == "participant":
+
+            pipeline_class = getParams(panpipe_labels,"PIPELINE_CLASS")
+            if pipeline_class is None:
+                pipeline_class = pipeline 
+
+            pipeline_outdir=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),pipeline)
+            if not os.path.exists(pipeline_outdir):
+                os.makedirs(pipeline_outdir,exist_ok=True)
+
+            bids_dir = getParams(panpipe_labels,"BIDS_DIR")
+
+            credentials = os.path.abspath(getParams(panpipe_labels,"CREDENTIALS"))
+            if credentials is not None and os.path.exists(credentials):
+                with open(credentials, 'r') as infile:
+                    cred_dict = json.load(infile)
+                    cred_user = getParams(cred_dict,"user")
+                    cred_password = getParams(cred_dict,"password")
+
+            execution_json=getParams(panpipe_labels,"NIPYPE_CONFIG")
+            if execution_json is None:
+                execution_json = {} 
+
+            parrunSingleSubject=partial(runSingleSubject, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
+
+            procs = getProcNums(panpipe_labels)
+            projectmap = get_projectmap(participant_label, participants_file)
+            participant_list = projectmap[0]
+            project_list  = projectmap[1]
+            with mp.Pool(procs) as pool:
+                completedlist = pool.starmap(parrunSingleSubject,zip(participant_list,project_list))
+                pool.close()
+                pool.join()
+        else:
+            # need to implement group analysis here
+            pass
+
     else:
-        updateParams(panpipe_labels, "SLURM_TEMPLATE", getParams(panpipe_labels,"SLURM_PARTICIPANT_TEMPLATE"))
+        logging.info(f"processing environment {processing_environment} not currently supported. Options are {PROCESSING_OPTIONS}.")
 
-    if analysis_node == "gpu":
-        updateParams(panpipe_labels, "SLURM_HEADER", getParams(panpipe_labels,"SLURM_GPU_HEADER"))
-    else:
-        updateParams(panpipe_labels, "SLURM_HEADER", getParams(panpipe_labels,"SLURM_CPU_HEADER"))
-
-    jobid = submit_script(participant_label, participants_file, pipeline, panpipe_labels,job_ids, logging)
-    job_ids[pipeline]=jobid
 
     panpipe_labels = remove_labels(panpipe_labels,panpipeconfig_json,pipeline)
     panpipe_labels = removeParam(panpipe_labels, "PIPELINE")
