@@ -4,6 +4,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch]
 version.source = "vcs"
+version.raw-options.local_scheme = "no-local-version"
 build.hooks.vcs.version-file = "src/panpipelines/version.py"
 
 [project]
