@@ -1,24 +1,6 @@
 # custom
-startenv.sh
-*.nii.gz
-*.nii
-*.dot
-*.png
-*.pklz
-*.log
-*.html
-*.rst
-data/
-debug/
-run_pan.sh
-pan_output*/
-credentials.json
-eddy_params.json
-freebash.sh
-license.txt
-panpipeconfig.config
-atlas/
-TemplateFlow
+deployment/
+deployment_external/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
