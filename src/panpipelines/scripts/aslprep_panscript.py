@@ -158,7 +158,7 @@ class aslprep_panscript(panscript):
                     else:
                         aslcontext_values.append("label")
             elif aslcontext_order == "label:control":
-                for count in range(ask_volumes):
+                for count in range(asl_volumes):
                     if count%2 == 0:
                         aslcontext_values.append("label")
                     else:

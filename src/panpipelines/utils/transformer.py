@@ -304,12 +304,12 @@ def ants_registration_ori(moving, reference, transform, NEURO_CONTAINER, transfo
     ref_ori = get_orientation_from_file(reference,"image")
     if not ref_ori[0] == expected_ref_ori:
         print("reorienting  ref_file {} from ref_ori {} to expected_ref_ori {}".format(reference, ref_ori, expected_ref_ori))
-        reference=reorient(reference, expected_ref_ori, os.path.dirname(out_file))
+        reference=reorient(reference, expected_ref_ori, os.path.dirname(transform))
 
     mov_ori = get_orientation_from_file(moving,"image")
     if not mov_ori[0] == expected_mov_ori:
         print("reorienting input_file (moving) {} from mov_ori {} to expected_mov_ori {}".format(moving, mov_ori, expected_mov_ori))
-        moving=reorient(moving, expected_mov_ori, os.path.dirname(out_file))
+        moving=reorient(moving, expected_mov_ori, os.path.dirname(transform))
     
     if composite:
         composite_param= " --write-composite-transform 1"
@@ -426,12 +426,12 @@ def ants_registration_rigid_ori(moving, reference, transform, NEURO_CONTAINER,tr
     ref_ori = get_orientation_from_file(reference,"image")
     if not ref_ori[0] == expected_ref_ori:
         print("reorienting  ref_file {} from ref_ori {} to expected_ref_ori {}".format(reference, ref_ori, expected_ref_ori))
-        reference=reorient(reference, expected_ref_ori, os.path.dirname(out_file))
+        reference=reorient(reference, expected_ref_ori, os.path.dirname(transform))
 
     mov_ori = get_orientation_from_file(moving,"image")
     if not mov_ori[0] == expected_mov_ori:
         print("reorienting input_file (moving) {} from mov_ori {} to expected_mov_ori {}".format(moving, mov_ori, expected_mov_ori))
-        moving=reorient(moving, expected_mov_ori, os.path.dirname(out_file))
+        moving=reorient(moving, expected_mov_ori, os.path.dirname(transform))
 
     params="--collapse-output-transforms 1" \
     " --dimensionality 3" \
@@ -504,12 +504,12 @@ def ants_registration_quick_ori(moving, reference, transform, NEURO_CONTAINER,tr
     ref_ori = get_orientation_from_file(reference,"image")
     if not ref_ori[0] == expected_ref_ori:
         print("reorienting  ref_file {} from ref_ori {} to expected_ref_ori {}".format(reference, ref_ori, expected_ref_ori))
-        reference=reorient(reference, expected_ref_ori, os.path.dirname(out_file))
+        reference=reorient(reference, expected_ref_ori, os.path.dirname(transform))
 
     mov_ori = get_orientation_from_file(moving,"image")
     if not mov_ori[0] == expected_mov_ori:
         print("reorienting input_file (moving) {} from mov_ori {} to expected_mov_ori {}".format(moving, mov_ori, expected_mov_ori))
-        moving=reorient(moving, expected_mov_ori, os.path.dirname(out_file))
+        moving=reorient(moving, expected_mov_ori, os.path.dirname(transform))
 
     params=f" -f {reference}" \
     f" -m {moving}" \
