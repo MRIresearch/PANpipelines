@@ -11,11 +11,8 @@ import glob
 import tempfile
 import math
 import multiprocessing as mp
-from panpipelines import Factory
 import logging
 
-
-panFactory = Factory.getPANFactory()
 
 def path_exists(path, parser):
     """Ensure a given path exists."""
@@ -624,43 +621,6 @@ def getTransName(fromfile, tofile):
     if fromfile is not None and tofile is not None:
         return "from-" + os.path.basename(fromfile).split(".")[0] + "_" + "to-" + os.path.basename(tofile).split(".")[0]
         
-def runSingleSubject(participant_label, xnat_project, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json):
-    panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
-    panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_PROJECT",xnat_project)
-
-    pipeline_outdir=os.path.join(pipeline_outdir,xnat_project)
-    if not os.path.exists(pipeline_outdir):
-        os.makedirs(pipeline_outdir,exist_ok=True)
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
-
-    datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    LOGFILE=os.path.join(pipeline_outdir,f"{datelabel}_{participant_label}_{xnat_project}_{pipeline}_pan_processing.log")
-    file_handler = logging.FileHandler(LOGFILE)
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    logging.info(f"Running Pan Processing - {pipeline} pipeline for {participant_label}")
-    logging.info(f"start logging to {LOGFILE}")
-
-    
-    getSubjectBids(panpipe_labels,bids_dir,participant_label,xnat_project,cred_user,cred_password)
-
-    panProcessor = panFactory.get_processflow(pipeline_class)
-
-    pipeline_outdir_subject = os.path.join(pipeline_outdir,"sub-"+participant_label)
-
-    PanProc = panProcessor(panpipe_labels,pipeline_outdir_subject, participant_label, name=pipeline,logging=logging,execution=execution_json)
-    PanProc.run()
-
-    datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") 
-    labels_base=pipeline + "_" + datelabel + ".json"
-    export_file=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),f"{participant_label}_{labels_base}")                            
-    export_labels(panpipe_labels,export_file)
-
 def getProcNums(panpipe_labels):
 
     procnum_list=[mp.cpu_count()]

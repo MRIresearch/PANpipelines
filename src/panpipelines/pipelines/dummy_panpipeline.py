@@ -2,7 +2,7 @@ from panpipelines.utils.util_functions import *
 from panpipelines.pipelines.panpipeline import *
 import os
 import glob
-
+import panpipelines.workflows.dummy_workflow as panworkflow
 
 class dummy_panpipeline(panpipeline):
 
@@ -11,8 +11,6 @@ class dummy_panpipeline(panpipeline):
         super().__init__(labels_dict,pipeline_dir, participant_label,name,createGraph,logging,execution)
 
     def proc(self):
-        import panpipelines.workflows.dummy_workflow as panworkflow
-
         workflow_dir = self.pipeline_dir
         workflow_name = "{}_wf".format(self.name)
 

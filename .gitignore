@@ -1,6 +1,7 @@
 # custom
 deployment/
 deployment_external/
+deployment_development/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
