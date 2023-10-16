@@ -612,12 +612,12 @@ def fsl_register_nonlin(input,reference,out,neuroimg):
     fsl_reg_fnirt(input,reference,fwd_warp_out,fwd_warp,neuroimg,transmat=pre_aff)
     
     inv_warp = util_functions.newfile(prefix=f"{trans_str}",suffix="invwarp",extension="nii.gz")
-    invertWarpfield_FNIRT(orig_source, fwd_warp, inv_warp, neuroimg)
+    invertWarpfield_FNIRT(input, fwd_warp, inv_warp, neuroimg)
     
     return {"forward": fwd_warp, "inverse": inv_warp}
 
     
-def applyWarp_fnirt(input,reference,out,transwarp,neuroimg,interp="trilinear",premat=None,postmap=None):
+def applyWarp_fnirt(input,reference,out,transwarp,neuroimg,interp="trilinear",premat=None,postmat=None):
 
     if premat is not None:
         premat_param=f"--premat={premat}"
@@ -712,12 +712,12 @@ def invertAffine_FLIRT(fwd_affine, inv_affine, neuroimg):
 
 def invertAffine_ANTS(fwd_affine, inv_affine, moving, reference, neuroimg):
     fsl_fwd_affine = tempfile.mkstemp()[1] + ".mat"
-    transformer.convert_affine_ants_to_fsl(fwd_affine, moving, reference,  fsl_fwd_affine)
+    convert_affine_ants_to_fsl(fwd_affine, moving, reference,  fsl_fwd_affine)
     
     fsl_inv_affine = tempfile.mkstemp()[1] + ".mat"
     invertAffine_FLIRT(fsl_fwd_affine, fsl_inv_affine, neuroimg)
     
-    transformer.convert_affine_fsl_to_ants(fsl_inv_affine, reference, moving, inv_affine)
+    convert_affine_fsl_to_ants(fsl_inv_affine, reference, moving, inv_affine)
 
 if __name__ == '__main__':
     import sys
@@ -729,12 +729,12 @@ if __name__ == '__main__':
                 moving=sys.argv[3]
                 refimg=sys.argv[4]
                 fsltrans_file=sys.argv[5]
-                ants_to_fsl(antstrans_file, moving, reference, fsltrans_file)
+                convert_affine_ants_to_fsl(antstrans_file, moving, refimg, fsltrans_file)
         elif func == "ants_to_fsl":
             if len(sys.argv) > 5:
                 antstrans_file=sys.argv[2]
                 moving=sys.argv[3]
                 refimg=sys.argv[4]
                 fsltrans_file=sys.argv[5]
-                ants_to_fsl(antstrans_file, moving, reference, fsltrans_file)
+                convert_affine_ants_to_fsl(antstrans_file, moving, refimg, fsltrans_file)
 
