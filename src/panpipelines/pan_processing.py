@@ -160,16 +160,23 @@ def main():
                 if execution_json is None:
                     execution_json = {} 
 
-                parrunSingleSubject=partial(runSingleSubject, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
-
                 procs = getProcNums(panpipe_labels)
                 projectmap = get_projectmap(participant_label, participants_file)
                 participant_list = projectmap[0]
                 project_list  = projectmap[1]
-                with mp.Pool(procs) as pool:
-                    completedlist = pool.starmap(parrunSingleSubject,zip(participant_list,project_list))
-                    pool.close()
-                    pool.join()
+
+                # run serially if procs < 2
+                if procs > 1:
+                    parrunSingleSubject=partial(runSingleSubject, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
+                    with mp.Pool(procs) as pool:
+                        completedlist = pool.starmap(parrunSingleSubject,zip(participant_list,project_list))
+                        pool.close()
+                        pool.join()
+                else:
+                    for part_count in range(len(participant_list)):
+                        runSingleSubject(participant_list[part_count], project_list[part_count],pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
+
+
             else:
                 # need to implement group analysis here
                 pass

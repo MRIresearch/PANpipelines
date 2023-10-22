@@ -21,15 +21,19 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type):
     df=None
     basefile_name = os.path.basename(textdata)
     if "aseg" in basefile_name or textdata_type=="aseg":
-        df = get_freesurfer_genstats(textdata,columns=["Volume_mm3"], participant_label=participant_label)
+        df = get_freesurfer_genstats(textdata,columns=["Volume_mm3"], prefix="aseg",participant_label=participant_label)
     if "lh.aparc.a2009s" in basefile_name or textdata_type=="lh.aparc.a2009s":
-        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="lh",participant_label=participant_label)
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="lh-Destrieux",participant_label=participant_label)
     if "rh.aparc.a2009s" in basefile_name or textdata_type=="rh.aparc.a2009s":
-        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="rh",participant_label=participant_label)
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="rh-Destrieux",participant_label=participant_label)
+    if "lh.aparc" in basefile_name or textdata_type=="lh.aparc":
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="lh-DK",participant_label=participant_label)
+    if "rh.aparc" in basefile_name or textdata_type=="rh.aparc":
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="rh-DK",participant_label=participant_label)     
     if "hipposubfields.lh" in basefile_name or textdata_type=="hipposubfields.lh":
-        df = get_freesurfer_hippostats(textdata,prefix="lh", participant_label=participant_label)
+        df = get_freesurfer_hippostats(textdata,prefix="lh-hipposf", participant_label=participant_label)
     if "hipposubfields.rh" in basefile_name or textdata_type=="hipposubfields.rh":
-        df = get_freesurfer_hippostats(textdata,prefix="rh", participant_label=participant_label)
+        df = get_freesurfer_hippostats(textdata,prefix="rh-hipposf", participant_label=participant_label)
 
 
     if df is not None:

@@ -6,6 +6,8 @@ import glob
 import numpy as np 
 import nibabel as nib
 import pandas as pd
+import json
+import datetime
 
 def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
@@ -34,12 +36,61 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
     table_columns = [x.replace('\n','') for x in lines]
     df2 = pd.read_table(roi_raw_txt,sep=r"\s+",header=None)
-    df2.insert(0,"subject_id",["sub-"+participant_label])
-    table_columns.insert(0,"subject_id")
-    df2.columns = table_columns
+    numrows = len(df2)
     
-    roi_csv = os.path.join(roi_output_dir,'{}_{}_{}.csv'.format((participant_label),get_modality(input_file),os.path.basename(atlas_file).split('.')[0]))
-    df2.to_csv(roi_csv,sep=",",header=True, index=False)
+    csv_basename = ""
+
+    atlas_name = getParams(labels_dict,'ATLAS_NAME')
+    if not atlas_name:
+        atlas_name = os.path.basename(atlas_file).split('.')[0].split('_')[0].split('-')[0]
+    csv_basename = f"atlas-{atlas_name}"
+
+    modality = get_bidstag("desc",input_file,True)
+    if modality:
+        modality=modality[-1].split(".")[0]
+        csv_basename = csv_basename + "_" + modality
+    else:
+        modality = os.path.basename(input_file).split('.')[0].split('_')[-1].split('-')[-1]
+        csv_basename = csv_basename + "_" + modality
+
+    session = get_bidstag("ses",input_file)
+    if session:
+        csv_basename = session + "_" + csv_basename
+        table_columns = [f"{atlas_name}.{x}.{session}.{modality}" for x in table_columns]
+    else:
+        table_columns = [f"{atlas_name}.{x}.{modality}" for x in table_columns]
+
+    csv_basename = f"sub-{participant_label}" + "_" + csv_basename
+    roi_csv = os.path.join(roi_output_dir,'{}.csv'.format(csv_basename))
+
+    if numrows < 2:
+        df2.insert(0,"subject_id",["sub-"+participant_label])
+        table_columns.insert(0,"subject_id")
+
+        df2.columns = table_columns
+        df2.to_csv(roi_csv,sep=",",header=True, index=False)
+    else:
+        flat_vals=[]
+        flat_tablecolumns=[]
+        for count in range(numrows):
+            flat_vals.extend(df2.iloc[count].to_list())
+            flat_tablecolumns.extend([x + f".{count}" for x in table_columns])
+        newdf=pd.DataFrame([flat_vals])
+        newdf.insert(0,"subject_id",["sub-"+participant_label])
+        flat_tablecolumns.insert(0,"subject_id")
+        newdf.columns = flat_tablecolumns
+        newdf.to_csv(roi_csv,sep=",",header=True, index=False)
+
+
+    metadata = {}
+    roi_json = os.path.join(roi_output_dir,'{}.json'.format(csv_basename))
+    metadata = updateParams(metadata,"Title","roi_mean_single")
+    metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
+    metadata = updateParams(metadata,"Atlas File",atlas_file)
+    metadata = updateParams(metadata,"Atlas Labels",atlas_index)
+    metadata = updateParams(metadata,"Input File",atlas_index)
+    metadata = updateParams(metadata,"Command",evaluated_command)
+    export_labels(metadata,roi_json)
 
 
     out_files=[]
@@ -93,15 +144,8 @@ def create(labels_dict,name="roi_mean_single_node",input_file="",atlas_file="",a
     pan_node = Node(roi_mean_single_pan(), name=name)
     # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
-    if not input_file is None or not input_file == "":
-        pan_node.inputs.input_file = input_file
-
-    if atlas_file is None or atlas_file == "":
-        atlas_file = getParams(labels_dict,"ATLAS_FILE")
+    pan_node.inputs.input_file = input_file
     pan_node.inputs.atlas_file =  atlas_file
-
-    if atlas_index  is None or atlas_index  == "":
-        atlas_index = getParams(labels_dict,"ATLAS_INDEX")
     pan_node.inputs.atlas_index =  atlas_index
 
     return pan_node

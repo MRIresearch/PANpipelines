@@ -7,11 +7,12 @@ __all__ = [
     "tensor",
     "roi_mean_single",
     "roi_mean_group",
-    "parse_texstdata",
+    "parse_textdata",
     "collate_csv_single",
     "basil",
     "fslanat",
     "aslprep",
     "fmriprep",
-    "dummy_node"
+    "dummy_node",
+    "atlascreate.py"
 ]

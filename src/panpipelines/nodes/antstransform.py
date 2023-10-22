@@ -1,18 +1,32 @@
 from nipype.interfaces.base import BaseInterfaceInputSpec, BaseInterface, File, TraitedSpec, traits
 from nipype import Node
 from panpipelines.utils.util_functions import *
+from panpipelines.utils.transformer import *
 import os
 import glob
 import nibabel as nb
+import pathlib
 
 def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
 
     cwd=os.getcwd()
+    output_dir = cwd
 
-    trans_mat_basename = os.path.basename(trans_mat)
+    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    work_dir = os.path.join(cwd,'{}_workdir'.format(participant_label))
+    if not os.path.isdir(work_dir):
+        os.makedirs(work_dir)
+
+    trans_parts = substitute_labels(trans_mat[-1],labels_dict).split(":")
+    if len(trans_parts)>2:
+        trans_mat_last = trans_parts[2]
+    else:
+        trans_mat_last = trans_parts[0]
+
+    trans_mat_basename = os.path.basename(trans_mat_last)
     find_new_space = trans_mat_basename.split("_to-")
     if len(find_new_space) > 1:
-        trans_space="_space-"+trans_mat_basename.split("_to-")[1].split("_mode")[0] + "_"
+        trans_space="space-"+trans_mat_basename.split("_to-")[1].split("_")[0] 
     else:
         trans_space=trans_mat_basename.split(".")[0]
 
@@ -20,64 +34,98 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     input_file_basename = os.path.basename(input_file)
     find_old_space=input_file_basename.split("_space-")
     if len(find_old_space) > 1:
-        old_space="_space-" + input_file_basename.split("_space-")[1].split("_")[0] + "_"
+        old_space="space-" + input_file_basename.split("_space-")[1].split("_")[0] 
     else:
         old_space=None
 
-    output_dir = getParams(labels_dict,'CUSTOM_OUTPUT_DIR')
-    if output_dir is None:
-        output_dir = cwd
-
-
-    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    
     if old_space is not None:
         out_file = os.path.join(output_dir,input_file_basename.replace(old_space, trans_space))
     else:
-        out_file = os.path.join(output_dir,insert_bidstag("desc-"+trans_space, input_file_basename ))
+        out_file = newfile(output_dir,input_file_basename,intwix=trans_space)
 
     costfunction = getParams(labels_dict,'COST_FUNCTION')
     if costfunction is None:
         costfunction="LanczosWindowedSinc"
 
-    img = nb.load(input_file)
-    dimz=1
-    if len(img.header.get_data_shape()) > 3:
-        dimz = img.header.get_data_shape()[3]
+    output_type = getParams(labels_dict,'OUTPUT_TYPE')
 
-    image_type = 1
-    if dimz > 1:
-        image_type = 3
-    
-    # for labels, atlases consider -n NearestNeighbor
-    params="-d 3" \
-        " -e " + image_type +\
-        " -i " + input_file +\
-        " -f 0"\
-        " --float 1"\
-        " -n "+costfunction+\
-        " -o "+ out_file +\
-        " -r " + ref_file + \
-        " -t " + trans_mat + \
-        " -v 1"
 
-    command="singularity run --cleanenv --no-home <NEURO_CONTAINER> antsApplyTransforms"\
-            " "+params
+    NEURO_CONTAINER = getParams(labels_dict,'NEURO_CONTAINER')
+    TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
 
-    evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
 
-    command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslreorient2std"\
-            " "+out_file+" "+out_file
-    evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    transform_list=[]
+    reverse_list=[]
 
-    # quick hack to fix issue with mapnodes - 5 dims instead of 3 dims used in header
-    command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslroi"\
-            " "+out_file+" "+out_file + " 0 "+str(dimz)
-    evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    for trans in trans_mat:
+        trans_parts = trans.split(":")
+        transform = substitute_labels(trans_parts[0],labels_dict)
+        trans_basename = os.path.basename(transform)
+        trans_type =""
+        trans_source = ""
+        trans_reference = ""
+        trans_reverse =  ""
 
- 
+        if len(trans_parts) == 5:
+            trans_type = trans_parts[1]
+            trans_source = substitute_labels(trans_parts[2],labels_dict)
+            trans_reference = trans_parts[3]
+            trans_reverse = trans_parts[4]
+        elif len(trans_parts) == 4:
+            trans_type = trans_parts[1]
+            trans_source = substitute_labels(trans_parts[2],labels_dict)
+            trans_reference = trans_parts[3]
+        elif len(trans_parts) == 3:
+            trans_type = trans_parts[1]
+            trans_source = substitute_labels(trans_parts[2],labels_dict)
+        elif len(trans_parts) == 2:
+            trans_type = trans_parts[1]
+
+        if trans_reverse:
+            if trans_reverse == "True":
+                reverse_list.append(True)
+            else:
+                reverse_list.append(False)
+
+        else:
+            reverse_list.append(False)
+
+
+               
+        if transform == "from-MNI152NLin6Asym_to-MNI152NLin2009cAsym_res-1":
+            resolution=1
+            trans = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
+            #last_ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
+            transform_list.append(str(trans))
+        elif trans_type == "FSL":
+            new_ants_transform=newfile(work_dir,transform,suffix="ants-transform")
+            if pathlib.Path(transform).suffix == ".gz":
+                convertwarp_toANTS(transform,trans_source, new_ants_transform, NEURO_CONTAINER )
+                transform_list.append(new_ants_transform)
+            else:
+                convert_affine_fsl_to_ants(transform, trans_source, trans_reference, new_ants_transform)
+                transform_list.append(new_ants_transform)
+
+    if ref_file == "MNI152NLin2009cAsym_res-1":
+        resolution=1
+        ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
+
+
+
+    apply_transform_ants_ori(input_file,
+                            ref_file,
+                            out_file,
+                            transform_list,
+                            NEURO_CONTAINER,                                              
+                            costfunction=costfunction,
+                            output_type=output_type,
+                            reverse=reverse_list)
+
+
+
+
+
     out_files=[]
     out_files.insert(0,out_file)
 
@@ -93,7 +141,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
 class antstransformInputSpec(BaseInterfaceInputSpec):
     labels_dict = traits.Dict({},mandatory=False,desc='labels', usedefault=True)
     input_file = File(mandatory=True,desc="Image file to transform")
-    trans_mat = File(mandatory=False,desc="Image file to transform")
+    trans_mat = traits.List(desc='list of transforms')
     ref_file = File(mandatory=False,desc="Image file to transform")
 
 class antstransformOutputSpec(TraitedSpec):
@@ -129,14 +177,7 @@ def create(labels_dict,name="antstransform_node",input_file="",trans_mat="",ref_
     # Specify node inputs
 
     pan_node.inputs.labels_dict = labels_dict
-    pan_node.inputs.input_file =  input_file
-
-    if trans_mat is None or trans_mat == "" or not os.path.isfile(trans_mat):
-        trans_mat  = substitute_labels("<QSIPREP_TRANS_MAT>", labels_dict)
-
-    if ref_file is None or ref_file == "" or not os.path.isfile(ref_file):
-        ref_file = substitute_labels("<QSIPREP_REF_FILE>", labels_dict)
-        
+    pan_node.inputs.input_file =  input_file       
     pan_node.inputs.trans_mat =  trans_mat
     pan_node.inputs.ref_file =  ref_file
 

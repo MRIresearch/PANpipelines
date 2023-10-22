@@ -220,13 +220,16 @@ def get_entities(file):
     return entity
 
 
-def get_bidstag(tag,file):
+def get_bidstag(tag,file,all_occurences=False):
     dir_name = os.path.dirname(file)
     file_name = os.path.basename(file)
 
     tag=list(filter(lambda x: "{}-".format(tag) in x, file_name.split("_")))
     if tag:
-        return tag[0]
+        if all_occurences:
+            return tag
+        else:
+            return tag[0]
     else:
         return None
 
@@ -345,7 +348,7 @@ def get_freesurfer_hippostats(stats_file, prefix="",participant_label=""):
     table_columns = [x.split(" ")[-1] for x in lines]
     table_columns = [x.replace('\n','') for x in table_columns]
     table_columns = table_columns[1:]
-    table_columns =[ prefix + x for x in table_columns]
+    table_columns =[ prefix + x  + ".Volume" for x in table_columns]
     table_values = [x.split()[-2] for x in lines]
     table_values = table_values[1:]
 
@@ -566,7 +569,7 @@ def getFirstFromList(itemlist,default_result=""):
     else:
         return default_result
 
-def newfile(outputdir=None, assocfile=None, prefix=None, suffix=None, extension=None, replace=False):
+def newfile(outputdir=None, assocfile=None, prefix=None, suffix=None, intwix=None, extension=None, replace=False):
    
     if assocfile is None:
         assocfile = tempfile.mkstemp()[1]
@@ -614,6 +617,11 @@ def newfile(outputdir=None, assocfile=None, prefix=None, suffix=None, extension=
                 filename = basename + extension
             else:
                 filename = basename + "_"+ suffix + extension
+
+    if not intwix is None:
+        filename = "_".join(filename.split("_")[0:-1] + [intwix] + [filename.split("_")[-1]])
+
+
                 
     return os.path.join(outputdir,filename)
         
@@ -641,6 +649,63 @@ def getProcNums(panpipe_labels):
         pass
     
     return int(np.min(np.array(procnum_list)))
+
+
+def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, up_thresh=None,low_thresh=None,prob_thresh=0.5):
+
+    if prob_thresh:
+        PROBTHRESH=f" -thr {prob_thresh}"
+    else:
+        PROBTHRESH=""
+
+    if up_thresh:
+        UPPER=f" -uthr {up_thresh}"
+    else:
+        UPPER = ""
+
+    if low_thresh:
+        LOWER=f" -thr {low_thresh}"
+    else:
+        LOWER=""
+
+    if os.path.exists(atlas_file):
+        command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+            f"  {roi_in}" +\
+            PROBTHRESH +\
+            " -bin "\
+            f" -mul {roi_value}" \
+            f" -add {atlas_file}" +\
+            LOWER +\
+            UPPER +\
+            f" {atlas_file}"
+    else:
+        command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+            f"  {roi_in}" +\
+            PROBTHRESH +\
+            " -bin "\
+            f" -mul {roi_value}" \
+            f" {atlas_file}" 
+    
+    evaluated_command = substitute_labels(command,panpipe_labels)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    return atlas_file
+
+
+def create_atlas_from_rois(atlas_file, roi_list,panpipe_labels, roi_values=None):
+    numrois=len(roi_list)
+    if roi_values is None:
+        roi_values=range(1,numrois+1)
+
+    # create rois
+    for roi_num in range(numrois):
+        roi = roi_list[roi_num]
+        roi_value = roi_values[roi_num]
+        add_atlas_roi(atlas_file, roi, roi_value, panpipe_labels,up_thresh=roi_value)
+
+    return atlas_file
+
 
 
 

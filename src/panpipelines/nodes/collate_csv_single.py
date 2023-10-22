@@ -6,7 +6,7 @@ import glob
 import numpy as np 
 import nibabel as nib
 
-def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, noprefix):
+def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
     cwd=os.getcwd()
     output_dir=cwd
@@ -25,7 +25,6 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, noprefix):
 
     out_files=[]
     roi_csv = None
-    cum_prefix=""
     if len(csv_list) > 0:
         cum_table_data = []
         cum_table_columns=[]
@@ -38,8 +37,7 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, noprefix):
             else:
                 prefix= filenames[0]+"."
 
-            cum_prefix=cum_prefix+prefix
-            if noprefix:
+            if not add_prefix:
                 prefix=""
 
             df = pd.read_table(csv_file,sep=",")
@@ -54,9 +52,7 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, noprefix):
         cum_df.columns = cum_table_columns
         cum_df.insert(0,"subject_id",["sub-"+participant_label])
 
-        if cum_prefix[-1]==".":
-            cum_prefix=cum_prefix[:-1]   
-        roi_csv = os.path.join(roi_output_dir,'{}_{}.csv'.format(participant_label,cum_prefix))
+        roi_csv = os.path.join(roi_output_dir,'{}_{}.csv'.format(participant_label,getParams(labels_dict,"COLLATE_NAME")))
         cum_df.to_csv(roi_csv,sep=",",header=True, index=False)
 
         out_files.insert(0,roi_csv)
@@ -74,7 +70,7 @@ class collate_csv_singleInputSpec(BaseInterfaceInputSpec):
     labels_dict = traits.Dict({},mandatory=False,desc='labels', usedefault=True)
     csv_list1 = traits.List(desc='list of files')
     csv_list2 = traits.List(desc='list of files')
-    noprefix = traits.Bool(False,desc="Create header prefix while joining tables",usedefault=True)
+    add_prefix = traits.Bool(False,desc="Create header prefix while joining tables",usedefault=True)
 
 class collate_csv_singleOutputSpec(TraitedSpec):
     roi_csv = File(desc='CSV file of results')
@@ -93,7 +89,7 @@ class collate_csv_single_pan(BaseInterface):
             self.inputs.labels_dict,
             self.inputs.csv_list1,
             self.inputs.csv_list2,
-            self.inputs.noprefix
+            self.inputs.add_prefix
         )
 
         setattr(self, "_results", outputs)
@@ -104,7 +100,7 @@ class collate_csv_single_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="collate_csv_single_node",csv_list1="",csv_list2=""):
+def create(labels_dict,name="collate_csv_single_node",csv_list1="",csv_list2="",add_prefix=False):
     # Create Node
     pan_node = Node(collate_csv_single_pan(), name=name)
     # Specify node inputs
@@ -114,7 +110,9 @@ def create(labels_dict,name="collate_csv_single_node",csv_list1="",csv_list2="")
         pan_node.inputs.csv_list1 = csv_list1
  
     if not csv_list2 is None and not csv_list2 == "":
-        pan_node.inputs.csv_list2 = csv_list2                
+        pan_node.inputs.csv_list2 = csv_list2
+
+    pan_node.inputs.add_prefix =  add_prefix
 
     return pan_node
 

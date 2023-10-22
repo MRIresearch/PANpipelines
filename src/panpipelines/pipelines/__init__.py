@@ -7,5 +7,8 @@ __all__ = [
     "tensor_panpipeline",
     "noddi_panpipeline",
     "panpipeline",
-    "dummy_panpipeline"
+    "dummy_panpipeline",
+    "volmeasures_panpipeline",
+    "textmeasures_panpipeline",
+    "collatecsv_panpipeline"
 ]

@@ -25,6 +25,9 @@ class PANFactory:
         self.register_pipeline("panpipeline",panpipeline.panpipeline)
         self.register_pipeline("qsiprep_panpipeline",qsiprep_panpipeline.qsiprep_panpipeline)
         self.register_pipeline("tensor_panpipeline",tensor_panpipeline.tensor_panpipeline)
+        self.register_pipeline("volmeasures_panpipeline",volmeasures_panpipeline.volmeasures_panpipeline)
+        self.register_pipeline("textmeasures_panpipeline",textmeasures_panpipeline.textmeasures_panpipeline)
+        self.register_pipeline("collatecsv_panpipeline",collatecsv_panpipeline.collatecsv_panpipeline)
 
         self.scriptDictionary = {}
         self.register_script("aslprep_panscript",aslprep_panscript.aslprep_panscript)
