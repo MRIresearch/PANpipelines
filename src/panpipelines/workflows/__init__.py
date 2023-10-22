@@ -6,5 +6,8 @@ __all__ = [
     "fmriprep_workflow",
     "basil_workflow",
     "aslprep_workflow",
-    "dummy_workflow"
+    "dummy_workflow",
+    "volmeasures_workflow",
+    "textmeasures_workflow",
+    "collatecsv_workflow"
 ]

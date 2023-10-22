@@ -56,24 +56,34 @@ def convert_affine_fsl_to_ants(fsltrans_file, moving, reference, antstrans_file)
     antstr=nit.io.itk.ITKLinearTransform.from_ras(fsltrans.to_ras(moving,refimg))
     antstr.to_filename(antstrans_file)
 
-def get_template_ref(TEMPLATEFLOW_HOME,template_space,modality,resolution,extension=[".nii.gz"]):
+def get_template_ref(TEMPLATEFLOW_HOME,template_space,suffix=None,desc=None,resolution=None,extension=[".nii.gz"]):
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     
     from templateflow import api as tf
     
-    template_ref=tf.get(template_space,resolution=resolution,desc=None,suffix=modality,extension=extension)
+    template_ref=tf.get(template_space,resolution=resolution,desc=desc,suffix=suffix,extension=extension)
     return template_ref
 
-def apply_transform_mni_to_mni2009_ants(TEMPLATEFLOW_HOME,input_file,out_file, NEURO_CONTAINER,resolution=1,reverse=False, costfunction=None):
+def apply_transform_mni_to_mni2009_ants_ori(TEMPLATEFLOW_HOME,input_file,out_file, NEURO_CONTAINER,resolution=1,transform_ori="RAS:RAS",target_ori="RAS",reverse=False, costfunction=None,output_type=None):
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
 
     from templateflow import api as tf
     mninlin6_mni2009_trans=tf.get("MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
     mni2009_t1_ref=tf.get("MNI152NLin2009cAsym",resolution=resolution,desc=None,suffix="T1w",extension=[".nii.gz"])
 
-    apply_transform_ants(input_file, mni2009_t1_ref,out_file,mninlin6_mni2009_trans,NEURO_CONTAINER,reverse=reverse, costfunction=costfunction)
+    apply_transform_ants_ori(input_file, mni2009_t1_ref,out_file,mninlin6_mni2009_trans,NEURO_CONTAINER,transform_ori="RAS:RAS",target_ori="RAS",reverse=reverse, costfunction=costfunction,output_type=output_type)
 
-def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, NEURO_CONTAINER, transform_ori="RAS:RAS",target_ori="RAS", reverse=False, costfunction=None):
+
+def apply_transform_mni_to_mni2009_ants(TEMPLATEFLOW_HOME,input_file,out_file, NEURO_CONTAINER,resolution=1,reverse=False, costfunction=None,output_type=None):
+    os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
+
+    from templateflow import api as tf
+    mninlin6_mni2009_trans=tf.get("MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
+    mni2009_t1_ref=tf.get("MNI152NLin2009cAsym",resolution=resolution,desc=None,suffix="T1w",extension=[".nii.gz"])
+
+    apply_transform_ants(input_file, mni2009_t1_ref,out_file,mninlin6_mni2009_trans,NEURO_CONTAINER,reverse=reverse, costfunction=costfunction,output_type=output_type)
+
+def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, NEURO_CONTAINER, transform_ori="RAS:RAS",target_ori="RAS", reverse=False, costfunction=None, output_type=None):
 
     input_file = os.path.abspath(input_file)
     ref_file=os.path.abspath(ref_file)
@@ -105,6 +115,11 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, NEURO_CON
     if dimz > 1:
         image_type = "3"
 
+    if output_type:
+        output_type = f"-u {output_type}"
+    else:
+        output_type = ""
+
     TRANSFORMS=""
     if isinstance(trans_mat,list) and isinstance(reverse,list):
         for transcount in range(len(trans_mat)):
@@ -130,11 +145,13 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, NEURO_CON
         " -o " + str(out_file) +\
         " -r " + str(ref_file) + \
         TRANSFORMS + \
-        " -v 1"
+        " -v 1"  + \
+        " " + output_type
 
     command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsApplyTransforms"\
             " "+params
 
+    print(command)
     os.system(command)
 
     # quick hack to fix issue with templateflow transfomr - 5 dims instead of 3 dims used in header
@@ -152,7 +169,7 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, NEURO_CON
     return out_file
 
 
-def apply_transform_ants(input_file,ref_file, out_file, trans_mat, NEURO_CONTAINER, reverse=False, costfunction=None):
+def apply_transform_ants(input_file,ref_file, out_file, trans_mat, NEURO_CONTAINER, reverse=False, costfunction=None,output_type=None):
 
     input_file = os.path.abspath(input_file)
     ref_file=os.path.abspath(ref_file)
@@ -169,6 +186,11 @@ def apply_transform_ants(input_file,ref_file, out_file, trans_mat, NEURO_CONTAIN
     image_type = "1"
     if dimz > 1:
         image_type = "3"
+
+    if output_type:
+        output_type = f"-u {output_type}"
+    else:
+        output_type = ""
 
     TRANSFORMS=""
     if isinstance(trans_mat,list) and isinstance(reverse,list):
@@ -196,11 +218,13 @@ def apply_transform_ants(input_file,ref_file, out_file, trans_mat, NEURO_CONTAIN
         " -o " + str(out_file) +\
         " -r " + str(ref_file) + \
         TRANSFORMS + \
-        " -v 1"
+        " -v 1" + \
+        " " + output_type
 
     command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsApplyTransforms"\
             " "+params
 
+    print(command)
     os.system(command)
 
     # quick hack to fix issue with templateflow transfomr - 5 dims instead of 3 dims used in header
@@ -209,7 +233,7 @@ def apply_transform_ants(input_file,ref_file, out_file, trans_mat, NEURO_CONTAIN
     os.system(command)
 
 
-def resample_ants_ori(input_file,ref_file, out_file, NEURO_CONTAINER,transform_ori="RAS:RAS",target_ori="RAS", costfunction=None):
+def resample_ants_ori(input_file,ref_file, out_file, NEURO_CONTAINER,transform_ori="RAS:RAS",target_ori="RAS", costfunction=None,output_type=None):
 
     input_file = os.path.abspath(input_file)
     ref_file=os.path.abspath(ref_file)
@@ -241,6 +265,11 @@ def resample_ants_ori(input_file,ref_file, out_file, NEURO_CONTAINER,transform_o
     if costfunction is None:
         costfunction="LanczosWindowedSinc"
 
+    if output_type:
+        output_type = f"-u {output_type}"
+    else:
+        output_type = ""
+
     params="-d 3" \
         " -e " + image_type +\
         " -i " + str(input_file) +\
@@ -250,14 +279,15 @@ def resample_ants_ori(input_file,ref_file, out_file, NEURO_CONTAINER,transform_o
         " -n " + costfunction+\
         " -r " + str(ref_file) + \
         " -t identity" + \
-        " -v 1"
+        " -v 1" + \
+        " " + output_type
 
     command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsApplyTransforms"\
             " "+params
 
     os.system(command)
     
-def resample_ants(input_file,ref_file, out_file, NEURO_CONTAINER, costfunction=None):
+def resample_ants(input_file,ref_file, out_file, NEURO_CONTAINER, costfunction=None,output_type=None):
 
     input_file = os.path.abspath(input_file)
     ref_file=os.path.abspath(ref_file)
@@ -275,6 +305,11 @@ def resample_ants(input_file,ref_file, out_file, NEURO_CONTAINER, costfunction=N
     if costfunction is None:
         costfunction="LanczosWindowedSinc"
 
+    if output_type:
+        output_type = f"-u {output_type}"
+    else:
+        output_type = ""
+
     params="-d 3" \
         " -e " + image_type +\
         " -i " + str(input_file) +\
@@ -284,7 +319,8 @@ def resample_ants(input_file,ref_file, out_file, NEURO_CONTAINER, costfunction=N
         " -n " + costfunction+\
         " -r " + str(ref_file) + \
         " -t identity" + \
-        " -v 1"
+        " -v 1" + \
+        " " + output_type
 
     command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsApplyTransforms"\
             " "+params
@@ -563,7 +599,6 @@ def ants_registration_quick(moving, reference, transform, NEURO_CONTAINER,thread
 
 
     return candidates
-
 
 
 def fsl_reg_flirt(input,reference,out,transmat,neuroimg,dof="12",cost="mutualinfo"):
