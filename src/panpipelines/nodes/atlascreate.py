@@ -18,13 +18,39 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
     if not os.path.isdir(atlas_workdir):
         os.makedirs(atlas_workdir)
 
-    atlas_file = newfile(atlas_workdir, atlas_name, prefix=f"sub-{participant_label}", extension="nii.gz")
-    create_atlas_from_rois(atlas_file, roi_list,labels_dict)
+    atlas_file = newfile(cwd, atlas_name, prefix=f"sub-{participant_label}", extension="nii.gz")
 
-    atlas_index = newfile(atlas_workdir, atlas_name, prefix=f"sub-{participant_label}", extension="txt")
+    special_atlas_type=""
+    # scan through the roi list and find out if we have a special atlas type
+    if roi_list[0] == "hcpmmp1aseg":
+        special_atlas_type="hcpmmp1aseg"
+
+
+    atlas_type = "3D"
+    atlas_type = getParams(labels_dict,'NEWATLAS_TYPE')
+    if special_atlas_type == "hcpmmp1aseg":
+        roilabels_list=create_3d_hcppmmp1_aseg(atlas_file,roi_list,labels_dict)
+        roi_list = [atlas_file]
+    elif atlas_type == "3D":
+        create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict)
+    elif atlas_type == "3D_contig":
+        create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict,explode3d=False)
+    elif atlas_type =="4D":
+        create_4d_atlas_from_rois(atlas_file, roi_list,labels_dict)
+    else:
+        create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict)
+
+    atlas_index = newfile(cwd, atlas_name, prefix=f"sub-{participant_label}", extension="txt")
     with open(atlas_index,"w") as outfile:
-        for roiname in roilabels_list:
-            outfile.write(roiname + "\n")
+        for roi_num in range(len(roilabels_list)):
+            roiname=roilabels_list[roi_num]
+            if roiname.split(":")[0] == "get_freesurfer_atlas_index":
+                roi_atlas_file= roi_list[roi_num]
+                lutfile = substitute_labels(roiname.split(":")[1],labels_dict)
+                atlas_dict,atlas_index_out=get_freesurferatlas_index(roi_atlas_file,lutfile,None)
+                outfile.write(atlas_index_out)
+            else:
+                outfile.write(roiname + "\n")
 
     out_files=[]
     out_files.insert(0,atlas_file)

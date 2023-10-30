@@ -1,7 +1,11 @@
 # custom
-deployment/
-deployment_external/
 deployment_development/
+launch.json
+
+# files
+*.pklz
+*.nii.gz
+*.nii
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

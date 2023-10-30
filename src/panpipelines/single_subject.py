@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from panpipelines.utils.util_functions import *
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from functools import partial
