@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from panpipelines.utils.util_functions import *
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from functools import partial
@@ -44,10 +45,11 @@ def main():
 
     runtime_labels={}
     panpipe_labels={}
-    panpipe_labels = updateParams(panpipe_labels,'PWD',str(os.getcwd()))
-    runtime_labels = updateParams(runtime_labels,'PWD',str(os.getcwd()))
-    panpipe_labels = updateParams(panpipe_labels,'DATE_LABEL',datelabel)
-    runtime_labels = updateParams(runtime_labels,'DATE_LABEL',datelabel)
+
+    panpipe_labels = insertParams(panpipe_labels,'PWD',str(os.getcwd()))
+    runtime_labels = insertParams(runtime_labels,'PWD',str(os.getcwd()))
+    panpipe_labels = insertParams(panpipe_labels,'DATE_LABEL',datelabel)
+    runtime_labels = insertParams(runtime_labels,'DATE_LABEL',datelabel)
 
     panpipeconfig_file=str(args.config_file)
     panpipeconfig_json=None
@@ -89,7 +91,7 @@ def main():
         label_value=pipelines
         panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
     else:
-        participant_label = getParams(panpipe_labels,"PARTICIPANT_LABEL")
+        pipelines = getParams(panpipe_labels,"PIPELINES")
 
     runtime_labels = updateParams(runtime_labels,"PARTICIPANT_LABEL",getParams(panpipe_labels,"PARTICIPANT_LABEL"))
 

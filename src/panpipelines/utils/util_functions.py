@@ -12,7 +12,9 @@ import tempfile
 import math
 import multiprocessing as mp
 import logging
-
+import nibabel as nib
+import shutil
+from panpipelines.utils.transformer import *
 
 def path_exists(path, parser):
     """Ensure a given path exists."""
@@ -38,6 +40,28 @@ def getParams(pardict, key, update=True):
             else:
                 return pardict[key]
     return None
+
+def insertParams(pardict, key, value, postpone=False):
+    """ Insert key:value pair into dictionary if it does not already exist.
+
+    Parameters:
+    -----------
+    pardict  : The dictionary reference
+    key      : Key to insert
+    value    : value to associate with key
+    postpone : bool , default False; If True then do not substitute variables enclosed by <>
+    
+    Return:
+    -------
+    Reference to Dictionary is returned
+
+    """
+    if key is not None and pardict is not None and value is not None and key not in pardict.keys():
+        if not postpone:
+            pardict[key]=substitute_labels(value,pardict)
+        else:
+            pardict[key]=value
+    return pardict 
 
 def updateParams(pardict, key, value, postpone=False):
     if key is not None and pardict is not None and value is not None:
@@ -485,8 +509,8 @@ def getDependencies(job_ids,panpipe_labels,logging=None):
         if isinstance(pipeline_dependency,list):
             job_ids_string=""
             for pipe_dep in pipeline_dependency:
-                if pipeline_dependency in job_ids.keys():
-                    job_id = job_ids[pipeline_dependency]
+                if pipe_dep in job_ids.keys():
+                    job_id = job_ids[pipe_dep]
                     if job_id is not None:
                         job_ids_string=job_ids_string + ":" + job_id
                     
@@ -651,39 +675,67 @@ def getProcNums(panpipe_labels):
     return int(np.min(np.array(procnum_list)))
 
 
-def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, up_thresh=None,low_thresh=None,prob_thresh=0.5):
+def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, high_thresh=None,low_thresh=None,prob_thresh=0.5,roi_transform=None):
+
+    workdir = os.path.join(os.path.dirname(atlas_file),'roi_temp')
+    if not os.path.isdir(workdir):
+        os.makedirs(workdir)
+
+    trans_workdir = os.path.join(os.path.dirname(atlas_file),'roi_transformed')
+    if not os.path.isdir(trans_workdir):
+        os.makedirs(trans_workdir)
 
     if prob_thresh:
         PROBTHRESH=f" -thr {prob_thresh}"
     else:
         PROBTHRESH=""
 
-    if up_thresh:
-        UPPER=f" -uthr {up_thresh}"
+    if high_thresh:
+        HIGHTHRESH=f" -uthr {high_thresh}"
     else:
-        UPPER = ""
+        HIGHTHRESH = ""
 
     if low_thresh:
-        LOWER=f" -thr {low_thresh}"
+        LOWTHRESH=f" -thr {low_thresh}"
     else:
-        LOWER=""
+        LOWTHRESH=""
+
+    # store roi in work dir for 
+    new_roi=newfile(trans_workdir, roi_in, suffix="desc-label")
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+        f"  {roi_in}" +\
+        PROBTHRESH +\
+        " -bin "\
+        f" -mul {roi_value}" \
+        f" {new_roi}"
+    evaluated_command = substitute_labels(command,panpipe_labels)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    from panpipelines.nodes.antstransform import antstransform_proc
+
+    roi_transform_ref = getParams(panpipe_labels,"ROI_TRANSFORM_REF")
+    if roi_transform:
+        CURRDIR = os.getcwd()
+        os.chdir(trans_workdir)
+        results = antstransform_proc(panpipe_labels, new_roi,roi_transform, roi_transform_ref)
+        new_roi_transformed = results['out_file']
+        os.chdir(CURRDIR)
+    else:
+        new_roi_transformed = newfile(trans_workdir, new_roi)
+        shutil.move(new_roi, new_roi_transformed)
+
 
     if os.path.exists(atlas_file):
         command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
-            f"  {roi_in}" +\
-            PROBTHRESH +\
-            " -bin "\
-            f" -mul {roi_value}" \
+            f"  {new_roi_transformed}"\
             f" -add {atlas_file}" +\
-            LOWER +\
-            UPPER +\
+            LOWTHRESH +\
+            HIGHTHRESH +\
             f" {atlas_file}"
     else:
         command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
-            f"  {roi_in}" +\
-            PROBTHRESH +\
-            " -bin "\
-            f" -mul {roi_value}" \
+            f" {new_roi_transformed}"\
             f" {atlas_file}" 
     
     evaluated_command = substitute_labels(command,panpipe_labels)
@@ -693,7 +745,12 @@ def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, up_thresh=None,
     return atlas_file
 
 
-def create_atlas_from_rois(atlas_file, roi_list,panpipe_labels, roi_values=None):
+def create_3d_atlas_from_rois(atlas_file, roi_list,panpipe_labels, roi_values=None,prob_thresh=0.5,explode3d=True):
+
+    roi_list = expand_rois(roi_list,os.path.dirname(atlas_file),panpipe_labels,explode3d=explode3d)
+    roi_transform_mat = getParams(panpipe_labels,"ROI_TRANSFORM_MAT")
+    panpipe_labels=updateParams(panpipe_labels,"ROI_TRANSFORM_REF",getParams(panpipe_labels,"NEWATLAS_TRANSFORM_REF"))
+
     numrois=len(roi_list)
     if roi_values is None:
         roi_values=range(1,numrois+1)
@@ -701,10 +758,370 @@ def create_atlas_from_rois(atlas_file, roi_list,panpipe_labels, roi_values=None)
     # create rois
     for roi_num in range(numrois):
         roi = roi_list[roi_num]
+        roi_transform=None
+        if roi_transform_mat and roi_num < len(roi_transform_mat):
+            roi_transform = roi_transform_mat[roi_num]
         roi_value = roi_values[roi_num]
-        add_atlas_roi(atlas_file, roi, roi_value, panpipe_labels,up_thresh=roi_value)
+        add_atlas_roi(atlas_file, roi, roi_value, panpipe_labels,high_thresh=roi_value,prob_thresh=prob_thresh,roi_transform=roi_transform)
 
     return atlas_file
+
+def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_thresh=None):
+
+    workdir = os.path.join(os.path.dirname(atlas_file),'roi_temp')
+    if not os.path.isdir(workdir):
+        os.makedirs(workdir)
+
+    trans_workdir = os.path.join(os.path.dirname(atlas_file),'roi_transformed')
+    if not os.path.isdir(trans_workdir):
+        os.makedirs(trans_workdir)
+
+    if high_thresh:
+        HIGHTHRESH=f" -uthr {high_thresh}"
+    else:
+        HIGHTHRESH = ""
+
+    if low_thresh:
+        LOWTHRESH=f" -thr {low_thresh}"
+    else:
+        LOWTHRESH=""
+
+    roicount=0
+    numrois=len(roi_list)
+    roi_files=[]
+    for roi_in in roi_list:       
+        # store roi in work dir\
+        roicount=roicount+1
+        new_roi=newfile(workdir, roi_in,suffix="desc-bin")
+        command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+            f"  {roi_in}" +\
+            LOWTHRESH +\
+            HIGHTHRESH +\
+            " -bin "\
+            f" {new_roi}"
+        evaluated_command = substitute_labels(command,panpipe_labels)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        roi_files.append(new_roi)
+
+    from panpipelines.nodes.antstransform import antstransform_proc
+    roi_files_transformed=[]
+    roi_transform_mat = getParams(panpipe_labels,"ROI_TRANSFORM_MAT")
+    roi_transform_ref = getParams(panpipe_labels,"ROI_TRANSFORM_REF")
+    for roi_num in range(len(roi_files)):
+        if roi_transform_mat and roi_num < len(roi_transform_mat):
+            roi_file=roi_files[roi_num]
+            roi_transform = roi_transform_mat[roi_num]
+            CURRDIR=os.getcwd()
+            os.chdir(trans_workdir)
+            results = antstransform_proc(panpipe_labels, roi_file,roi_transform, roi_transform_ref)
+            os.chdir(CURRDIR)
+            roi_files_transformed.append(results['out_file'])
+        else:
+            new_roi_transform_file= newfile(trans_workdir, new_roi)
+            shutil.move(roi_files[roi_num], new_roi_transform_file)
+            roi_files_transformed.append(new_roi_transform_file)
+        
+    if roi_files_transformed:
+        roi_string=" ".join(roi_files_transformed)
+        command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmerge"\
+            " -t" \
+            f" {atlas_file}" +\
+            " " + roi_string
+
+        evaluated_command = substitute_labels(command,panpipe_labels)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    return atlas_file
+
+def create_4d_atlas_from_rois(atlas_file, roi_list,panpipe_labels, roi_values=None, high_thresh=None, low_thresh=0.5,explode3d=True):
+
+    panpipe_labels=updateParams(panpipe_labels,"ROI_TRANSFORM_REF",getParams(panpipe_labels,"NEWATLAS_TRANSFORM_REF"))
+    roi_list = expand_rois(roi_list,os.path.dirname(atlas_file),panpipe_labels,explode3d=explode3d)
+    merge_atlas_roi(atlas_file, roi_list, panpipe_labels,high_thresh=high_thresh, low_thresh=low_thresh)
+
+    return atlas_file
+
+
+def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
+    """ Given a list of roi images with associated transforms, attempt to reconcile a mix of 3D and 4D images in the list such that
+        each element in the list is a 3D roi which can be eventually merged into 1 single 3D atlas or 1 single 4D atlas.
+    
+    Parameters:
+    -----------
+    roi_list : The list of rois
+    out_dir  : Output directory to store temporary files
+    panpipe_labels    : Dictionary of config labels. This should contain NEURO_CONTAINER reference to singularity image
+    explode3D : bool , default True. Set this to true when you want to treat each roi as a contiguous uniform label regardless of if it is not.
+    
+    return:
+    -------
+    Reference to Dictionary is returned
+    """
+    workdir = os.path.join(out_dir,'roi_list_temp')
+    if not os.path.isdir(workdir):
+        os.makedirs(workdir)
+
+    roi_transform_list=[]
+    newatlas_transform = getParams(panpipe_labels,"NEWATLAS_TRANSFORM_MAT")
+    new_roi_list = []
+    roi_count = 0
+    for roi in roi_list:
+
+        # using fsl for manipulations, so convert freesurfer files to nifti
+        if Path(roi).suffix == ".mgz":
+
+            mgzdir = os.path.join(out_dir,'roi_mgz_temp')
+            if not os.path.isdir(mgzdir):
+                os.makedirs(mgzdir)
+
+            NEUROIMG=getParams(panpipe_labels,"NEURO_CONTAINER")
+            roi_nii = newfile(mgzdir,roi,extension=".nii.gz")
+            convMGZ2NII(roi, roi_nii, NEUROIMG)
+            roi = roi_nii
+
+        roi_transform = None
+        if newatlas_transform and roi_count < len(newatlas_transform):
+            roi_transform = newatlas_transform[roi_count]
+
+        roi_count = roi_count + 1
+        roi_img  = nib.load(roi)
+        roi_shape = roi_img.header.get_data_shape()
+        if len(roi_shape) > 3:
+            for vol in range(len(roi_shape[3])):
+                sub_roi_num=vol + 1
+                new_roi=newfile(workdir,roi, prefix=f"{roi_count:0>5}_{sub_roi_num:0>5}",suffix="desc-roi")
+                command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslroi"\
+                    f"  {roi}" \
+                    f" {new_roi}" \
+                    f" {vol}" \
+                    " 1" 
+                evaluated_command = substitute_labels(command,panpipe_labels)
+                evaluated_command_args = shlex.split(evaluated_command)
+                results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+                new_roi_list.append(new_roi)
+                if roi_transform:
+                    roi_transform_list.append(roi_transform)
+
+        else:
+            if explode3d:
+                atlas_dict,atlas_list=get_avail_labels(roi)
+                for thresh in atlas_list:
+                    new_roi=newfile(workdir,roi, prefix=f"{roi_count:0>5}_{thresh:0>5}",suffix="desc-roi")
+                    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+                        f" {roi}" \
+                        f" -thr {thresh}" \
+                        f" -uthr {thresh}" \
+                        " -bin "\
+                        f" {new_roi}"
+                    evaluated_command = substitute_labels(command,panpipe_labels)
+                    evaluated_command_args = shlex.split(evaluated_command)
+                    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+                    new_roi_list.append(new_roi)
+                    if roi_transform:
+                        roi_transform_list.append(roi_transform)
+          
+            else:
+                new_roi=newfile(workdir,roi, prefix=f"{roi_count:0>5}",suffix="desc-roi")
+                command = "cp"\
+                " " + roi +\
+                " " + new_roi
+                evaluated_command = substitute_labels(command,panpipe_labels)
+                evaluated_command_args = shlex.split(evaluated_command)
+                results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+                new_roi_list.append(new_roi)
+                if roi_transform:
+                        roi_transform_list.append(roi_transform)
+
+    if roi_transform_list:
+        updateParams(panpipe_labels,"ROI_TRANSFORM_MAT",roi_transform_list)
+    
+    return new_roi_list
+
+def get_avail_labels(atlas_file):
+    atlas_dict={}
+    atlas_img = nib.load(atlas_file)
+    atlas_data = atlas_img.get_fdata()
+    max_roi_num = int(np.max(atlas_data))
+    for roi_num in range(1,max_roi_num+1):
+        num_voxels=np.count_nonzero(atlas_data == roi_num)
+        if num_voxels:
+            atlas_dict[roi_num]=num_voxels
+
+    atlas_index_list=[]
+    atlas_key_list=list(atlas_dict.keys())
+    atlas_key_list.sort()
+    for atlas_key in atlas_key_list:
+        atlas_index_list.append(atlas_key)
+    
+    return atlas_dict,atlas_index_list
+
+def get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False):
+    with open(lutfile,'r') as infile:
+        lutlines=infile.readlines()
+
+    lut_dict={}
+    for lut_line in lutlines:
+        lut_list = lut_line.split()
+        if lut_list and lut_list[0].isdigit():           
+            lut_roinum = int(lut_list[0])
+            lut_roiname = lut_list[1]
+            lut_rgba = ",".join(lut_list[2:])
+            lut_dict[lut_roinum] = {}
+            lut_dict[lut_roinum]["LabelName"]=lut_roiname
+            lut_dict[lut_roinum]["RGBA"]=lut_rgba
+
+    atlas_dict={}
+    atlas_img = nib.load(atlas_file)
+    atlas_data = atlas_img.get_fdata()
+    max_roi_num = int(np.max(atlas_data))
+    for roi_num in range(1,max_roi_num+1):
+        if avail_only:
+            num_voxels=np.count_nonzero(atlas_data == roi_num)
+            if num_voxels:
+                atlas_dict[roi_num]=lut_dict[roi_num]
+                atlas_dict[roi_num]["Voxels"]=num_voxels
+        else:
+            if roi_num in lut_dict.keys():
+                atlas_dict[roi_num]=lut_dict[roi_num]
+            else:
+                atlas_dict[roi_num]={}
+                atlas_dict[roi_num]["LabelName"]=f"UNK_{roi_num}"
+                atlas_dict[roi_num]["RGBA"]="0,0,0,0"
+
+
+
+    atlas_index_list=[]
+    atlas_key_list=list(atlas_dict.keys())
+    atlas_key_list.sort()
+    for atlas_key in atlas_key_list:
+        atlas_index_list.append(atlas_dict[atlas_key]["LabelName"])
+    
+    atlas_index_out = "\n".join(atlas_index_list)
+    if atlas_index:
+        with open(atlas_index,"w") as outfile:
+            outfile.write(atlas_index_out)
+
+    return atlas_dict,atlas_index_out
+
+            
+def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
+    out_dir = os.path.dirname(atlas_file)
+    workdir = os.path.join(out_dir,"hcpmmp1_workdir")
+    if not os.path.isdir(workdir):
+        os.makedirs(workdir)
+
+    NEUROIMG = getParams(panpipe_labels,"NEURO_CONTAINER")
+    atlas_dir = getParams(panpipe_labels,"ATLAS_DIR")
+    SUB=f"sub-{getParams(panpipe_labels,'PARTICIPANT_LABEL')}"
+    freesurfer_dir = getParams(panpipe_labels,"FREESURFER_DIR")
+    freesurfer_home = getParams(panpipe_labels,"FREESURFER_HOME")
+    if not freesurfer_home:
+        freesurfer_home = "/opt/freesurfer"
+
+    lh_hcpannot = os.path.join(atlas_dir, "lh.HCP-MMP1.annot")
+    lh_hcpannot_trg = os.path.join(freesurfer_dir,SUB,"label","lh.HCP-MMP1.annot")
+    rh_hcpannot = os.path.join(atlas_dir, "rh.HCP-MMP1.annot")
+    rh_hcpannot_trg = os.path.join(freesurfer_dir,SUB,"label","rh.HCP-MMP1.annot")
+
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> ln"\
+        "  -s" \
+        f" {os.path.join(freesurfer_home,'subjects','fsaverage')}" \
+        f" {os.path.join(freesurfer_dir,'fsaverage')}" 
+    evaluated_command = substitute_labels(command,panpipe_labels)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> ln"\
+        "  -s" \
+        f" {os.path.join(freesurfer_home,'subjects','lh.EC_average')}" \
+        f" {os.path.join(freesurfer_dir,'lh.EC_average')}" 
+    evaluated_command = substitute_labels(command,panpipe_labels)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> ln"\
+        "  -s" \
+        f" {os.path.join(freesurfer_home,'subjects','rh.EC_average')}" \
+        f" {os.path.join(freesurfer_dir,'rh.EC_average')}" 
+    evaluated_command = substitute_labels(command,panpipe_labels)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_surf2surf"\
+        " --srcsubject fsaverage" \
+        f" --trgsubject {SUB}" \
+        " --hemi lh" \
+        f" --sval-annot {lh_hcpannot}" \
+        f" --tval {lh_hcpannot_trg}"
+    evaluated_command = substitute_labels(command,panpipe_labels)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_surf2surf"\
+        " --srcsubject fsaverage" \
+        f" --trgsubject {SUB}" \
+        " --hemi rh" \
+        f" --sval-annot {rh_hcpannot}" \
+        f" --tval {rh_hcpannot_trg}"
+    evaluated_command = substitute_labels(command,panpipe_labels)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    atlas_space_fs = newfile(workdir, atlas_file, suffix="desc-hcpmmp1_space-fs")
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_aparc2aseg"\
+        f"  --s {SUB}" \
+        "  --old-ribbon" \
+        " --annot HCP-MMP1" \
+        f" --o {atlas_space_fs}" 
+    evaluated_command = substitute_labels(command,panpipe_labels)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    atlas_space_T1w = newfile(workdir, atlas_file, suffix="desc-hcpmmp1_space-T1w",extension=".mgz")
+    rawavg=os.path.join(freesurfer_dir,SUB,"mri","rawavg.mgz")
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_label2vol"\
+        f"  --seg {atlas_space_fs}" \
+        f"  --temp {rawavg}" \
+        f"  --o {atlas_space_T1w}" \
+        f"  --regheader {atlas_space_fs}" 
+    evaluated_command = substitute_labels(command,panpipe_labels)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    atlas_space_T1w_nii = newfile(workdir, atlas_space_T1w,suffix="desc-unordered",extension=".nii.gz")
+    convMGZ2NII(atlas_space_T1w,atlas_space_T1w_nii,NEUROIMG)
+
+
+    from panpipelines.nodes.antstransform import antstransform_proc
+
+    panpipe_labels= updateParams(panpipe_labels,"COST_FUNCTION","NearestNeighbor")
+    panppe_labels = updateParams(panpipe_labels,"OUTPUT_TYPE","int")
+    atlas_transform_mat = getParams(panpipe_labels,"NEWATLAS_TRANSFORM_MAT")
+    atlas_transform_ref = getParams(panpipe_labels,"NEWATLAS_TRANSFORM_REF")
+    if atlas_transform_mat:
+        CURRDIR=os.getcwd()
+        os.chdir(workdir)
+        results = antstransform_proc(panpipe_labels, atlas_space_T1w_nii,atlas_transform_mat, atlas_transform_ref)
+        os.chdir(CURRDIR)
+        atlas_space_transform = results['out_file']
+    else:
+        atlas_space_transform=atlas_space_T1w_nii
+
+    hcpmmp_original = os.path.join(atlas_dir, "hcpmmp1_original.txt")
+    hcpmmp_ordered = os.path.join(atlas_dir, "hcpmmp1_ordered.txt")
+
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> labelconvert"\
+        f"  {atlas_space_transform}" \
+        f"  {hcpmmp_original}" \
+        f"  {hcpmmp_ordered}" \
+        f"  {atlas_file}" 
+    evaluated_command = substitute_labels(command,panpipe_labels)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
+    return [f"get_freesurfer_atlas_index:{hcpmmp_ordered}"]
 
 
 

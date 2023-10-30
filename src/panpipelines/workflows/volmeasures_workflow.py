@@ -26,10 +26,15 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}):
         if isinstance(newatlas_templates,list):
             for newatlas_template in newatlas_templates:
                 evaluated_newatlas_template = substitute_labels(newatlas_template,labels_dict)
-                newatlas_list.extend(glob.glob(evaluated_newatlas_template))
+                if "*" not in evaluated_newatlas_template:
+                    newatlas_list.append(evaluated_newatlas_template)
+                else:
+                    newatlas_list.extend(glob.glob(evaluated_newatlas_template))
         else:
             newatlas_list.extend(glob.glob(newatlas_templates))
-
+            
+        labels_dict = updateParams(labels_dict,"COST_FUNCTION","NearestNeighbor")
+        labels_dict = updateParams(labels_dict,"OUTPUT_TYPE","int")
         atlascreate_node = atlascreate.create(labels_dict,name=f"atlascreate_{atlas_name}_node",roi_list=newatlas_list,roilabels_list=newatlas_index)
 
     roimean_node = roimean.create(labels_dict,name="subject_metrics")

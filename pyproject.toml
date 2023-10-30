@@ -29,7 +29,8 @@ dependencies = [
   "pybids>0.15.6",
   "numpy>1.21.6",
   "pandas>1.5.2",
-  "nitransforms>23.0.0"
+  "nitransforms>23.0.0",
+  "nilearn>=0.10.0"
 ]
 
 [project.urls]

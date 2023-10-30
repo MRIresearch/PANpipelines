@@ -8,6 +8,7 @@ import nibabel as nib
 import pandas as pd
 import json
 import datetime
+from pathlib import Path
 
 def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
@@ -16,20 +17,65 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
 
     roi_output_dir = os.path.join(cwd,'{}_roi_output_dir'.format(participant_label))
+
     if not os.path.isdir(roi_output_dir):
         os.makedirs(roi_output_dir)
 
+    if Path(atlas_file).suffix == ".mgz":
+        mgzdir = os.path.join(cwd,'mgz_nii')
+        if not os.path.isdir(mgzdir):
+            os.makedirs(mgzdir)
+
+        NEUROIMG=getParams(labels_dict,"NEURO_CONTAINER")
+        atlas_file_nii = newfile(mgzdir,atlas_file,extension=".nii.gz")
+        convMGZ2NII(atlas_file, atlas_file_nii, NEUROIMG)
+        atlas_file = atlas_file_nii
+
+    if Path(input_file).suffix == ".mgz":
+        mgzdir = os.path.join(cwd,'mgz_nii')
+        if not os.path.isdir(mgzdir):
+            os.makedirs(mgzdir)
+
+        NEUROIMG=getParams(labels_dict,"NEURO_CONTAINER")
+        input_file_nii = newfile(mgzdir,input_file,extension=".nii.gz")
+        convMGZ2NII(input_file, input_file_nii, NEUROIMG)
+        input_file = input_file_nii
+
     roi_raw_txt = os.path.join(roi_output_dir,'{}_roi_raw.txt'.format(participant_label))
 
-    params = " -i "+input_file+ \
-        " -o "+roi_raw_txt+\
-        " --label="+atlas_file
+    atlas_type="3D"
 
-    command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmeants"\
-            " "+params
+    atlas_img  = nib.load(atlas_file)
+    image_shape = atlas_img.header.get_data_shape()
+    if len(image_shape) > 3:
+        atlas_type="4D"
 
-    evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    if atlas_type == "4D":
+        params = " -i "+input_file+ \
+            " -d "+atlas_file + \
+            " -o "+roi_raw_txt
+
+        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fsl_glm"\
+                " "+params
+
+        evaluated_command=substitute_labels(command, labels_dict)
+        os.system(evaluated_command)
+    else:
+        params = " -i "+input_file+ \
+            " -o "+roi_raw_txt+\
+            " --label="+atlas_file
+            
+        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmeants"\
+                " "+params
+
+        evaluated_command=substitute_labels(command, labels_dict)
+        os.system(evaluated_command)       
+
+    if atlas_index.split(":")[0] == "get_freesurfer_atlas_index":
+        lutfile = substitute_labels(atlas_index.split(":")[1],labels_dict)
+        new_atlas_index=newfile(roi_output_dir,atlas_file,suffix="desc-index",extension=".txt")
+        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,new_atlas_index)
+        atlas_index=new_atlas_index
 
     with open(atlas_index, 'r') as in_file:
         lines = in_file.readlines()
