@@ -5,6 +5,9 @@ from panpipelines.utils.transformer import *
 import os
 import glob
 import nibabel as nb
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def atlascreate_proc(labels_dict,roi_list,roilabels_list):
 
@@ -19,6 +22,7 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
         os.makedirs(atlas_workdir)
 
     atlas_file = newfile(cwd, atlas_name, prefix=f"sub-{participant_label}", extension="nii.gz")
+    IFLOGGER.info(f"Creating new atlas {atlas_file}")
 
     special_atlas_type=""
     # scan through the roi list and find out if we have a special atlas type
@@ -41,6 +45,7 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
         create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict)
 
     atlas_index = newfile(cwd, atlas_name, prefix=f"sub-{participant_label}", extension="txt")
+    IFLOGGER.info(f"Creating new atlas index {atlas_index}")
     with open(atlas_index,"w") as outfile:
         for roi_num in range(len(roilabels_list)):
             roiname=roilabels_list[roi_num]
@@ -98,11 +103,14 @@ class atlascreate_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="atlascreate_node",roi_list="",roilabels_list=""):
+def create(labels_dict,name="atlascreate_node",roi_list="",roilabels_list="", LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(atlascreate_pan(), name=name)
-    # Specify node inputs
 
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+
+    # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
     pan_node.inputs.roi_list  =  roi_list
     pan_node.inputs.roilabels_list = roilabels_list

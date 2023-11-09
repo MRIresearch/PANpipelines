@@ -7,6 +7,17 @@ import glob
 from subprocess import check_call
 import re
 from panpipelines.utils import util_functions
+import logging
+import sys
+
+LOGGER = logging.getLogger("panpipelines.utils.transformer")
+LOGGER.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setLevel(logging.INFO)
+stdout_handler.setFormatter(formatter)
+LOGGER.addHandler(stdout_handler)
+
 
 def fsleyes_view(NEURO_CONTAINER,params):
     command=f"singularity run {NEURO_CONTAINER} fsleyes"\

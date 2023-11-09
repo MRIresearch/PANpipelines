@@ -5,6 +5,11 @@ import os
 import glob
 import nibabel as nb
 from bids import BIDSLayout
+import shlex
+import subprocess
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 ASL_INPUT="-i"
 ASL_OUTPUT="-o"
@@ -134,7 +139,11 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
             " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+
 
     cbf_native = getGlob(os.path.join(output_dir,"native_space","perfusion_calib.nii.gz"))
     cbf_t1 = getGlob(os.path.join(output_dir,"struct_space","perfusion_calib.nii.gz"))
@@ -188,11 +197,14 @@ class basil_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="basil_node",bids_dir="",fslanat_dir=""):
+def create(labels_dict,name="basil_node",bids_dir="",fslanat_dir="",LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(basil_pan(), name=name)
-    # Specify node inputs
 
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+
+    # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
 
     if bids_dir is None or bids_dir == "":

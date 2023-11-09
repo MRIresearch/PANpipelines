@@ -6,6 +6,11 @@ import glob
 import numpy as np 
 import nibabel as nib
 import pandas as pd
+import shlex
+import subprocess
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def roi_mean_group_proc(labels_dict,file_template,atlas_file,atlas_index):
 
@@ -37,10 +42,13 @@ def roi_mean_group_proc(labels_dict,file_template,atlas_file,atlas_index):
             " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+
 
     
-    # permutation
     everythingThere=True
 
     if everythingThere:
@@ -58,7 +66,11 @@ def roi_mean_group_proc(labels_dict,file_template,atlas_file,atlas_index):
             " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+
 
     with open(atlas_index, 'r') as in_file:
         lines = in_file.readlines()
@@ -122,9 +134,13 @@ class roi_mean_group_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="roi_mean_group_node",file_template="",atlas_file="",atlas_index=""):
+def create(labels_dict,name="roi_mean_group_node",file_template="",atlas_file="",atlas_index="",LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(roi_mean_group_pan(), name=name)
+
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+            
     # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
 

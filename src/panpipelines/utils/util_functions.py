@@ -15,6 +15,55 @@ import logging
 import nibabel as nib
 import shutil
 from panpipelines.utils.transformer import *
+import sys
+from nipype import logging as nlogging
+
+def logger_setup(logname, loglevel):
+    LOGGER = logging.getLogger(logname)
+    LOGGER.setLevel(loglevel)
+    return LOGGER
+
+def logger_addstdout(LOGGER, loglevel):
+    formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(loglevel)
+    stdout_handler.setFormatter(formatter)
+    LOGGER.addHandler(stdout_handler)
+
+def logger_addfile(LOGGER, LOGFILE, loglevel):
+    formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
+    file_handler = logging.FileHandler(LOGFILE)
+    file_handler.setLevel(loglevel)
+    file_handler.setFormatter(formatter)
+    LOGGER.addHandler(file_handler)
+
+def nipype_loggers_setup(loglevel,LOGFILE,file_loglevel):
+    WFLOGGER=nlogging.getLogger('nipype.workflow')
+    IFLOGGER=nlogging.getLogger('nipype.interface')
+    UTLOGGER=nlogging.getLogger('nipype.utils')
+
+    formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(loglevel)
+    stdout_handler.setFormatter(formatter)
+
+    file_handler = logging.FileHandler(LOGFILE)
+    file_handler.setLevel(file_loglevel)
+    file_handler.setFormatter(formatter)
+
+    if len(WFLOGGER.handlers) < 1:
+        WFLOGGER.addHandler(stdout_handler)
+        WFLOGGER.addHandler(file_handler)
+
+    if len(IFLOGGER.handlers) < 1:
+        IFLOGGER.addHandler(stdout_handler)
+        IFLOGGER.addHandler(file_handler)
+
+    if len(UTLOGGER.handlers) < 1:
+        UTLOGGER.addHandler(stdout_handler)
+        UTLOGGER.addHandler(file_handler)
+
 
 def path_exists(path, parser):
     """Ensure a given path exists."""
@@ -662,6 +711,8 @@ def getProcNums(panpipe_labels):
         procnum_list.append(pipeline_count)
     except ValueError as ve:
         pass
+    except TypeError as te:
+        pass
     
 
     try:
@@ -670,6 +721,8 @@ def getProcNums(panpipe_labels):
             env_count = int(os.environ[ENV_PROCS])
         procnum_list.append(env_count)
     except ValueError as ve:
+        pass
+    except TypeError as te:
         pass
     
     return int(np.min(np.array(procnum_list)))

@@ -9,6 +9,11 @@ import pandas as pd
 import json
 import datetime
 from pathlib import Path
+import shlex
+import subprocess
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
@@ -59,7 +64,10 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
                 " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
     else:
         params = " -i "+input_file+ \
             " -o "+roi_raw_txt+\
@@ -69,7 +77,10 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
                 " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)       
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)     
 
     if atlas_index.split(":")[0] == "get_freesurfer_atlas_index":
         lutfile = substitute_labels(atlas_index.split(":")[1],labels_dict)
@@ -185,9 +196,13 @@ class roi_mean_single_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="roi_mean_single_node",input_file="",atlas_file="",atlas_index=""):
+def create(labels_dict,name="roi_mean_single_node",input_file="",atlas_file="",atlas_index="", LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(roi_mean_single_pan(), name=name)
+
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+        
     # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
     pan_node.inputs.input_file = input_file

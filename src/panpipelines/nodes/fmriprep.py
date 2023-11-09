@@ -3,6 +3,11 @@ from nipype import Node
 from panpipelines.utils.util_functions import *
 import os
 import glob
+import shlex
+import subprocess
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def fmriprep_proc(labels_dict,bids_dir=""):
 
@@ -29,7 +34,10 @@ def fmriprep_proc(labels_dict,bids_dir=""):
             " "+ params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
     fmri_preprocess_mnilin6 = getGlob(os.path.join(cwd,'fmrioutput','fmriprep','sub-{}'.format(participant_label),'ses-*','func','*space-MNI152NLin6Asym*preproc_bold.nii.gz'))
     fmri_preprocess_mni2009 = getGlob(os.path.join(cwd,'fmrioutput','fmriprep','sub-{}'.format(participant_label),'ses-*','func','*space-MNI152NLin2009cAsym*preproc_bold.nii.gz'))
@@ -122,11 +130,14 @@ class fmriprep_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name='fmriprep_node',bids_dir=""):
+def create(labels_dict,name='fmriprep_node',bids_dir="",LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(fmriprep_pan(), name=name)
-    # Specify node inputs
 
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+        
+    # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
     
     if bids_dir is None or bids_dir == "":

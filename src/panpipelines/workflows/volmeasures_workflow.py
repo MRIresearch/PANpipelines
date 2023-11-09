@@ -7,9 +7,12 @@ from panpipelines.utils.util_functions import *
 from panpipelines.utils.transformer import *
 import glob
 
-def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}):
+def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=None):
     # Create workflow
     pan_workflow = Workflow(name=name, base_dir=wf_base_dir)
+
+    if LOGGER:
+        LOGGER.info(f"Created Workflow {name} with base directory {wf_base_dir}")
 
     if len(execution.keys()) > 0:
         pan_workflow.config = process_dict(pan_workflow.config,execution)
@@ -35,9 +38,9 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}):
             
         labels_dict = updateParams(labels_dict,"COST_FUNCTION","NearestNeighbor")
         labels_dict = updateParams(labels_dict,"OUTPUT_TYPE","int")
-        atlascreate_node = atlascreate.create(labels_dict,name=f"atlascreate_{atlas_name}_node",roi_list=newatlas_list,roilabels_list=newatlas_index)
+        atlascreate_node = atlascreate.create(labels_dict,name=f"atlascreate_{atlas_name}_node",roi_list=newatlas_list,roilabels_list=newatlas_index,LOGGER=LOGGER)
 
-    roimean_node = roimean.create(labels_dict,name="subject_metrics")
+    roimean_node = roimean.create(labels_dict,name="subject_metrics",LOGGER=LOGGER)
     roimean_map_node = MapNode(roimean_node.interface,name="subject_metrics_map",iterfield=['input_file'])
 
     if atlascreate_node:
@@ -53,10 +56,10 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}):
         labels_dict = updateParams(labels_dict,"COST_FUNCTION","NearestNeighbor")
         labels_dict = updateParams(labels_dict,"OUTPUT_TYPE","int")
         if atlascreate_node:
-            atlas_transform_node = antstransform.create(labels_dict,name="atlas_transform", trans_mat=atlas_transform_mat,ref_file=atlas_transform_ref)
+            atlas_transform_node = antstransform.create(labels_dict,name="atlas_transform", trans_mat=atlas_transform_mat,ref_file=atlas_transform_ref, LOGGER=LOGGER)
             pan_workflow.connect(atlascreate_node,'atlas_file',atlas_transform_node,'input_file')    
         else:
-            atlas_transform_node = antstransform.create(labels_dict,name="atlas_transform",input_file=atlas_file, trans_mat=atlas_transform_mat,ref_file=atlas_transform_ref)
+            atlas_transform_node = antstransform.create(labels_dict,name="atlas_transform",input_file=atlas_file, trans_mat=atlas_transform_mat,ref_file=atlas_transform_ref, LOGGER=LOGGER)
         pan_workflow.connect(atlas_transform_node,'out_file',roimean_map_node,'atlas_file')
     else:
         if atlascreate_node:
@@ -81,7 +84,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}):
     if measures_transform_mat is not None:
         labels_dict = removeParam(labels_dict,"COST_FUNCTION")
         labels_dict = removeParam(labels_dict,"OUTPUT_TYPE")
-        measures_transform_node = antstransform.create(labels_dict,name="measure_transform",trans_mat=measures_transform_mat,ref_file=measures_transform_ref)
+        measures_transform_node = antstransform.create(labels_dict,name="measure_transform",trans_mat=measures_transform_mat,ref_file=measures_transform_ref,LOGGER=LOGGER)
         measures_transform_map_node = MapNode(measures_transform_node.interface,name="measure_transform_map",iterfield=['input_file'])
         measures_transform_map_node.inputs.input_file = measures_list
         pan_workflow.connect(measures_transform_map_node,'out_file',roimean_map_node,'input_file')

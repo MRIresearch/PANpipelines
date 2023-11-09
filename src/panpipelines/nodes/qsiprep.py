@@ -3,6 +3,11 @@ from nipype import Node
 from panpipelines.utils.util_functions import *
 import os
 import glob
+import shlex
+import subprocess
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def qsiprep_proc(labels_dict,bids_dir=""):
 
@@ -27,7 +32,10 @@ def qsiprep_proc(labels_dict,bids_dir=""):
 
 
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
     cwd=os.getcwd()
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
@@ -92,11 +100,14 @@ class qsiprep_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name='qsiprep_node',bids_dir=""):
+def create(labels_dict,name='qsiprep_node',bids_dir="", LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(qsiprep_pan(), name=name)
-    # Specify node inputs
 
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+        
+    # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
     
     if bids_dir is None or bids_dir == "":

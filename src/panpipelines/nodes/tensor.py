@@ -3,6 +3,11 @@ from nipype import Node
 from panpipelines.utils.util_functions import *
 import os
 import glob
+import shlex
+import subprocess
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def tensor_proc(labels_dict,input_dir):
 
@@ -36,8 +41,10 @@ def tensor_proc(labels_dict,input_dir):
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
-
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
     
     # generate tensor metrics
     tensor_metrics_dir = os.path.join(cwd,'tensor_metrics')
@@ -61,7 +68,10 @@ def tensor_proc(labels_dict,input_dir):
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
 
     # convert to nifti
@@ -75,25 +85,37 @@ def tensor_proc(labels_dict,input_dir):
     command="singularity run --cleanenv --no-home <NEURO_CONTAINER> mrconvert"\
             " "+params
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
     params=adc_mrtrix+" "+ adc_fsl
     command="singularity run --cleanenv --no-home <NEURO_CONTAINER> mrconvert"\
             " "+params
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
     params=ad_mrtrix+" "+ ad_fsl
     command="singularity run --cleanenv --no-home <NEURO_CONTAINER> mrconvert"\
             " "+params
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
     params=rd_mrtrix+" "+ rd_fsl
     command="singularity run --cleanenv --no-home <NEURO_CONTAINER> mrconvert"\
             " "+params
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
     out_files=[]
     out_files.insert(0,fa_fsl)
@@ -145,11 +167,14 @@ class tensor_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="tensor_node",input_dir=""):
+def create(labels_dict,name="tensor_node",input_dir="",LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(tensor_pan(), name=name)
-    # Specify node inputs
 
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+        
+    # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
 
     if input_dir is None:

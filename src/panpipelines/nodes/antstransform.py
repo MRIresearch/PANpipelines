@@ -6,6 +6,9 @@ import os
 import glob
 import nibabel as nb
 import pathlib
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
 
@@ -131,6 +134,16 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
 
 
+    IFLOGGER.info("Calling function apply_transform_ants_ori with parameters:")
+    IFLOGGER.info(f"input_file: {input_file}")
+    IFLOGGER.info(f"ref_file: {ref_file}")
+    IFLOGGER.info(f"out_file: {out_file}")
+    IFLOGGER.info(f"transform_list: {transform_list}")
+    IFLOGGER.info(f"NEURO_CONTAINER: {NEURO_CONTAINER}")
+    IFLOGGER.info(f"costfunction: {costfunction}")
+    IFLOGGER.info(f"output_type: {output_type}")
+    IFLOGGER.info(f"reverse_list: {reverse_list}")
+
     apply_transform_ants_ori(input_file,
                             ref_file,
                             out_file,
@@ -189,11 +202,14 @@ class antstransform_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="antstransform_node",input_file="",trans_mat="",ref_file=""):
+def create(labels_dict,name="antstransform_node",input_file="",trans_mat="",ref_file="",LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(antstransform_pan(), name=name)
-    # Specify node inputs
 
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+
+    # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
     pan_node.inputs.input_file =  input_file       
     pan_node.inputs.trans_mat =  trans_mat

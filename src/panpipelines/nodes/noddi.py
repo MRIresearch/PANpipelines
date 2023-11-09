@@ -3,6 +3,11 @@ from nipype import Node
 from panpipelines.utils.util_functions import *
 import os
 import glob
+import shlex
+import subprocess
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def noddi_proc(labels_dict,input_dir):
 
@@ -28,7 +33,10 @@ def noddi_proc(labels_dict,input_dir):
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
     cwd=os.getcwd()
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
@@ -89,9 +97,13 @@ class noddi_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="noddi_node",input_dir=""):
+def create(labels_dict,name="noddi_node",input_dir="", LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(noddi_pan(), name=name)
+
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}") 
+           
     # Specify node inputs
 
     labels_dict = updateParams(labels_dict,"RECON_TYPE","amico_noddi")

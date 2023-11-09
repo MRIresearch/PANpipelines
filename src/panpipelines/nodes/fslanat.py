@@ -5,6 +5,11 @@ import os
 import glob
 import nibabel as nb
 from bids import BIDSLayout
+import shlex
+import subprocess
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def fslanat_proc(labels_dict,bids_dir=""):
 
@@ -25,7 +30,10 @@ def fslanat_proc(labels_dict,bids_dir=""):
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
     fslanat_dir = structout + ".anat"
     T1w_biascorr = getGlob(os.path.join(fslanat_dir,"T1_biascorr.nii.gz"))
@@ -77,11 +85,14 @@ class fslanat_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="fslanat_node",bids_dir=""):
+def create(labels_dict,name="fslanat_node",bids_dir="",LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(fslanat_pan(), name=name)
-    # Specify node inputs
 
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+        
+    # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
 
     if bids_dir is None or bids_dir == "":

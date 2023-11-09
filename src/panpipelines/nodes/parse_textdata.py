@@ -5,6 +5,9 @@ import os
 import glob
 import numpy as np 
 import nibabel as nib
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def parse_textdata_proc(labels_dict, textdata, textdata_type):
 
@@ -20,20 +23,23 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type):
     roi_csv = None
     df=None
     basefile_name = os.path.basename(textdata)
+    IFLOGGER.info("basename {textdata} provided.")
     if "aseg" in basefile_name or textdata_type=="aseg":
         df = get_freesurfer_genstats(textdata,columns=["Volume_mm3"], prefix="aseg",participant_label=participant_label)
-    if "lh.aparc.a2009s" in basefile_name or textdata_type=="lh.aparc.a2009s":
+    elif "lh.aparc.a2009s" in basefile_name or textdata_type=="lh.aparc.a2009s":
         df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="lh-Destrieux",participant_label=participant_label)
-    if "rh.aparc.a2009s" in basefile_name or textdata_type=="rh.aparc.a2009s":
+    elif "rh.aparc.a2009s" in basefile_name or textdata_type=="rh.aparc.a2009s":
         df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="rh-Destrieux",participant_label=participant_label)
-    if "lh.aparc" in basefile_name or textdata_type=="lh.aparc":
+    elif "lh.aparc" in basefile_name or textdata_type=="lh.aparc":
         df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="lh-DK",participant_label=participant_label)
-    if "rh.aparc" in basefile_name or textdata_type=="rh.aparc":
+    elif "rh.aparc" in basefile_name or textdata_type=="rh.aparc":
         df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="rh-DK",participant_label=participant_label)     
-    if "hipposubfields.lh" in basefile_name or textdata_type=="hipposubfields.lh":
+    elif "hipposubfields.lh" in basefile_name or textdata_type=="hipposubfields.lh":
         df = get_freesurfer_hippostats(textdata,prefix="lh-hipposf", participant_label=participant_label)
-    if "hipposubfields.rh" in basefile_name or textdata_type=="hipposubfields.rh":
+    elif "hipposubfields.rh" in basefile_name or textdata_type=="hipposubfields.rh":
         df = get_freesurfer_hippostats(textdata,prefix="rh-hipposf", participant_label=participant_label)
+    else:
+        IFLOGGER.info("basename {textdata} not implemented.")
 
 
     if df is not None:
@@ -82,9 +88,13 @@ class parse_textdata_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="parse_textdata_node",textdata="",textdata_type=""):
+def create(labels_dict,name="parse_textdata_node",textdata="",textdata_type="",LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(parse_textdata_pan(), name=name)
+
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+            
     # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
 
