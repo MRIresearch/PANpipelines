@@ -27,12 +27,12 @@ dependencies = [
   "nipype>=1.8.6",
   "numpy>=1.26.1",
   "nibabel>=5.1.0",
-  "pydicom">=2.4.3,
+  "pydicom>=2.4.3",
   "pybids>=0.16.3",
   "pandas>=2.1.2",
   "nilearn>=0.10.2",
   "nitransforms>=23.0.1",
-  "templateflow">=23.1.0,
+  "templateflow>=23.1.0",
   "xnat>=0.5.2"
 ]
 
