@@ -1,10 +1,6 @@
 
-module load python/3.8/3.8.2
-CURRDIR=<PWD>
-cd /xdisk/nkchen/chidiugonna/condaenvs/
-. ./startCondaPuma.sh
-conda activate ./neuropython
-cd $CURRDIR
+# Add commands here to start your python environment if required
+# e.g. module load python/3.8/3.8.2
 
 CONFIG=<RUNTIME_CONFIG_FILE>
 PIPELINE=<PIPELINE>
