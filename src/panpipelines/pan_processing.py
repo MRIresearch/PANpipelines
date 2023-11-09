@@ -12,10 +12,11 @@ from functools import partial
 from panpipelines.version import __version__
 from panpipelines.single_subject import runSingleSubject
 
-PROCESSING_OPTIONS=["slurm", "local"]
-
 LOGGER = logger_setup("panpipelines", logging.DEBUG)
 logger_addstdout(LOGGER, logging.INFO)
+
+PROCESSING_OPTIONS=["slurm", "local"]
+
 
 def parse_params():
     parser = ArgumentParser(description="Pan pipelines")

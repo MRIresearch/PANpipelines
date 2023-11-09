@@ -1,7 +1,10 @@
 from panpipelines.pipelines import *
 from panpipelines.scripts import *
 import glob
+import logging
+from panpipelines.utils.util_functions import logger_setup
 
+LOGGER = logger_setup("panpipelines.single_subject", logging.DEBUG)
 
 class PANFactory:
     _instance = None
@@ -14,58 +17,149 @@ class PANFactory:
 
     def initialize(self):
         # Initialization logic for the factory (e.g., setting up resources)
-        print("Initializing PANFactory.")
-        self.pipelineDictionary = {}
-        self.register_pipeline("aslprep_panpipeline",aslprep_panpipeline.aslprep_panpipeline)
-        self.register_pipeline("basil_panpipeline",basil_panpipeline.basil_panpipeline)
-        self.register_pipeline("dummy_panpipeline",dummy_panpipeline.dummy_panpipeline)
-        self.register_pipeline("fmriprep_panpipeline",fmriprep_panpipeline.fmriprep_panpipeline)
-        self.register_pipeline("freesurfer_panpipeline",freesurfer_panpipeline.freesurfer_panpipeline)
-        self.register_pipeline("noddi_panpipeline",noddi_panpipeline.noddi_panpipeline)
-        self.register_pipeline("panpipeline",panpipeline.panpipeline)
-        self.register_pipeline("qsiprep_panpipeline",qsiprep_panpipeline.qsiprep_panpipeline)
-        self.register_pipeline("tensor_panpipeline",tensor_panpipeline.tensor_panpipeline)
-        self.register_pipeline("volmeasures_panpipeline",volmeasures_panpipeline.volmeasures_panpipeline)
-        self.register_pipeline("textmeasures_panpipeline",textmeasures_panpipeline.textmeasures_panpipeline)
-        self.register_pipeline("collatecsv_panpipeline",collatecsv_panpipeline.collatecsv_panpipeline)
+        LOGGER.debug("Initializing PANFactory.")
+        root_module = "panpipelines"
+        self.pipeline_module = f"{root_module}.pipelines"
+        self.script_module = f"{root_module}.scripts"
+        self.workflow_module = f"{root_module}.workflows"
+        self.node_module = f"{root_module}.nodes"
+        self.atlas_module = f"{root_module}.atlases"
+        self.transform_module = f"{root_module}.transforms"
 
-        self.scriptDictionary = {}
-        self.register_script("aslprep_panscript",aslprep_panscript.aslprep_panscript)
-        self.register_script("fmriprep_panscript",fmriprep_panscript.fmriprep_panscript)
-        self.register_script("panscript",panscript.panscript)
+        LOGGER.debug("PANFactory ready. Modules defined.")
+        LOGGER.debug(f"Pipelines: {self.pipeline_module}")
+        LOGGER.debug(f"Scripts: {self.script_module}")
+        LOGGER.debug(f"Workflows: {self.workflow_module}")
+        LOGGER.debug(f"Nodes: {self.node_module}")
+        LOGGER.debug(f"Transforms: {self.transform_module}")
+        LOGGER.debug(f"Atlases: {self.atlas_module}")
 
-        print("PANFactory ready. Pipelines and scripts loaded.")
-        print(f"Pipelines: {self.pipelineDictionary}")
-        print(f"Scripts: {self.scriptDictionary}")
+    def get_node(self, name):
 
-    def register_pipeline(self, name, pipeline):
-        self.pipelineDictionary[name] = pipeline
+        try:
+            # currently node and worfklow not defined as classes
+            module = __import__(f"{self.node_module}.{name}",fromlist=[name])
+            if module:
+                return module
+            else:
+                return None
+        except Exception as ex:
+            pass
+
+    def get_workflow(self, name):
+
+        try:
+            # currently node and worfklow not defined as classes
+            module = __import__(f"{self.workflow_module}.{name}",fromlist=[name])
+            if module:
+                return module
+            else:
+                return None
+        except Exception as ex:
+            pass
+
+
+    def get_atlas(self, name):
+        try:
+            module = __import__(f"{self.atlas_module}.{name}",fromlist=[name])
+            if hasattr(module,name):
+                atlasclass = getattr(module,name)
+                return atlasclass
+            else:
+                return None
+        except Exception as ex:
+            pass
+
+    def get_transform(self, name):
+        try:
+            module = __import__(f"{self.transform_module}.{name}",fromlist=[name])
+            if hasattr(module,name):
+                transformclass = getattr(module,name)
+                return transformclass
+            else:
+                return None
+        except Exception as ex:
+            pass
+
 
     def get_pipeline(self, name):
-        pipeline = self.pipelineDictionary.get(name)
-        if not pipeline:
-            raise ValueError(name)
-        return pipeline
 
-    def register_script(self, name, script):
-        self.scriptDictionary[name] = script
+        try:
+            module = __import__(f"{self.pipeline_module}.{name}",fromlist=[name])
+            if hasattr(module,name):
+                pipeclass = getattr(module,name)
+                return pipeclass
+            else:
+                raise None
+        except Exception as ex:
+            pass
 
     def get_script(self, name):
-        script = self.scriptDictionary.get(name)
-        if not script:
-            raise ValueError(name)
-        return script
+        try:
+            module = __import__(f"{self.script_module}.{name}",fromlist=[name])
+            if hasattr(module,name):
+                scriptclass = getattr(module,name)
+                return scriptclass
+            else:
+                return None
+        except Exception as ex:
+            pass
 
     def get_processflow(self, name):
         if "script" in name:
-            processflow = self.scriptDictionary.get(name)
+            processflow = self.get_script(name)
         elif "pipeline" in name:
-            processflow = self.pipelineDictionary.get(name)
+            processflow = self.get_pipeline(name)           
+        elif "workflow" in name:
+            processflow = self.get_workflow(name)
         else:
-            raise ValueError(name)
+            processflow = self.get_node(name)
+
         if not processflow:
             raise ValueError(name)
+
+        LOGGER.debug(f"PANfactory retrieving {processflow}")
         return processflow
+
+    def get_PANclass(self, name):
+        if "atlas" in name:
+            panclass = self.get_atlas(name)
+        elif "transform" in name:
+            panclass = self.get_transform(name)
+        else:
+            panclass = self.get_processflow(name)
+
+        if not panclass:
+            raise ValueError(name)
+
+        LOGGER.debug(f"PANfactory retrieving {panclass}")
+        return panclass
+
+
+    def search_PANclass(self, name):
+
+        panclass = self.get_transform(name)
+
+        if not panclass:
+            panclass = self.get_atlas(name)
+
+        if not panclass:
+            panclass = self.get_pipeline(name)
+
+        if not panclass:
+            panclass = self.get_script(name)
+
+        if not panclass:
+            panclass = self.get_node(name)
+
+        if not panclass:
+            panclass = self.get_workflow(name)
+
+        if not panclass:
+            raise ValueError(name)
+
+        LOGGER.debug(f"PANfactory retrieving {panclass}")
+        return panclass
 
 def getPANFactory():
     return PANFactory()

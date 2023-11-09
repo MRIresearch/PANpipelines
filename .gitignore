@@ -1,6 +1,7 @@
 # custom
 deployment_development/
 launch.json
+startenv.sh
 
 # files
 *.pklz

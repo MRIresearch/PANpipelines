@@ -11,10 +11,10 @@ import sys
 from panpipelines.version import __version__
 from panpipelines import Factory
 
-panFactory = Factory.getPANFactory()
-
 LOGGER = logger_setup("panpipelines.single_subject", logging.DEBUG)
 logger_addstdout(LOGGER, logging.INFO)
+
+panFactory = Factory.getPANFactory()
 
 def runSingleSubject(participant_label, xnat_project, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json):
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)

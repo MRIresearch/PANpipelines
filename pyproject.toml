@@ -13,7 +13,7 @@ dynamic = ["version"]
 authors = [
   { name="Chidi Ugonna", email="chidiugonna@arizona.edu" },
 ]
-description = "MRI Processing Pipelines for PAN"
+description = "MRI Processing Pipelines for PAN Healthy Minds for Life Study"
 license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.8"
@@ -24,13 +24,15 @@ classifiers = [
 ]
 
 dependencies = [
-  "nipype>1.7.1",
-  "nibabel>4.0.2",
-  "pybids>0.15.6",
-  "numpy>1.21.6",
-  "pandas>1.5.2",
-  "nitransforms>23.0.0",
-  "nilearn>=0.10.0",
+  "nipype>=1.8.6",
+  "numpy>=1.26.1",
+  "nibabel>=5.1.0",
+  "pydicom">=2.4.3,
+  "pybids>=0.16.3",
+  "pandas>=2.1.2",
+  "nilearn>=0.10.2",
+  "nitransforms>=23.0.1",
+  "templateflow">=23.1.0,
   "xnat>=0.5.2"
 ]
 
