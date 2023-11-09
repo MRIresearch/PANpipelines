@@ -18,6 +18,8 @@ from panpipelines.utils.transformer import *
 import sys
 from nipype import logging as nlogging
 
+UTLOGGER=nlogging.getLogger('nipype.utils')
+
 def logger_setup(logname, loglevel):
     LOGGER = logging.getLogger(logname)
     LOGGER.setLevel(loglevel)
@@ -232,7 +234,10 @@ def process_fsl_glm(panpipe_labels):
         command="singularity run --cleanenv --no-home <NEURO_CONTAINER>"\
             " Text2Vest " + newfsldesign_text + " " + newfsldesign
         evaluated_command=substitute_labels(command, panpipe_labels)
-        os.system(evaluated_command)
+        UTLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        UTLOGGER.info(results.stdout)
         panpipe_labels = updateParams(panpipe_labels,"FSL_DESIGN",newfsldesign)
 
 
@@ -241,7 +246,10 @@ def process_fsl_glm(panpipe_labels):
             command="singularity run --cleanenv --no-home <NEURO_CONTAINER>"\
             " Text2Vest " + fslcontrast_text + " " + newfslcontrast
             evaluated_command=substitute_labels(command, panpipe_labels)
-            os.system(evaluated_command)
+            UTLOGGER.info(evaluated_command)
+            evaluated_command_args = shlex.split(evaluated_command)
+            results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+            UTLOGGER.info(results.stdout)
             panpipe_labels = updateParams(panpipe_labels,"FSL_CONTRAST",newfslcontrast)
         else:
             print("TEXT_FSL_CONTRAST Contrast not defined or doed not exist")
@@ -252,7 +260,10 @@ def process_fsl_glm(panpipe_labels):
             command="singularity run --cleanenv --no-home <NEURO_CONTAINER>"\
             " Text2Vest " + fslftest_text + " " + newfslftest
             evaluated_command=substitute_labels(command, panpipe_labels)
-            os.system(evaluated_command)
+            UTLOGGER.info(evaluated_command)
+            evaluated_command_args = shlex.split(evaluated_command)
+            results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+            UTLOGGER.info(results.stdout)
             panpipe_labels = updateParams(panpipe_labels,"FSL_FTEST",newfslftest)
         else:
             print("TEXT_FSL_FTEST Ftest not defined or doed not exist")
@@ -404,7 +415,9 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
                 " --password " + password
 
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        UTLOGGER.info(results.stdout)
     else:
         print("BIDS folder for {} already present. No need to download".format(participant_label))
 
@@ -507,7 +520,7 @@ def get_value_bytype(vartype,varstring):
 
     return varvalue
 
-def create_array(participants, participants_file):
+def create_array(participants, participants_file, LOGGER=UTLOGGER):
     df = pd.read_table(participants_file)
     if participants is not None and len(participants) > 0:
         array=[]
@@ -533,7 +546,7 @@ def get_projectmap(participants, participants_file):
         return  [ participant_list, project_list ]
 
 
-def create_script(header,template,panpipe_labels, script_file):
+def create_script(header,template,panpipe_labels, script_file, LOGGER=UTLOGGER):
     with open(header,"r") as infile:
         headerlines=infile.readlines()
 
@@ -542,6 +555,7 @@ def create_script(header,template,panpipe_labels, script_file):
 
     newscript=[]
     header = "".join(headerlines)
+    header = header + "\n\n"
     newscript.append(header)
 
     for templateline in templatelines:
@@ -551,7 +565,7 @@ def create_script(header,template,panpipe_labels, script_file):
         outfile.writelines(newscript)
 
 
-def getDependencies(job_ids,panpipe_labels,logging=None):
+def getDependencies(job_ids,panpipe_labels,LOGGER=UTLOGGER):
     dependency_string=""
     pipeline_dependency = getParams(panpipe_labels,"DEPENDENCY")
     if pipeline_dependency is not None:
@@ -577,7 +591,7 @@ def getDependencies(job_ids,panpipe_labels,logging=None):
 
 
 
-def submit_script(participants, participants_file, pipeline, panpipe_labels,job_ids, analysis_level, logging=None, script_dir=None):
+def submit_script(participants, participants_file, pipeline, panpipe_labels,job_ids, analysis_level, LOGGER=UTLOGGER, script_dir=None):
     headerfile=getParams(panpipe_labels,"SLURM_HEADER")
     templatefile=getParams(panpipe_labels,"SLURM_TEMPLATE")
     datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") 
@@ -610,6 +624,9 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
         " " + script_file 
     
     evaluated_command = substitute_labels(command,panpipe_labels)
+    if LOGGER:
+        LOGGER.info(evaluated_command)
+
     updateParams(panpipe_labels, "SLURM_COMMAND", evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
 
@@ -618,19 +635,16 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
     CURRDIR=os.getcwd()
     os.chdir(script_dir)
 
-    if logging:
-        logging.info(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
 
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-
-    if logging:
-        logging.info(results.stdout)
+    if LOGGER:
+        LOGGER.info(results.stdout)
     else:
         print(results.stdout)
  
     os.chdir(CURRDIR)
 
-    return results.stdout.decode().split()[3]
+    return results.stdout.split()[3]
 
 def getGlob(globstring,default_result=""):
     glob_results = glob.glob(globstring)
@@ -762,8 +776,10 @@ def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, high_thresh=Non
         f" -mul {roi_value}" \
         f" {new_roi}"
     evaluated_command = substitute_labels(command,panpipe_labels)
+    UTLOGGER.info(evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    UTLOGGER.info(results.stdout)
 
     from panpipelines.nodes.antstransform import antstransform_proc
 
@@ -792,9 +808,10 @@ def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, high_thresh=Non
             f" {atlas_file}" 
     
     evaluated_command = substitute_labels(command,panpipe_labels)
+    UTLOGGER.info(evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    UTLOGGER.info(results.stdout)
     return atlas_file
 
 
@@ -853,8 +870,10 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
             " -bin "\
             f" {new_roi}"
         evaluated_command = substitute_labels(command,panpipe_labels)
+        UTLOGGER.info(evaluated_command)
         evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+        UTLOGGER.info(results.stdout)
         roi_files.append(new_roi)
 
     from panpipelines.nodes.antstransform import antstransform_proc
@@ -883,8 +902,10 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
             " " + roi_string
 
         evaluated_command = substitute_labels(command,panpipe_labels)
+        UTLOGGER.info(evaluated_command)
         evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+        UTLOGGER.info(results.stdout)
 
     return atlas_file
 
@@ -951,8 +972,10 @@ def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
                     f" {vol}" \
                     " 1" 
                 evaluated_command = substitute_labels(command,panpipe_labels)
+                UTLOGGER.info(evaluated_command)
                 evaluated_command_args = shlex.split(evaluated_command)
-                results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+                results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+                UTLOGGER.info(results.stdout)
                 new_roi_list.append(new_roi)
                 if roi_transform:
                     roi_transform_list.append(roi_transform)
@@ -969,8 +992,10 @@ def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
                         " -bin "\
                         f" {new_roi}"
                     evaluated_command = substitute_labels(command,panpipe_labels)
+                    UTLOGGER.info(evaluated_command)
                     evaluated_command_args = shlex.split(evaluated_command)
-                    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+                    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+                    UTLOGGER.info(results.stdout)
                     new_roi_list.append(new_roi)
                     if roi_transform:
                         roi_transform_list.append(roi_transform)
@@ -981,8 +1006,10 @@ def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
                 " " + roi +\
                 " " + new_roi
                 evaluated_command = substitute_labels(command,panpipe_labels)
+                UTLOGGER.info(evaluated_command)
                 evaluated_command_args = shlex.split(evaluated_command)
-                results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+                results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+                UTLOGGER.info(results.stdout)
                 new_roi_list.append(new_roi)
                 if roi_transform:
                         roi_transform_list.append(roi_transform)
@@ -1083,24 +1110,30 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
         f" {os.path.join(freesurfer_home,'subjects','fsaverage')}" \
         f" {os.path.join(freesurfer_dir,'fsaverage')}" 
     evaluated_command = substitute_labels(command,panpipe_labels)
+    UTLOGGER.info(evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    UTLOGGER.info(results.stdout)
 
     command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> ln"\
         "  -s" \
         f" {os.path.join(freesurfer_home,'subjects','lh.EC_average')}" \
         f" {os.path.join(freesurfer_dir,'lh.EC_average')}" 
     evaluated_command = substitute_labels(command,panpipe_labels)
+    UTLOGGER.info(evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    UTLOGGER.info(results.stdout)
 
     command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> ln"\
         "  -s" \
         f" {os.path.join(freesurfer_home,'subjects','rh.EC_average')}" \
         f" {os.path.join(freesurfer_dir,'rh.EC_average')}" 
     evaluated_command = substitute_labels(command,panpipe_labels)
+    UTLOGGER.info(evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    UTLOGGER.info(results.stdout)
 
     command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_surf2surf"\
         " --srcsubject fsaverage" \
@@ -1109,8 +1142,10 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
         f" --sval-annot {lh_hcpannot}" \
         f" --tval {lh_hcpannot_trg}"
     evaluated_command = substitute_labels(command,panpipe_labels)
+    UTLOGGER.info(evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    UTLOGGER.info(results.stdout)
 
     command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_surf2surf"\
         " --srcsubject fsaverage" \
@@ -1119,8 +1154,10 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
         f" --sval-annot {rh_hcpannot}" \
         f" --tval {rh_hcpannot_trg}"
     evaluated_command = substitute_labels(command,panpipe_labels)
+    UTLOGGER.info(evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    UTLOGGER.info(results.stdout)
 
     atlas_space_fs = newfile(workdir, atlas_file, suffix="desc-hcpmmp1_space-fs")
     command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_aparc2aseg"\
@@ -1129,8 +1166,10 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
         " --annot HCP-MMP1" \
         f" --o {atlas_space_fs}" 
     evaluated_command = substitute_labels(command,panpipe_labels)
+    UTLOGGER.info(evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    UTLOGGER.info(results.stdout)
 
     atlas_space_T1w = newfile(workdir, atlas_file, suffix="desc-hcpmmp1_space-T1w",extension=".mgz")
     rawavg=os.path.join(freesurfer_dir,SUB,"mri","rawavg.mgz")
@@ -1140,8 +1179,10 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
         f"  --o {atlas_space_T1w}" \
         f"  --regheader {atlas_space_fs}" 
     evaluated_command = substitute_labels(command,panpipe_labels)
+    UTLOGGER.info(evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    UTLOGGER.info(results.stdout)
 
     atlas_space_T1w_nii = newfile(workdir, atlas_space_T1w,suffix="desc-unordered",extension=".nii.gz")
     convMGZ2NII(atlas_space_T1w,atlas_space_T1w_nii,NEUROIMG)
@@ -1171,11 +1212,179 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
         f"  {hcpmmp_ordered}" \
         f"  {atlas_file}" 
     evaluated_command = substitute_labels(command,panpipe_labels)
+    UTLOGGER.info(evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    UTLOGGER.info(results.stdout)
 
     return [f"get_freesurfer_atlas_index:{hcpmmp_ordered}"]
 
 
+def getAge(birthdate,refdate=None):
+    if refdate is None:
+        today = date.today()
+    else:
+        today=refdate
+    age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+    return age
+
+def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=True):
+    import xnat
+    from pydicom import dcmread
+    import fnmatch
+
+    if not os.path.isdir(outputdir):
+        os.mkdir(outputdir)
+
+    participantsTSV=os.path.join(outputdir,'participants.tsv')
+    sessionsTSV=os.path.join(outputdir,'sessions.tsv')
+
+    participant_columns=['xnat_subject_id','xnat_subject_label','bids_participant_id','gender', 'age','project','scan_date','comments']
+    participant_data=[]
+
+    session_columns=['xnat_session_id','xnat_session_label','xnat_subject_id','xnat_subject_label','bids_participant_id','bids_session_id', 'gender', 'age','project','scan_date','comments']
+    session_data=[]
+
+    scantest = os.path.join(outputdir,'scantest.dcm')
+
+    with xnat.connect(server=host,user=user, password=password) as connection:
+
+        if projects is None:
+            projects = connection.projects
+
+        for PROJ in projects:
+            try: 
+                project = connection.projects[PROJ]
+                UTLOGGER.info(f"Getting participant information for Project {project.id}.\n")
+                # rigmarole here as iteration acting weirdly with experiments
+                experiments = project.experiments
+                numexps =  len(experiments)
+                for expid in range(numexps):
+
+                    print_progress(expid + 1, numexps, prefix='Progress', suffix='Complete')
+                    experiment=experiments[expid]
+                    xnat_session_id =""
+                    xnat_session_label = ""
+                    xnat_subject_id = ""
+                    xnat_subject_label = ""
+                    bids_participant_id = ""
+                    bids_session_id = ""
+                    gender = ""
+                    age = ""
+                    comments=""
+                    scan_date=""
 
 
+                    # _MR_ hack - some reason 003_HML MR session not storing modality 
+                    if experiment.modality == 'MR' or "_MR_" in experiment.label:
+                        xnat_session_id = experiment.id
+                        xnat_session_label = experiment.label
+                        xnat_subject_id = experiment.subject.id
+                        xnat_subject_label = experiment.subject.label
+                        try:
+                            if (experiment.resources[targetfolder]):
+                                files = experiment.resources[targetfolder].files
+                                numfiles = len(files)
+                                for fileid in range(numfiles):
+                                    file=files[fileid]
+                                    if fnmatch.fnmatch(file.path,'sub-*/ses-*/*'):
+                                        bids_participant_id = file.path.split('/')[0]
+                                        bids_session_id = file.path.split('/')[1]
+                                        break
+                                    if fnmatch.fnmatch(file.path,'sub-*/*'):
+                                        bids_participant_id = file.path.split('/')[0]
+                                        bids_session_id = ''
+                                        break
+
+                            if demographics:
+                                experiment.scans[0].resources['DICOM'].files[0].download(scantest)
+                                ds = dcmread(scantest)
+                                gender = ds.PatientSex
+
+                                if ds.PatientBirthDate:
+                                    agedate=datetime.datetime.strptime(ds.PatientBirthDate,"%Y%m%d")
+                                else:
+                                    agedate=experiment.subject.demographics.dob 
+                                scan_date = ds.StudyDate   
+                                scandate = datetime.datetime.strptime(scan_date,"%Y%m%d")
+                                if agedate is None or agedate == '':
+                                    comments = "subject age missing; " + comments
+                                else:
+                                    age=getAge(agedate,scandate)
+
+                        except Exception as e:
+                            message = 'problem parsing resource : %s.' % targetfolder
+                            comments="missing bids files; " + comments
+                            print(message)
+                            print(str(e))
+
+                        session_data.append([xnat_session_id,xnat_session_label,xnat_subject_id,xnat_subject_label,bids_participant_id,bids_session_id, gender, age,project.id,scan_date,comments])
+
+            except Exception as e:
+                message = 'problem parsing project :  %s.' % PROJ
+                print (message)
+                print(str(e))
+
+        df = pd.DataFrame(session_data, columns=session_columns)
+        df.to_csv(sessionsTSV,sep="\t", index=False)
+
+        first=df.groupby('xnat_subject_id').first()
+        subs_list=df['xnat_subject_id'].to_list()
+        subs_set=set(subs_list)
+        first['xnat_subject_id'] = sorted(subs_set)
+        cols=list(first.columns.values)
+        cols.pop(cols.index('xnat_subject_id'))
+        cols.pop(cols.index('xnat_session_id'))
+        cols.pop(cols.index('xnat_session_label'))
+        cols.pop(cols.index('bids_session_id'))
+        newdf=first[['xnat_subject_id'] + cols]
+        newdf.to_csv(participantsTSV,sep="\t", index=False)
+
+        if os.path.exists(scantest):
+            os.remove(scantest)
+
+# Print iterations progress
+def print_progress(iteration, total, prefix='', suffix='', decimals=1, bar_length=50):
+    """
+    Call in a loop to create terminal progress bar
+    https://gist.github.com/aubricus/f91fb55dc6ba5557fbab06119420dd6a
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        bar_length  - Optional  : character length of bar (Int)
+    """
+    str_format = "{0:." + str(decimals) + "f}"
+    percents = str_format.format(100 * (iteration / float(total)))
+    filled_length = int(round(bar_length * iteration / float(total)))
+    bar = '|' * filled_length + '-' * (bar_length - filled_length)
+
+    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percents, '%', suffix)),
+
+    if iteration == total:
+        sys.stdout.write('\n')
+    sys.stdout.flush()
+
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 50, fill = '|', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    https://stackoverflow.com/questions/3173320/text-progress-bar-in-terminal-with-block-characters
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total: 
+        print()

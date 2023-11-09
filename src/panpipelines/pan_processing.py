@@ -67,6 +67,13 @@ def main():
     panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
     runtime_labels = updateParams(runtime_labels,"CONFIG_FILE",getParams(panpipe_labels,"CONFIG_FILE"))
 
+    credentials = os.path.abspath(getParams(panpipe_labels,"CREDENTIALS"))
+    if credentials is not None and os.path.exists(credentials):
+        with open(credentials, 'r') as infile:
+            cred_dict = json.load(infile)
+            cred_user = getParams(cred_dict,"user")
+            cred_password = getParams(cred_dict,"password")
+
     participants_file = args.participants_file
     if args.participants_file is not None:
         participants_file=str(args.participants_file)
@@ -75,6 +82,16 @@ def main():
         panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
     else:
         participants_file = getParams(panpipe_labels,"PARTICIPANTS_FILE")
+
+    # if participants file doesn't exist then lets download it
+    if not os.path.exists(participants_file):
+        LOGGER.info(f"Participants file not found at {participants_file} - retrieving from XNAT. Please wait.")
+        xnat_host = getParams(panpipe_labels,"XNAT_HOST")
+        targetdir = os.path.dirname(participants_file)
+        projects=["001_HML","002_HML","003_HML","004_HML"]
+        if not os.path.exists(targetdir):
+            os.makedirs(targetdir)
+        getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",targetdir,demographics=False)
 
     pipelines=args.pipelines
     if args.pipelines is not None:
@@ -124,9 +141,12 @@ def main():
 
             # analysis_level seems somewhat redundant at the script level as we pass in the required SLURM TEMPLATE
             # perhaps we can replace <<PYTHON_SCRIPT>> with single_subject.py or group.py depending on level?
-            jobid = submit_script(participant_label, participants_file, pipeline, panpipe_labels,job_ids, analysis_level, LOGGER)
+            try:
+                jobid = submit_script(participant_label, participants_file, pipeline, panpipe_labels,job_ids, analysis_level, LOGGER)
 
-            job_ids[pipeline]=jobid
+                job_ids[pipeline]=jobid
+            except Exception as ex:
+                LOGGER.info(f"problems running pipeline {pipeline}. Details: {ex}")
 
         elif processing_environment == "local":
 
@@ -142,35 +162,31 @@ def main():
 
                 bids_dir = getParams(panpipe_labels,"BIDS_DIR")
 
-                credentials = os.path.abspath(getParams(panpipe_labels,"CREDENTIALS"))
-                if credentials is not None and os.path.exists(credentials):
-                    with open(credentials, 'r') as infile:
-                        cred_dict = json.load(infile)
-                        cred_user = getParams(cred_dict,"user")
-                        cred_password = getParams(cred_dict,"password")
-
                 execution_json=getParams(panpipe_labels,"NIPYPE_CONFIG")
                 if execution_json is None:
                     execution_json = {} 
 
-                procs = getProcNums(panpipe_labels)
-                projectmap = get_projectmap(participant_label, participants_file)
-                participant_list = projectmap[0]
-                project_list  = projectmap[1]
+                try:
+                    procs = getProcNums(panpipe_labels)
+                    projectmap = get_projectmap(participant_label, participants_file)
+                    participant_list = projectmap[0]
+                    project_list  = projectmap[1]
 
-                # run serially if procs < 2
-                if procs > 1:
-                    parrunSingleSubject=partial(runSingleSubject, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
-                    with mp.Pool(procs) as pool:
-                        completedlist = pool.starmap(parrunSingleSubject,zip(participant_list,project_list))
-                        pool.close()
-                        pool.join()
-                else:
-                    for part_count in range(len(participant_list)):
-                        runSingleSubject(participant_list[part_count], project_list[part_count],pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
+                    # run serially if procs < 2
+                    if procs > 1:
+                        parrunSingleSubject=partial(runSingleSubject, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
+                        with mp.Pool(procs) as pool:
+                            completedlist = pool.starmap(parrunSingleSubject,zip(participant_list,project_list))
+                            pool.close()
+                            pool.join()
+                    else:
+                        for part_count in range(len(participant_list)):
+                            runSingleSubject(participant_list[part_count], project_list[part_count],pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
+                except Exception as ex:
+                    LOGGER.info(f"problems running pipeline {pipeline}. Details: {ex}")
             else:
                 # need to implement group analysis here
-                pass
+                LOGGER.info("Have not implemented any analyis level other than participant for now. Your analysis level is {analysis_level}.")
 
         else:
             LOGGER.info(f"processing environment {processing_environment} not currently supported. Options are {PROCESSING_OPTIONS}.")
