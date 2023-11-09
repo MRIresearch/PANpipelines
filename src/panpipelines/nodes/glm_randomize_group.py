@@ -5,9 +5,13 @@ import os
 import glob
 import numpy as np 
 import nibabel as nib
+import shlex
+import subprocess
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_file,ftest_file):
-
 
     cwd=os.getcwd()
     output_dir=cwd
@@ -40,18 +44,31 @@ def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_f
 
         command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslreorient2std"\
             " "+group_mask+ " "+group_mask
+
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+
 
         command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
             " "+group_mask+ " -bin "+group_mask
+
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
 
         command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
             " "+group_mask+ " -dilM -fillh "+group_mask
+
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
 
     statsimagestring=''
     stats_image=None
@@ -75,7 +92,10 @@ def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_f
             " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
 
     
     # permutation
@@ -100,7 +120,10 @@ def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_f
             " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        os.system(evaluated_command)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
 
     out_files=[]
     out_files.insert(0,group_mask)
@@ -155,9 +178,13 @@ class mni3dglm_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="mni3dglm_node",file_template="",mask_template="",design_file="",contrast_file="",ftest_file=""):
+def create(labels_dict,name="mni3dglm_node",file_template="",mask_template="",design_file="",contrast_file="",ftest_file="",LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(mni3dglm_pan(), name=name)
+
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+    
     # Specify node inputs
     panpipe_labels = process_fsl_glm(labels_dict)
     pan_node.inputs.labels_dict = labels_dict

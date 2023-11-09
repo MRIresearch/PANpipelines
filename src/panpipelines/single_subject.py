@@ -13,6 +13,9 @@ from panpipelines import Factory
 
 panFactory = Factory.getPANFactory()
 
+LOGGER = logger_setup("panpipelines.single_subject", logging.DEBUG)
+logger_addstdout(LOGGER, logging.INFO)
+
 def runSingleSubject(participant_label, xnat_project, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json):
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_PROJECT",xnat_project)
@@ -21,19 +24,13 @@ def runSingleSubject(participant_label, xnat_project, pipeline, pipeline_class, 
     if not os.path.exists(pipeline_outdir):
         os.makedirs(pipeline_outdir,exist_ok=True)
 
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
-
     datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    LOGFILE=os.path.join(pipeline_outdir,f"{datelabel}_{participant_label}_{xnat_project}_{pipeline}_pan_processing.log")
-    file_handler = logging.FileHandler(LOGFILE)
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    LOGFILE=os.path.join(pipeline_outdir,f"{participant_label}_{datelabel}_{xnat_project}_{pipeline}_single_subject.log")
+    logger_addfile(LOGGER, LOGFILE, logging.DEBUG)
+    nipype_loggers_setup(logging.INFO,LOGFILE,logging.DEBUG)
 
-    logging.info(f"Running Pan Processing - {pipeline} pipeline for {participant_label}")
-    logging.info(f"start logging to {LOGFILE}")
+    LOGGER.info(f"Pan Processing for single subject: Running {pipeline} pipeline for {participant_label}")
+    LOGGER.info(f"start logging to {LOGFILE}")
 
     
     getSubjectBids(panpipe_labels,bids_dir,participant_label,xnat_project,cred_user,cred_password)
@@ -42,13 +39,12 @@ def runSingleSubject(participant_label, xnat_project, pipeline, pipeline_class, 
 
     pipeline_outdir_subject = os.path.join(pipeline_outdir,"sub-"+participant_label)
 
-    PanProc = panProcessor(panpipe_labels,pipeline_outdir_subject, participant_label, name=pipeline,logging=logging,execution=execution_json)
+    PanProc = panProcessor(panpipe_labels,pipeline_outdir_subject, participant_label, name=pipeline,LOGGER=LOGGER,execution=execution_json)
     PanProc.run()
 
-    datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") 
-    labels_base=pipeline + "_" + datelabel + ".json"
-    export_file=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),f"{participant_label}_{labels_base}")                            
-    export_labels(panpipe_labels,export_file)
+    LOGGER.debug(f"\nDump of configuration settings for {participant_label} run of {pipeline}")
+    LOGGER.debug("---------------------------------------------------------------------------------")
+    LOGGER.debug(f"{panpipe_labels!r}")
 
 def parse_params():
     parser = ArgumentParser(description="Pan pipelines")
@@ -60,14 +56,6 @@ def parse_params():
     return parser
 
 def main():
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
-
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setLevel(logging.DEBUG)
-    stdout_handler.setFormatter(formatter)
-    logger.addHandler(stdout_handler)
     
     parser=parse_params()
     args, unknown_args = parser.parse_known_args()
@@ -119,38 +107,6 @@ def main():
             xnat_project = df['project'].iloc[participant_index - 1]
             runSingleSubject(participant_label,xnat_project,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
 
-
-            #panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
-            #panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_PROJECT",xnat_project)
-
-            #pipeline_outdir=os.path.join(pipeline_outdir,xnat_project)
-            #if not os.path.exists(pipeline_outdir):
-            #    os.makedirs(pipeline_outdir,exist_ok=True)
-
-            #datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            #LOGFILE=os.path.join(pipeline_outdir,f"{datelabel}_{participant_label}_{xnat_project}_{pipeline}_pan_processing.log")
-            #file_handler = logging.FileHandler(LOGFILE)
-            #file_handler.setLevel(logging.DEBUG)
-            #file_handler.setFormatter(formatter)
-            #logger.addHandler(file_handler)
-
-            #logging.info(f"Running Pan Processing - {pipeline} pipeline for {participant_label}")
-            #logging.info(f"start logging to {LOGFILE}")
-
-        
-            #getSubjectBids(panpipe_labels,bids_dir,participant_label,xnat_project,cred_user,cred_password)
-
-            #panProcessor = panFactory.get_processflow(pipeline_class)
-
-            #pipeline_outdir_subject = os.path.join(pipeline_outdir,"sub-"+participant_label)
-
-            #PanProc = panProcessor(panpipe_labels,pipeline_outdir_subject, participant_label, name=pipeline,logging=logging,execution=execution_json)
-            #PanProc.run()
-
-            #datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") 
-            #labels_base=pipeline + "_" + datelabel + ".json"
-            #export_file=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),f"{participant_label}_{labels_base}")                            
-            #export_labels(panpipe_labels,export_file)
 
         else:
             print("Problem: ARRAY_INDEX {} greater than length of participants file {}".format(participant_index,participants_file))

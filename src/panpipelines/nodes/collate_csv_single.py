@@ -5,6 +5,9 @@ import os
 import glob
 import numpy as np 
 import nibabel as nib
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
@@ -22,6 +25,8 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
     if csv_list2 is not None:
         csv_list.extend(csv_list2)
+
+    IFLOGGER.info("List of csv files to collate: {csv_list}")
 
     out_files=[]
     roi_csv = None
@@ -100,9 +105,13 @@ class collate_csv_single_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="collate_csv_single_node",csv_list1="",csv_list2="",add_prefix=False):
+def create(labels_dict,name="collate_csv_single_node",csv_list1="",csv_list2="",add_prefix=False,LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(collate_csv_single_pan(), name=name)
+
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+
     # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
 

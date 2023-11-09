@@ -4,6 +4,11 @@ from panpipelines.utils.util_functions import *
 import os
 import glob
 from bids import BIDSLayout
+import shlex
+import subprocess
+from nipype import logging as nlogging
+
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def freesurfer_proc(labels_dict,bids_dir=""):
 
@@ -52,7 +57,10 @@ def freesurfer_proc(labels_dict,bids_dir=""):
 
 
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
 
     # Hipposubfields segmentation using T2 and T1
@@ -66,7 +74,10 @@ def freesurfer_proc(labels_dict,bids_dir=""):
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
 
 
     # Thalamic Segmentation 
@@ -76,7 +87,10 @@ def freesurfer_proc(labels_dict,bids_dir=""):
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    os.system(evaluated_command)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
  
     L_hipposubfields = getGlob(os.path.join(subjects_dir,'sub-{}'.format(participant_label),'stats','hipposubfields.lh.*{}*'.format(HippoLabel)))   
     R_hipposubfields = getGlob(os.path.join(subjects_dir,'sub-{}'.format(participant_label),'stats','hipposubfields.rh.*{}*'.format(HippoLabel)))
@@ -141,11 +155,14 @@ class freesurfer_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name='freesurfer_node',bids_dir=""):
+def create(labels_dict,name='freesurfer_node',bids_dir="", LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(freesurfer_pan(), name=name)
-    # Specify node inputs
 
+    if LOGGER:
+        LOGGER.info(f"Created Node {pan_node!r}")
+        
+    # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
     
     if bids_dir is None or bids_dir == "":

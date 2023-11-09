@@ -14,6 +14,9 @@ from panpipelines.single_subject import runSingleSubject
 
 PROCESSING_OPTIONS=["slurm", "local"]
 
+LOGGER = logger_setup("panpipelines", logging.DEBUG)
+logger_addstdout(LOGGER, logging.INFO)
+
 def parse_params():
     parser = ArgumentParser(description="Pan pipelines")
     PathExists = partial(path_exists, parser=parser)
@@ -27,21 +30,11 @@ def parse_params():
 
 def main():
     datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
-
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setLevel(logging.INFO)
-    stdout_handler.setFormatter(formatter)
-    logger.addHandler(stdout_handler)
 
     job_ids={}
 
     parser=parse_params()
     args, unknown_args = parser.parse_known_args()
-
-    print(f"Running {__file__} v{__version__}")
 
     runtime_labels={}
     panpipe_labels={}
@@ -63,13 +56,11 @@ def main():
         os.makedirs(pipeline_outdir)
 
     LOGFILE=os.path.join(pipeline_outdir,f"{datelabel}_pan_processing.log")
-    file_handler = logging.FileHandler(LOGFILE)
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    logger_addfile(LOGGER, LOGFILE, logging.DEBUG)
 
-    logging.info("Running Pan Processing")
-    logging.info(f"start logging to {LOGFILE}")
+    LOGGER.info(f"Running {__file__} v{__version__}")
+    LOGGER.info("Running Pan Processing")
+    LOGGER.info(f"start logging to {LOGFILE}")
 
     label_key="CONFIG_FILE"
     label_value=panpipeconfig_file
@@ -105,10 +96,10 @@ def main():
 
     runtime_labels = updateParams(runtime_labels,"PIPELINES",getParams(panpipe_labels,"PIPELINES"))
 
-    logging.info(f"Pipelines to be processed : {pipelines}")
+    LOGGER.info(f"Pipelines to be processed : {pipelines}")
 
     for pipeline in pipelines:
-        logging.info(f"Processing pipeline : {pipeline}")
+        LOGGER.info(f"Processing pipeline : {pipeline}")
         updateParams(panpipe_labels, "PIPELINE", pipeline)
         panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels,pipeline)
         analysis_level = getParams(panpipe_labels,"ANALYSIS_LEVEL")
@@ -133,7 +124,7 @@ def main():
 
             # analysis_level seems somewhat redundant at the script level as we pass in the required SLURM TEMPLATE
             # perhaps we can replace <<PYTHON_SCRIPT>> with single_subject.py or group.py depending on level?
-            jobid = submit_script(participant_label, participants_file, pipeline, panpipe_labels,job_ids, analysis_level, logging)
+            jobid = submit_script(participant_label, participants_file, pipeline, panpipe_labels,job_ids, analysis_level, LOGGER)
 
             job_ids[pipeline]=jobid
 
@@ -177,14 +168,12 @@ def main():
                 else:
                     for part_count in range(len(participant_list)):
                         runSingleSubject(participant_list[part_count], project_list[part_count],pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
-
-
             else:
                 # need to implement group analysis here
                 pass
 
         else:
-            logging.info(f"processing environment {processing_environment} not currently supported. Options are {PROCESSING_OPTIONS}.")
+            LOGGER.info(f"processing environment {processing_environment} not currently supported. Options are {PROCESSING_OPTIONS}.")
 
 
         panpipe_labels = remove_labels(panpipe_labels,panpipeconfig_json,pipeline)
@@ -192,10 +181,10 @@ def main():
         panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels)
         panpipe_labels = add_labels(runtime_labels,panpipe_labels)
        
-    logging.info(f"All pipelines {pipelines} successfully submitted.")
-    logging.info(f"View logs at {LOGFILE}.")
-    logging.debug("------  environment dump -----------")
-    logging.debug(os.environ)
+    LOGGER.info(f"All pipelines {pipelines} successfully submitted.")
+    LOGGER.info(f"View logs at {LOGFILE}.")
+    LOGGER.debug("\n------  environment dump -----------")
+    LOGGER.debug(os.environ)
 
 
 # This is the standard boilerplate that calls the main() function.

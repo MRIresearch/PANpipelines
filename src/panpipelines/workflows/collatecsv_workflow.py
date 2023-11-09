@@ -6,9 +6,12 @@ from panpipelines.utils.util_functions import *
 from panpipelines.utils.transformer import *
 import glob
 
-def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}):
+def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=None):
     # Create workflow
     pan_workflow = Workflow(name=name, base_dir=wf_base_dir)
+
+    if LOGGER:
+        LOGGER.info(f"Created Workflow {name} with base directory {wf_base_dir}")
 
     if len(execution.keys()) > 0:
         pan_workflow.config = process_dict(pan_workflow.config,execution)
@@ -35,7 +38,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}):
 
     measures_list2.sort()
 
-    collate_csv_node = collate_csv.create(labels_dict, csv_list1=measures_list1, csv_list2=measures_list2)
+    collate_csv_node = collate_csv.create(labels_dict, csv_list1=measures_list1, csv_list2=measures_list2, LOGGER=LOGGER)
     pan_workflow.add_nodes([collate_csv_node])
 
 
