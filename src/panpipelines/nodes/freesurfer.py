@@ -14,21 +14,89 @@ def freesurfer_proc(labels_dict,bids_dir=""):
 
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     layout = BIDSLayout(bids_dir)
-    T1w=layout.get(subject=participant_label,suffix='T1w', extension='nii.gz')
-    if T1w:
-        T1wfile=T1w[0].path
 
-    T2wLabel = getParams(labels_dict,'T2W_LABEL')
-    t2w_entity=get_entities(T2wLabel)
-    t2w_entity["subject"]=participant_label
-    t2w_entity["extension"]='nii.gz'
-    t2w_entity["suffix"]='T2w'
-    T2w = layout.get(return_type='file', invalid_filters='allow', **t2w_entity)
+    container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
+    if not container_run_options:
+        container_run_options = ""
 
-    if T2w:
-        T2wfile=T2w[0]
+    container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
+    if not container_prerun:
+        container_prerun = ""
 
-    HippoLabel = getParams(labels_dict,'HIPPO_LABEL')
+    container = getParams(labels_dict,'CONTAINER')
+    if not container:
+        container = getParams(labels_dict,'FREESURFER_CONTAINER')
+        if not container:
+            container = getParams(labels_dict,'NEURO_CONTAINER')
+            if not container:
+                IFLOGGER.info("Container not defined for Freesurfer pipeline. Recon-all should be accessible on local path for pipeline to succeed")
+                if container_run_options:
+                    IFLOGGER.info("Note that '{container_run_options}' set as run options for non-existing container. This may cause the pipeline to fail.")
+                
+                if container_prerun:
+                    IFLOGGER.info("Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
+
+    command_base = f"{container_run_options} {container} {container_prerun}"
+    if container:
+        IFLOGGER.info("Checking the recon-all version:")
+        command = f"{command_base} recon-all --version"
+        evaluated_command=substitute_labels(command, labels_dict)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+
+        IFLOGGER.info("\nChecking the container version:")
+        command = f"{command_base} --version"
+        evaluated_command=substitute_labels(command, labels_dict)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+
+    T1wfile=None
+    T1wLabel = getParams(labels_dict,'T1W')
+    t1w_entity={"acquisition": None, "reconstruction": None}
+    if T1wLabel is not None:
+        t1w_entity=add_labels(T1wLabel,t1w_entity)
+        t1w_entity["subject"]=participant_label
+        t1w_entity["extension"]='nii.gz'
+        T1w= layout.get(return_type='file', invalid_filters='allow', **t1w_entity)
+        if T1w:
+            T1wfile=T1w[0]
+    else:
+        T1w=layout.get(subject=participant_label,suffix='T1w', extension='nii.gz')
+        if T1w:
+            T1wfile=T1w[0].path
+
+    HippoT2wfile=None
+    HippoLabel = getParams(labels_dict,'HIPPO_T2W')
+    hippo_t2w_entity={"acquisition": None, "reconstruction": None}
+    if HippoLabel is not None:
+        if "hippo_id" in HippoLabel.keys():
+            hippo_id=HippoLabel["hippo_id"]
+            HippoLabel.pop("hippo_id")
+        else:
+            hippo_id="T2w"
+        hippo_t2w_entity=add_labels(HippoLabel,hippo_t2w_entity)
+        hippo_t2w_entity["subject"]=participant_label
+        hippo_t2w_entity["extension"]='nii.gz'
+        HippoT2w = layout.get(return_type='file', invalid_filters='allow', **hippo_t2w_entity)
+
+        if HippoT2w:
+            HippoT2wfile=HippoT2w[0]
+
+    PialT2wfile=None
+    PialLabel = getParams(labels_dict,'PIAL_T2W')
+    pial_t2w_entity={"acquisition": None, "reconstruction": None}
+    if PialLabel is not None:
+        pial_t2w_entity=add_labels(PialLabel,pial_t2w_entity)
+        pial_t2w_entity["subject"]=participant_label
+        pial_t2w_entity["extension"]='nii.gz'
+        PialT2w = layout.get(return_type='file', invalid_filters='allow', **pial_t2w_entity)
+
+        if PialT2w:
+            PialT2wfile=PialT2w[0]
 
     subject="sub-"+participant_label
     cwd=os.getcwd()
@@ -36,23 +104,31 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     if not os.path.isdir(subjects_dir):
         os.makedirs(subjects_dir)
 
+    os.environ["SINGULARITYENV_SUBJECTS_DIR"]=subjects_dir
+
+    pial_t2_string = ""
+    if PialT2wfile:
+        pial_t2_string = f" -T2 {PialT2wfile} -T2pial"
+
     if not os.path.exists(os.path.join(subjects_dir,"sub-"+participant_label,"recon-all.log")):
         params="-all" \
             " -i " + T1wfile + \
             " -subject " + subject + \
             " -parallel" \
+            + pial_t2_string + \
             " -openmp <BIDSAPP_THREADS>"
 
-        command="singularity run --cleanenv --nv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+subjects_dir+" recon-all"\
+        command=f"{command_base} recon-all"\
                 " "+params
     else:
         params="-all" \
             " -no-isrunning" \
             " -subject " + subject + \
             " -parallel" \
+            + pial_t2_string + \
             " -openmp <BIDSAPP_THREADS>"
 
-        command="singularity run --cleanenv --nv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+subjects_dir+" recon-all"\
+        command=f"{command_base} recon-all"\
                 " "+params
 
 
@@ -63,14 +139,10 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     IFLOGGER.info(results.stdout)
 
 
-    # Hipposubfields segmentation using T2 and T1
-    useT1="1"
-    params= subject + \
-        " " + T2wfile + \
-        " " + HippoLabel + \
-        " " + useT1
+    # Hipposubfields segmentation just T1
+    params= subject 
 
-    command="singularity run --cleanenv --nv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+subjects_dir+" segmentHA_T2.sh"\
+    command=f"{command_base} segmentHA_T1.sh"\
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
@@ -78,12 +150,62 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     evaluated_command_args = shlex.split(evaluated_command)
     results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
     IFLOGGER.info(results.stdout)
+
+    # Test new beta Hipposubfields segmentation released in 7.3.2 that only uses T1
+    params= " hippo-amygdala"\
+            " --cross " + subject + \
+            " --suffix beta" 
+
+    command=f"{command_base} segment_subregions"\
+            " "+params
+
+    evaluated_command=substitute_labels(command, labels_dict)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
+
+
+    if HippoT2wfile:
+        # Hipposubfields segmentation using T2 and T1
+        useT1="1"
+        params= subject + \
+            " " + HippoT2wfile + \
+            " " + hippo_id + \
+            " " + useT1
+
+        command=f"{command_base} segmentHA_T2.sh"\
+                " "+params
+
+        evaluated_command=substitute_labels(command, labels_dict)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+
+        # Hipposubfields segmentation using just T2
+        useT1="0"
+        params= subject + \
+            " " + HippoT2wfile + \
+            " " + hippo_id + \
+            " " + useT1
+
+        command=f"{command_base} segmentHA_T2.sh"\
+                " "+params
+
+        evaluated_command=substitute_labels(command, labels_dict)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+    else:
+        hippo_id="T1"
 
 
     # Thalamic Segmentation 
     params= subject
 
-    command="singularity run --cleanenv --nv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+subjects_dir+" segmentThalamicNuclei.sh"\
+    command=f"{command_base} segmentThalamicNuclei.sh"\
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
@@ -91,9 +213,38 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     evaluated_command_args = shlex.split(evaluated_command)
     results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
     IFLOGGER.info(results.stdout)
+
+    # Test new beta Thalamic and Brainstem segmentation released in 7.3.2 that only uses T1
+    params= " thalamus"\
+            " --cross " + subject + \
+            " --suffix beta_thalamus" 
+
+    command=f"{command_base} segment_subregions"\
+            " "+params
+
+    evaluated_command=substitute_labels(command, labels_dict)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
+
+
+    params= " brainstem"\
+            " --cross " + subject + \
+            " --suffix beta_brainstem" 
+
+    command=f"{command_base} segment_subregions"\
+            " "+params
+
+    evaluated_command=substitute_labels(command, labels_dict)
+    IFLOGGER.info(evaluated_command)
+    evaluated_command_args = shlex.split(evaluated_command)
+    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+    IFLOGGER.info(results.stdout)
+
  
-    L_hipposubfields = getGlob(os.path.join(subjects_dir,'sub-{}'.format(participant_label),'stats','hipposubfields.lh.*{}*'.format(HippoLabel)))   
-    R_hipposubfields = getGlob(os.path.join(subjects_dir,'sub-{}'.format(participant_label),'stats','hipposubfields.rh.*{}*'.format(HippoLabel)))
+    L_hipposubfields = getGlob(os.path.join(subjects_dir,'sub-{}'.format(participant_label),'stats','hipposubfields.lh.*{}*'.format(hippo_id)))   
+    R_hipposubfields = getGlob(os.path.join(subjects_dir,'sub-{}'.format(participant_label),'stats','hipposubfields.rh.*{}*'.format(hippo_id)))
     L_a2009stats = getGlob(os.path.join(subjects_dir,'sub-{}'.format(participant_label),'stats','lh.aparc.a2009s.stats'))
     R_a2009stats = getGlob(os.path.join(subjects_dir,'sub-{}'.format(participant_label),'stats','rh.aparc.a2009s.stats'))
     asegstats =  getGlob(os.path.join(subjects_dir,'sub-{}'.format(participant_label),'stats','aseg.stats'))
