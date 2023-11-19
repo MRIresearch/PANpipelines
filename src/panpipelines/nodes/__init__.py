@@ -9,6 +9,7 @@ __all__ = [
     "roi_mean_group",
     "parse_textdata",
     "collate_csv_single",
+    "collate_csv_group",
     "basil",
     "fslanat",
     "aslprep",
