@@ -10,5 +10,6 @@ __all__ = [
     "dummy_panpipeline",
     "volmeasures_panpipeline",
     "textmeasures_panpipeline",
-    "collatecsv_panpipeline"
+    "collatecsv_panpipeline",
+    "collatecsvgroup_panpipeline"
 ]

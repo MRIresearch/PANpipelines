@@ -6,7 +6,6 @@ __all__ = [
     "workflows",
     "nodes",
     "pan_processing",
-    "single_subject"
+    "single_subject",
+    "group_subjects"
 ]
-
-__version__="0.1.0"
