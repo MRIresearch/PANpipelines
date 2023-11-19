@@ -4,11 +4,19 @@ import os
 import glob
 import panpipelines.workflows.aslprep_workflow as panworkflow
 
+TARGET_ANALYSIS_LEVEL=["participant"]
+
 class aslprep_panpipeline(panpipeline):
 
-    def __init__(self,labels_dict,pipeline_dir, participant_label, name='aslprep_panpipeline',createGraph=True,LOGGER=None,execution={}):
+    def __init__(self,labels_dict,pipeline_dir, participant_label, name='aslprep_panpipeline',createGraph=True,LOGGER=None,execution={},analysis_level="participant",participant_project=None):
 
-        super().__init__(labels_dict,pipeline_dir, participant_label,name,createGraph,LOGGER,execution)
+        if analysis_level not in TARGET_ANALYSIS_LEVEL:
+            if LOGGER:
+                LOGGER.error(f"pipeline {name} not defined for {analysis_level}")
+                raise ValueError(f"pipeline {name} not defined for {analysis_level}")
+
+        super().__init__(labels_dict,pipeline_dir, participant_label,name,createGraph,LOGGER,execution,analysis_level, participant_project)
+
 
     def proc(self):
         workflow_dir = self.pipeline_dir
