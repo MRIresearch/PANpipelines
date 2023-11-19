@@ -22,7 +22,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
         for meas_template in measures_template:
             evaluated_meas_template = substitute_labels(meas_template,labels_dict)
             measures_list1.extend(glob.glob(evaluated_meas_template))
-    else:
+    elif measures_template:
         measures_list1.extend(glob.glob(measures_template))
 
     measures_list1.sort()
@@ -33,7 +33,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
         for meas_template in measures_template:
             evaluated_meas_template = substitute_labels(meas_template,labels_dict)
             measures_list2.extend(glob.glob(evaluated_meas_template))
-    else:
+    elif measures_list2:
         measures_list2.extend(glob.glob(measures_template))
 
     measures_list2.sort()

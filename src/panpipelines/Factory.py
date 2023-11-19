@@ -116,7 +116,8 @@ class PANFactory:
             processflow = self.get_node(name)
 
         if not processflow:
-            raise ValueError(name)
+            LOGGER.error(f"PAN object {name} not defined.")
+            raise ValueError(f"{name} cannot be resolved as a PAN object by Factory")
 
         LOGGER.debug(f"PANfactory retrieving {processflow}")
         return processflow
