@@ -24,26 +24,54 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type):
     df=None
     basefile_name = os.path.basename(textdata)
     IFLOGGER.info("basename {textdata} provided.")
+
+    # Need to think about this additional prefix - only included it because of the use case of comparing
+    # different freesurfer pipelines. There should be a more elegant way to handle this.
+    subject_project = getParams(labels_dict,'PARTICIPANT_XNAT_PROJECT')
+    if subject_project:
+        addpref = textdata.split("/" + subject_project)[0].split("/")[-1]
+    else:
+        addpref=""
+
     if "aseg" in basefile_name or textdata_type=="aseg":
-        df = get_freesurfer_genstats(textdata,columns=["Volume_mm3"], prefix="aseg",participant_label=participant_label)
+        prefix= addpref + "-" + "aseg"
+        df = get_freesurfer_genstats(textdata,columns=["Volume_mm3"], prefix=prefix,participant_label=participant_label)
     elif "lh.aparc.a2009s" in basefile_name or textdata_type=="lh.aparc.a2009s":
-        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="lh-Destrieux",participant_label=participant_label)
+        prefix= addpref + "-" + "lh-Destrieux"
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label)
     elif "rh.aparc.a2009s" in basefile_name or textdata_type=="rh.aparc.a2009s":
-        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="rh-Destrieux",participant_label=participant_label)
+        prefix= addpref + "-" + "rh-Destrieux"
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label)
     elif "lh.aparc" in basefile_name or textdata_type=="lh.aparc":
-        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="lh-DK",participant_label=participant_label)
+        prefix= addpref + "-" + "lh-DK"
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label)
     elif "rh.aparc" in basefile_name or textdata_type=="rh.aparc":
-        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix="rh-DK",participant_label=participant_label)     
+        prefix= addpref + "-" + "rh-DK"
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label)     
     elif "hipposubfields.lh" in basefile_name or textdata_type=="hipposubfields.lh":
-        df = get_freesurfer_hippostats(textdata,prefix="lh-hipposf", participant_label=participant_label)
+        prefix= addpref + "-" + "lh-hipposf" + basefile_name.split("hipposubfields.lh.")[1].split(".stats")[0].replace(".","-")
+        df = get_freesurfer_hippostats(textdata,prefix=prefix, participant_label=participant_label)
     elif "hipposubfields.rh" in basefile_name or textdata_type=="hipposubfields.rh":
-        df = get_freesurfer_hippostats(textdata,prefix="rh-hipposf", participant_label=participant_label)
+        prefix= addpref + "-" + "rh-hipposf" + basefile_name.split("hipposubfields.rh.")[1].split(".stats")[0].replace(".","-")
+        df = get_freesurfer_hippostats(textdata,prefix=prefix, participant_label=participant_label)
+    elif "hippoSfVolumes" in basefile_name or textdata_type=="hippoSfVolumes":
+        prefix =  addpref + "-" + basefile_name.split(".hippoSfVolumes")[0] + "-hippo" + basefile_name.split(".hippoSfVolumes")[1].split(".txt")[0].replace(".","-")
+        df = get_freesurfer_subregionstats(textdata,prefix=prefix, participant_label=participant_label)
+    elif "amygNucVolumes" in basefile_name or textdata_type=="amygNucVolumes":
+        prefix =  addpref + "-" + basefile_name.split(".amygNucVolumes")[0] + "-amyg" + basefile_name.split(".amygNucVolumes")[1].split(".txt")[0].replace(".","-")
+        df = get_freesurfer_subregionstats(textdata,prefix=prefix, participant_label=participant_label)
+    elif "ThalamicNuclei" in basefile_name or textdata_type=="ThalamicNuclei":
+        prefix =  addpref + "-" + "thalamic" + basefile_name.split("ThalamicNuclei")[1].split(".volumes.txt")[0].replace(".","-")
+        df = get_freesurfer_subregionstats(textdata,prefix=prefix, participant_label=participant_label)
+    elif "brainstemSsLabelsbeta" in basefile_name or textdata_type=="brainstembeta":
+        prefix =  addpref + "-" + "brainstembeta"
+        df = get_freesurfer_subregionstats(textdata,prefix=prefix, participant_label=participant_label)
     else:
         IFLOGGER.info("basename {textdata} not implemented.")
 
 
     if df is not None:
-        roi_csv = os.path.join(roi_output_dir,'{}_{}.csv'.format(participant_label,basefile_name))
+        roi_csv = os.path.join(roi_output_dir,'{}_{}_{}.csv'.format(addpref,participant_label,basefile_name))
         df.to_csv(roi_csv,sep=",",header=True, index=False)
         out_files.insert(0,roi_csv)
 
