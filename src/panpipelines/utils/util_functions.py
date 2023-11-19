@@ -17,6 +17,8 @@ import shutil
 from panpipelines.utils.transformer import *
 import sys
 from nipype import logging as nlogging
+import fcntl
+import time
 
 UTLOGGER=nlogging.getLogger('nipype.utils')
 
@@ -133,7 +135,7 @@ def export_labels(panpipe_labels,export_file):
         json.dump(panpipe_labels,outfile,indent=2)
 
 
-def substitute_labels(expression,panpipe_labels):
+def substitute_labels(expression,panpipe_labels,exceptions=[]):
     if isinstance(expression,str):
         braced_vars = re.findall(r'\<.*?\>',expression)
         for braced_var in braced_vars:
@@ -142,7 +144,7 @@ def substitute_labels(expression,panpipe_labels):
             else:
                 unbraced_var = braced_var.replace('<','').replace('>','')
                 lookup_var = getParams(panpipe_labels,unbraced_var)
-                if isinstance(lookup_var,str) and lookup_var is not None:
+                if isinstance(lookup_var,str) and lookup_var is not None and unbraced_var not in exceptions:
                     expression = expression.replace(braced_var,lookup_var)            
     return expression
 
@@ -161,10 +163,10 @@ def remove_labels(labels_dict, config_json,pipeline):
 
     return labels_dict
 
-def add_labels(config_dict,labels_dict):  
+def add_labels(config_dict,labels_dict,postpone=False):  
     # Process Labels
     for itemkey,itemvalue in config_dict.items():
-            updateParams(labels_dict,itemkey,itemvalue)
+            updateParams(labels_dict,itemkey,itemvalue,postpone=postpone)
 
     return labels_dict
 
@@ -401,30 +403,100 @@ def insert_bidstag(tag,file,overwrite=True):
     file = os.path.join(dir_name,file_name)
     return file
 
+def acquire_lock(lock_path):
+    
+    lock_file = open(lock_path,"w")
 
+    try:
+        fcntl.lockf(lock_file,fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return lock_file
+    except IOError:
+        UTLOGGER.debug(f"Could not acquire lock at {lock_path}. Waiting...")
+        return None
+
+def release_lock(lock_file):
+    try:
+        if lock_file:
+            lock_file.close()
+    except Exception as e:
+        UTLOGGER.debug(f"problem closing lockfile {lock_file}.\n{e}")
+
+LOCK_SUFFIX=".lock"
 def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,password):
 
-    if not os.path.isdir(os.path.join(bids_dir,"sub-"+participant_label)):
-        print("BIDS folder for {} not present. Downloading started from XNAT.".format(participant_label))
-        command="singularity run --cleanenv --no-home <XNATDOWNLOAD_CONTAINER> python /src/xnatDownload.py downloadSubjectSessions"\
-                " BIDS-AACAZ "+bids_dir+\
-                " --host <XNAT_HOST>"\
-                " --subject "+participant_label+\
-                " --project "+xnat_project+\
-                " --user " + user + \
-                " --password " + password
+    lock_path = os.path.join(os.path.dirname(bids_dir),participant_label + LOCK_SUFFIX)
+    lock_file = acquire_lock(lock_path)
 
-        evaluated_command=substitute_labels(command, labels_dict)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        UTLOGGER.info(results.stdout)
+    count = 0
+    # 6 minutes timeout - this should be enough!
+    TIMEOUT=360
+    while not lock_file:
+        time.sleep(1)
+        count = count + 1
+        lock_file = acquire_lock(lock_path)
+        # prevent indefinite loop; take our chance on a downstream error.
+        if count >= TIMEOUT:
+            break
+
+    try:
+        if not os.path.isdir(os.path.join(bids_dir,"sub-"+participant_label)):
+            UTLOGGER.info("BIDS folder for {} not present. Downloading started from XNAT.".format(participant_label))
+            command="singularity run --cleanenv --no-home <XNATDOWNLOAD_CONTAINER> python /src/xnatDownload.py downloadSubjectSessions"\
+                    " BIDS-AACAZ "+bids_dir+\
+                    " --host <XNAT_HOST>"\
+                    " --subject "+participant_label+\
+                    " --project "+xnat_project+\
+                    " --user " + user + \
+                    " --password " + password
+
+            evaluated_command=substitute_labels(command, labels_dict)
+            evaluated_command_args = shlex.split(evaluated_command)
+            results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+            UTLOGGER.info(results.stdout)
+    
+        else:
+            print("BIDS folder for {} already present. No need to download".format(participant_label))
+    finally:
+        release_lock(lock_file)
+        try:
+            os.remove(lock_path)
+        except Exception as e:
+            pass
+
+
+def get_freesurfer_subregionstats(stats_file, prefix="",participant_label=""):
+    if not prefix is None and not prefix =="":
+        prefix=prefix+"_"
     else:
-        print("BIDS folder for {} already present. No need to download".format(participant_label))
+        prefix =""
 
+    with open(stats_file,"r") as in_file:
+        lines = in_file.readlines()
+
+    tab_col_index=-2
+    tab_val_index=-1
+    get_col_index=0
+
+
+    table_columns = [x.split()[tab_col_index] for x in lines]
+    table_columns = [x.replace('\n','') for x in table_columns]
+    table_columns = table_columns[get_col_index:]
+    table_columns =[ prefix + x  + "_Volume" for x in table_columns]
+    table_values = [x.split()[-tab_val_index] for x in lines]
+    table_values = table_values[get_col_index:]
+
+    if len(table_columns) > 0 and len(table_values) > 0 and len(table_columns) == len(table_values):
+        cum_df = pd.DataFrame([table_values])
+        cum_df.columns = table_columns
+        if participant_label is not None and not participant_label == "":
+            cum_df.insert(0,"subject_id",["sub-"+participant_label])
+        return cum_df
+    else:
+        return None
 
 def get_freesurfer_hippostats(stats_file, prefix="",participant_label=""):
     if not prefix is None and not prefix =="":
-        prefix=prefix+"."
+        prefix=prefix+"_"
     else:
         prefix =""
 
@@ -434,7 +506,7 @@ def get_freesurfer_hippostats(stats_file, prefix="",participant_label=""):
     table_columns = [x.split(" ")[-1] for x in lines]
     table_columns = [x.replace('\n','') for x in table_columns]
     table_columns = table_columns[1:]
-    table_columns =[ prefix + x  + ".Volume" for x in table_columns]
+    table_columns =[ prefix + x  + "_Volume" for x in table_columns]
     table_values = [x.split()[-2] for x in lines]
     table_values = table_values[1:]
 
@@ -452,7 +524,7 @@ def get_freesurfer_hippostats(stats_file, prefix="",participant_label=""):
 def get_freesurfer_genstats(stats_file,columns, prefix="",participant_label=""):
 
     if not prefix is None and not prefix =="":
-        prefix=prefix+"."
+        prefix=prefix+"_"
     else:
         prefix =""
 
@@ -481,7 +553,7 @@ def get_freesurfer_genstats(stats_file,columns, prefix="",participant_label=""):
             header=line.split()[column_dict["StructName"]]
             for itemkey, itemvalue in column_dict.items():
                 if not itemkey == "StructName":
-                    header_list.append(prefix + header + ".{}".format(itemkey))
+                    header_list.append(prefix + header + "_{}".format(itemkey))
                     value=line.split()[itemvalue]
                     value_list.append(value)
     
@@ -525,7 +597,10 @@ def create_array(participants, participants_file, LOGGER=UTLOGGER):
     if participants is not None and len(participants) > 0:
         array=[]
         for participant in participants:
-            array.append(str(df[df["xnat_subject_label"]==participant].index.values[0] + 1))
+            try:
+                array.append(str(df[df["xnat_subject_label"]==participant].index.values[0] + 1))
+            except Exception as exp:
+                UTLOGGER.debug(f"problem finding participant: {participant}")
 
         array.sort()
         return  ",".join(array)
@@ -611,17 +686,28 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
     updateParams(panpipe_labels, "PIPELINE_SCRIPT", script_file)
     dependencies = getDependencies(job_ids,panpipe_labels)
     
-    outlog =f"log-%A_%a_{pipeline}_{datelabel}.panout"
-    jobname = f"{pipeline}_pan"
+    if analysis_level == "participant":
 
-    array = create_array(participants, participants_file)
+        outlog =f"log-%A_%a_{pipeline}_{datelabel}.panout"
+        jobname = f"{pipeline}_pan"
 
-    command = "sbatch"\
+        array = create_array(participants, participants_file)
+        
+        command = "sbatch"\
         " --job-name " + jobname +\
         " --output " + outlog + \
         " --array=" + array + \
         " " + dependencies + \
-        " " + script_file 
+        " " + script_file
+    else:
+        outlog =f"log-%A_group_{pipeline}_{datelabel}.panout"
+        jobname = f"{pipeline}_group__pan"
+
+        command = "sbatch"\
+        " --job-name " + jobname +\
+        " --output " + outlog + \
+        " " + dependencies + \
+        " " + script_file        
     
     evaluated_command = substitute_labels(command,panpipe_labels)
     if LOGGER:
@@ -1221,6 +1307,7 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
 
 
 def getAge(birthdate,refdate=None):
+    from datetime import date
     if refdate is None:
         today = date.today()
     else:
@@ -1297,20 +1384,23 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                                         break
 
                             if demographics:
-                                experiment.scans[0].resources['DICOM'].files[0].download(scantest)
-                                ds = dcmread(scantest)
-                                gender = ds.PatientSex
-
-                                if ds.PatientBirthDate:
-                                    agedate=datetime.datetime.strptime(ds.PatientBirthDate,"%Y%m%d")
-                                else:
-                                    agedate=experiment.subject.demographics.dob 
-                                scan_date = ds.StudyDate   
-                                scandate = datetime.datetime.strptime(scan_date,"%Y%m%d")
-                                if agedate is None or agedate == '':
-                                    comments = "subject age missing; " + comments
-                                else:
-                                    age=getAge(agedate,scandate)
+                                scans = experiment.scans
+                                for scan_index in range(len(scans)):
+                                    if "DICOM" in experiment.scans[scan_index].resources.keys():
+                                        experiment.scans[scan_index].resources['DICOM'].files[0].download(scantest)
+                                        ds = dcmread(scantest)
+                                        gender = ds.PatientSex
+                                        if ds.PatientBirthDate:
+                                            agedate=datetime.datetime.strptime(ds.PatientBirthDate,"%Y%m%d")
+                                        else:
+                                            agedate=experiment.subject.demographics.dob 
+                                        scan_date = ds.StudyDate   
+                                        scandate = datetime.datetime.strptime(scan_date,"%Y%m%d")
+                                        if agedate is None or agedate == '':
+                                            comments = "subject age missing; " + comments
+                                        else:
+                                            age=getAge(agedate,scandate)
+                                        break
 
                         except Exception as e:
                             message = 'problem parsing resource : %s.' % targetfolder
