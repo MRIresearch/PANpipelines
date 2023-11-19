@@ -16,7 +16,7 @@ logger_addstdout(LOGGER, logging.INFO)
 
 panFactory = Factory.getPANFactory()
 
-def runSingleSubject(participant_label, xnat_project, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json):
+def runSingleSubject(participant_label, xnat_project, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="participant"):
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_PROJECT",xnat_project)
 
@@ -24,8 +24,14 @@ def runSingleSubject(participant_label, xnat_project, pipeline, pipeline_class, 
     if not os.path.exists(pipeline_outdir):
         os.makedirs(pipeline_outdir,exist_ok=True)
 
+    participant_index = getParams(panpipe_labels,"PARTICIPANT_INDEX")
+    if participant_index is None:
+        participant_index = ""
+    else:
+        participant_index = "_" + str(participant_index)
+        
     datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    LOGFILE=os.path.join(pipeline_outdir,f"{participant_label}_{datelabel}_{xnat_project}_{pipeline}_single_subject.log")
+    LOGFILE=os.path.join(pipeline_outdir,f"{participant_label}{participant_index}_{datelabel}_{xnat_project}_{pipeline}_single_subject.log")
     logger_addfile(LOGGER, LOGFILE, logging.DEBUG)
     nipype_loggers_setup(logging.INFO,LOGFILE,logging.DEBUG)
 
@@ -39,12 +45,14 @@ def runSingleSubject(participant_label, xnat_project, pipeline, pipeline_class, 
 
     pipeline_outdir_subject = os.path.join(pipeline_outdir,"sub-"+participant_label)
 
-    PanProc = panProcessor(panpipe_labels,pipeline_outdir_subject, participant_label, name=pipeline,LOGGER=LOGGER,execution=execution_json)
+    PanProc = panProcessor(panpipe_labels,pipeline_outdir_subject, participant_label, name=pipeline,LOGGER=LOGGER,execution=execution_json,analysis_level=analysis_level,participant_project=xnat_project)
     PanProc.run()
 
     LOGGER.debug(f"\nDump of configuration settings for {participant_label} run of {pipeline}")
     LOGGER.debug("---------------------------------------------------------------------------------")
     LOGGER.debug(f"{panpipe_labels!r}")
+    LOGGER.debug("\n------  environment dump -----------")
+    LOGGER.debug(os.environ)
 
 def parse_params():
     parser = ArgumentParser(description="Pan pipelines")
@@ -76,9 +84,21 @@ def main():
 
     pipeline_class = getParams(panpipe_labels,"PIPELINE_CLASS")
     if pipeline_class is None:
-        pipeline_class = pipeline 
+        pipeline_class = pipeline
 
-    pipeline_outdir=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),pipeline)
+
+
+    use_pipeline_desc = getParams(panpipe_labels,"USE_PIPELINE_DESC")
+    if use_pipeline_desc is None:
+        use_pipeline_desc = ""
+
+    pipeline_desc = getParams(panpipe_labels,"PIPELINE_DESC")
+    if pipeline_desc is None or use_pipeline_desc == "N":
+        pipeline_desc = pipeline 
+    else:
+        pipeline_desc = "".join([x if x.isalnum() else "_" for x in pipeline_desc]) 
+
+    pipeline_outdir=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),pipeline_desc)
     if not os.path.exists(pipeline_outdir):
         os.makedirs(pipeline_outdir,exist_ok=True)
 
@@ -101,11 +121,12 @@ def main():
     ARRAY_INDEX = getParams(panpipe_labels,"ARRAY_INDEX")
     if ARRAY_INDEX is not None and ARRAY_INDEX in os.environ.keys():
         participant_index = int(os.environ[ARRAY_INDEX])
+        panpipe_labels = updateParams(panpipe_labels, "PARTICIPANT_INDEX",str(participant_index))
         df = pd.read_table(participants_file)
         if participant_index <= len(df):
             participant_label = drop_sub(df['bids_participant_id'].iloc[participant_index - 1])
             xnat_project = df['project'].iloc[participant_index - 1]
-            runSingleSubject(participant_label,xnat_project,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json)
+            runSingleSubject(participant_label,xnat_project,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level="participant")
 
 
         else:
