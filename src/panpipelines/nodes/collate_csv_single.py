@@ -11,9 +11,15 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
+    if csv_list1 is None:
+        csv_list1 = []
+    if csv_list2 is None:
+        csv_list2 = []
+
     cwd=os.getcwd()
     output_dir=cwd
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    pipeline = getParams(labels_dict,'PIPELINE')
 
     roi_output_dir = os.path.join(cwd,'{}_roi_output_dir'.format(participant_label))
     if not os.path.isdir(roi_output_dir):
@@ -26,7 +32,7 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     if csv_list2 is not None:
         csv_list.extend(csv_list2)
 
-    IFLOGGER.info("List of csv files to collate: {csv_list}")
+    IFLOGGER.info(f"List of csv files to collate: {csv_list}")
 
     out_files=[]
     roi_csv = None
@@ -46,8 +52,7 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
                 prefix=""
 
             df = pd.read_table(csv_file,sep=",")
-            if df.columns[0] == "subject_id":
-                df = df.drop("subject_id",axis=1)
+            df = df.drop("subject_id",axis=1)
             table_columns = df.columns.tolist()
             table_columns = [prefix+x for x in table_columns]
             cum_table_columns.extend(table_columns)
@@ -55,10 +60,23 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
         cum_df = pd.DataFrame([cum_table_data])
         cum_df.columns = cum_table_columns
-        cum_df.insert(0,"subject_id",["sub-"+participant_label])
+        
+        # remove duplicates - this is definitely not the most efficient way - so keep an eye on this if dataframes get large
+        # https://stackoverflow.com/questions/14984119/python-pandas-remove-duplicate-columns
+        cum_df_unique = cum_df.loc[:,~cum_df.columns.duplicated()].copy()
+        # sort the columns by name alphabetically
+        cum_df_unique = cum_df_unique.reindex(sorted(cum_df_unique.columns), axis=1)
+        cum_df_unique.insert(0,"subject_id",["sub-"+participant_label])
+    
+        collate_name = getParams(labels_dict,"COLLATE_NAME")
+        if not collate_name:
+            if not pipeline:
+                collate_name="csvgroup"
+            else:
+                collate_name="pipeline"
 
-        roi_csv = os.path.join(roi_output_dir,'{}_{}.csv'.format(participant_label,getParams(labels_dict,"COLLATE_NAME")))
-        cum_df.to_csv(roi_csv,sep=",",header=True, index=False)
+        roi_csv = os.path.join(roi_output_dir,'{}_{}.csv'.format(participant_label,collate_name))
+        cum_df_unique.to_csv(roi_csv,sep=",",header=True, index=False)
 
         out_files.insert(0,roi_csv)
 
