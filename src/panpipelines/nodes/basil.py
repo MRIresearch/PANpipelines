@@ -75,9 +75,6 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
         if "ArterialSpinLabelingType" in asljson.keys():
             asl_type = asljson["ArterialSpinLabelingType"]
 
-        if asl_type == "PCASL" or asl_type == "CASL":
-            basil_dict = updateParams(basil_dict,CASL,IS_PRESENT)
-
         fix_bolus=None
         if "BolusCutOffTechnique" in asljson.keys():
             fix_bolus = asljson["BolusCutOffTechnique"]
@@ -95,9 +92,17 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
         if labelDuration is not None:
             basil_dict = updateParams(basil_dict,BOLUS,str(labelDuration))
 
-        if labelDuration is not None and pld is not None:
-            tis = pld + labelDuration
-            basil_dict = updateParams(basil_dict,TIS,str(tis))
+        if asl_type == "PCASL" or asl_type == "CASL":
+            basil_dict = updateParams(basil_dict,CASL,IS_PRESENT)
+            if labelDuration is not None and pld is not None:
+                tis = pld + labelDuration
+                basil_dict = updateParams(basil_dict,TIS,str(tis))
+        else:
+            # PLD in PASL json is actually the TIS
+            if labelDuration is not None and pld is not None:
+                tis = pld
+                basil_dict = updateParams(basil_dict,TIS,str(tis))
+
 
         basil_dict = updateParams(basil_dict,IAF,"tc")
         ASLCONTEXT = getParams(labels_dict,"ASLCONTEXT")
