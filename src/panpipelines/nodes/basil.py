@@ -34,6 +34,46 @@ IS_PRESENT="^^^"
 
 def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
+    container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
+    if not container_run_options:
+        container_run_options = ""
+
+    container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
+    if not container_prerun:
+        container_prerun = ""
+
+    container = getParams(labels_dict,'CONTAINER')
+    if not container:
+        container = getParams(labels_dict,'BASIL_CONTAINER')
+        if not container:
+            container = getParams(labels_dict,'NEURO_CONTAINER')
+            if not container:
+                IFLOGGER.info("Container not defined for Freesurfer pipeline. oxford_asl should be accessible on local path for pipeline to succeed")
+                if container_run_options:
+                    IFLOGGER.info("Note that '{container_run_options}' set as run options for non-existing container. This may cause the pipeline to fail.")
+                
+                if container_prerun:
+                    IFLOGGER.info("Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
+
+    
+    command_base = f"{container_run_options} {container} {container_prerun}"
+    if container:
+        IFLOGGER.info("Checking the oxford_asl version:")
+        command = f"{command_base} oxford_asl --version"
+        evaluated_command=substitute_labels(command, labels_dict)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+
+        IFLOGGER.info("\nChecking the container version:")
+        command = f"{command_base} --version"
+        evaluated_command=substitute_labels(command, labels_dict)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+
     basil_dict={}
     basil_dict = updateParams(basil_dict,MC,IS_PRESENT)
     basil_dict = updateParams(basil_dict,PVCORR,IS_PRESENT)
@@ -140,7 +180,7 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 print(f"Basil tag {basil_tag} not valid.")
 
 
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> oxford_asl"\
+        command=f"{command_base} oxford_asl"\
             " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)

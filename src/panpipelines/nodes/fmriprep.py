@@ -11,6 +11,38 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def fmriprep_proc(labels_dict,bids_dir=""):
 
+
+    container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
+    if not container_run_options:
+        container_run_options = ""
+
+    container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
+    if not container_prerun:
+        container_prerun = ""
+
+    container = getParams(labels_dict,'CONTAINER')
+    if not container:
+        container = getParams(labels_dict,'FMRIPREP_CONTAINER')
+        if not container:
+            container = getParams(labels_dict,'NEURO_CONTAINER')
+            if not container:
+                IFLOGGER.info("Container not defined for FMRIprep pipeline. Qsiprep should be accessible on local path for pipeline to succeed")
+                if container_run_options:
+                    IFLOGGER.info("Note that '{container_run_options}' set as run options for non-existing container. This may cause the pipeline to fail.")
+                
+                if container_prerun:
+                    IFLOGGER.info("Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
+
+    command_base = f"{container_run_options} {container} {container_prerun}"
+    if container:
+        IFLOGGER.info("Checking the fmriprep version:")
+        command = f"{command_base} --version"
+        evaluated_command=substitute_labels(command, labels_dict)
+        IFLOGGER.info(evaluated_command)
+        evaluated_command_args = shlex.split(evaluated_command)
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        IFLOGGER.info(results.stdout)
+
     cwd=os.getcwd()
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
@@ -27,7 +59,7 @@ def fmriprep_proc(labels_dict,bids_dir=""):
         " --omp-nthreads <BIDSAPP_THREADS>"\
         " -w " + cwd + "/fmriwork"
 
-    command="singularity run --cleanenv --nv --no-home <FMRIPREP_CONTAINER>"\
+    command=f"{command_base}"\
             " "+ bids_dir +\
             " "+ cwd +"/fmrioutput"\
             " participant"\
