@@ -424,7 +424,7 @@ def release_lock(lock_file):
 LOCK_SUFFIX=".lock"
 def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,password):
 
-    lock_path = os.path.join(os.path.dirname(bids_dir),participant_label + LOCK_SUFFIX)
+    lock_path = os.path.join(getParams(labels_dict,"LOCK_DIR"),participant_label + LOCK_SUFFIX)
     lock_file = acquire_lock(lock_path)
 
     count = 0
@@ -464,7 +464,7 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
             pass
 
 
-def get_freesurfer_subregionstats(stats_file, prefix="",participant_label=""):
+def get_freesurfer_subregionstats(stats_file, prefix="",participant_label="",session_label=""):
     if not prefix is None and not prefix =="":
         prefix=prefix+"_"
     else:
@@ -488,13 +488,15 @@ def get_freesurfer_subregionstats(stats_file, prefix="",participant_label=""):
     if len(table_columns) > 0 and len(table_values) > 0 and len(table_columns) == len(table_values):
         cum_df = pd.DataFrame([table_values])
         cum_df.columns = table_columns
+        if session_label is not None and not session_label == "":
+            cum_df.insert(0,"session_id",["ses-"+session_label])
         if participant_label is not None and not participant_label == "":
             cum_df.insert(0,"subject_id",["sub-"+participant_label])
         return cum_df
     else:
         return None
 
-def get_freesurfer_hippostats(stats_file, prefix="",participant_label=""):
+def get_freesurfer_hippostats(stats_file, prefix="",participant_label="", session_label=""):
     if not prefix is None and not prefix =="":
         prefix=prefix+"_"
     else:
@@ -513,6 +515,8 @@ def get_freesurfer_hippostats(stats_file, prefix="",participant_label=""):
     if len(table_columns) > 0 and len(table_values) > 0 and len(table_columns) == len(table_values):
         cum_df = pd.DataFrame([table_values])
         cum_df.columns = table_columns
+        if session_label is not None and not session_label == "":
+            cum_df.insert(0,"session_id",["ses-"+session_label])
         if participant_label is not None and not participant_label == "":
             cum_df.insert(0,"subject_id",["sub-"+participant_label])
         return cum_df
@@ -521,7 +525,7 @@ def get_freesurfer_hippostats(stats_file, prefix="",participant_label=""):
 
 
 
-def get_freesurfer_genstats(stats_file,columns, prefix="",participant_label=""):
+def get_freesurfer_genstats(stats_file,columns, prefix="",participant_label="",session_label=""):
 
     if not prefix is None and not prefix =="":
         prefix=prefix+"_"
@@ -560,6 +564,8 @@ def get_freesurfer_genstats(stats_file,columns, prefix="",participant_label=""):
     if len(header_list) > 0 and len(value_list) > 0 and len(header_list) == len(value_list):
         cum_df = pd.DataFrame([value_list])
         cum_df.columns = header_list
+        if session_label is not None and not session_label == "":
+            cum_df.insert(0,"session_id",["ses-"+session_label])
         if participant_label is not None and not participant_label == "":
             cum_df.insert(0,"subject_id",["sub-"+participant_label])
         return cum_df
@@ -592,10 +598,20 @@ def get_value_bytype(vartype,varstring):
 
     return varvalue
 
-def create_array(participants, participants_file, LOGGER=UTLOGGER):
-    df = pd.read_table(participants_file)
-    if participants is not None and len(participants) > 0:
-        array=[]
+def create_array(participants, participants_file, projects_list = None, sessions_list=None, sessions_file = None, LOGGER=UTLOGGER):
+    if sessions_file is not None:
+        df = pd.read_table(sessions_file)
+    else:
+        df = pd.read_table(participants_file)
+
+    array=[]
+    if participants is not None and len(participants) > 0 and sessions_list and projects_list and sessions_file:
+        for part_count in range(len(participants)):
+            array_index = df.loc[(df["xnat_subject_label"] == participants[part_count]) & (df["project"] == projects_list[part_count]) & (df["bids_session_id"].str.contains(sessions_list[part_count]))].index.values[0] + 1
+            array.append(str(array_index))
+        array.sort()
+        return  ",".join(array)
+    elif participants is not None and len(participants) > 0:
         for participant in participants:
             try:
                 array.append(str(df[df["xnat_subject_label"]==participant].index.values[0] + 1))
@@ -607,18 +623,56 @@ def create_array(participants, participants_file, LOGGER=UTLOGGER):
     else:
         return "1:" + str(len(df))
 
-def get_projectmap(participants, participants_file):
-    df = pd.read_table(participants_file)
+def get_projectmap(participants, participants_file,session_labels=[],sessions_file = None):
 
-    if participants is not None and len(participants) > 0:
-        project_list=[]
-        for participant in participants:
-            project_list.append(str(df[df["xnat_subject_label"]==participant].project.values[0]))
-        return  [ participants, project_list ]
+    if participants_file is not None:
+        df = pd.read_table(participants_file)
     else:
-        participant_list = df["xnat_subject_label"].tolist()
-        project_list = df["project"].tolist()
-        return  [ participant_list, project_list ]
+        df = pd.read_table(sessions_file)
+
+    if participants is None:
+        participants = df["xnat_subject_label"].tolist()
+
+    # sessions are defined and so we will use this as priority
+    project_list=[]
+    participant_list=[]
+    sessions_list=[]
+    if sessions_file is not None and session_labels:
+        sessions_df = pd.read_table(sessions_file)
+        # participants and sessions are defined
+        if participants is not None and len(participants) > 0:
+            for participant in participants:
+                if session_labels[0]=="*":
+                    search_df = sessions_df[(sessions_df["xnat_subject_label"]==participant)]
+                    ses=[drop_ses(ses) for ses in list(search_df.bids_session_id.values)]
+                    sessions_list.extend(ses)
+                    sub=[drop_sub(sub) for sub in list(search_df.xnat_subject_label.values)]
+                    participant_list.extend(sub)
+                    proj=[proj for proj in list(search_df.project.values)]
+                    project_list.extend(proj)
+                else: 
+                    for session_label in session_labels:
+                        search_df = sessions_df[(sessions_df["xnat_subject_label"]==participant) & (sessions_df["bids_session_id"].str.contains(session_label))]
+                        if search_df.empty:
+                            UTLOGGER.info(f"No values found for {participant} and {session_label} in {sessions_file}")
+                        else:
+                            ses=[drop_ses(ses) for ses in list(search_df.bids_session_id.values)]
+                            sessions_list.extend(ses)
+                            sub=[drop_sub(sub) for sub in list(search_df.xnat_subject_label.values)]
+                            participant_list.extend(sub)
+                            proj=[proj for proj in list(search_df.project.values)]
+                            project_list.extend(proj)
+            return  [ participant_list, project_list,sessions_list ]
+        else:
+            UTLOGGER.info(f"Cannot process pipelines. No participants have been specified")
+    else:
+        if participants is not None and len(participants) > 0:
+            for participant in participants:
+                project_list.append(str(df[df["xnat_subject_label"]==participant].project.values[0]))
+            sessions_list=[None for proj in project_list]
+            return  [ participants, project_list, sessions_list]
+        else:
+            UTLOGGER.info(f"Cannot process pipelines. No participants have been specified")
 
 
 def create_script(header,template,panpipe_labels, script_file, LOGGER=UTLOGGER):
@@ -666,7 +720,7 @@ def getDependencies(job_ids,panpipe_labels,LOGGER=UTLOGGER):
 
 
 
-def submit_script(participants, participants_file, pipeline, panpipe_labels,job_ids, analysis_level, LOGGER=UTLOGGER, script_dir=None):
+def submit_script(participants, participants_file, pipeline, panpipe_labels,job_ids, analysis_level,projects_list = None, sessions_list=None, sessions_file = None, LOGGER=UTLOGGER, script_dir=None):
     headerfile=getParams(panpipe_labels,"SLURM_HEADER")
     templatefile=getParams(panpipe_labels,"SLURM_TEMPLATE")
     datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") 
@@ -689,9 +743,9 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
     if analysis_level == "participant":
 
         outlog =f"log-%A_%a_{pipeline}_{datelabel}.panout"
-        jobname = f"{pipeline}_pan"
+        jobname = f"{pipeline}_pan_ss"
 
-        array = create_array(participants, participants_file)
+        array = create_array(participants, participants_file,projects_list = projects_list, sessions_list=sessions_list, sessions_file = sessions_file)
         
         command = "sbatch"\
         " --job-name " + jobname +\
@@ -701,7 +755,7 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
         " " + script_file
     else:
         outlog =f"log-%A_group_{pipeline}_{datelabel}.panout"
-        jobname = f"{pipeline}_group__pan"
+        jobname = f"{pipeline}_pan_grp"
 
         command = "sbatch"\
         " --job-name " + jobname +\
@@ -1221,7 +1275,9 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
     results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     UTLOGGER.info(results.stdout)
 
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_surf2surf"\
+    os.environ["SINGULARITYENV_SUBJECTS_DIR"]=freesurfer_dir
+
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> mri_surf2surf"\
         " --srcsubject fsaverage" \
         f" --trgsubject {SUB}" \
         " --hemi lh" \
@@ -1233,7 +1289,7 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
     results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     UTLOGGER.info(results.stdout)
 
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_surf2surf"\
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> mri_surf2surf"\
         " --srcsubject fsaverage" \
         f" --trgsubject {SUB}" \
         " --hemi rh" \
@@ -1246,7 +1302,7 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
     UTLOGGER.info(results.stdout)
 
     atlas_space_fs = newfile(workdir, atlas_file, suffix="desc-hcpmmp1_space-fs")
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_aparc2aseg"\
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> mri_aparc2aseg"\
         f"  --s {SUB}" \
         "  --old-ribbon" \
         " --annot HCP-MMP1" \
@@ -1259,7 +1315,7 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
 
     atlas_space_T1w = newfile(workdir, atlas_file, suffix="desc-hcpmmp1_space-T1w",extension=".mgz")
     rawavg=os.path.join(freesurfer_dir,SUB,"mri","rawavg.mgz")
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> <FREEBASH_SCRIPT> "+freesurfer_dir+" mri_label2vol"\
+    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> mri_label2vol"\
         f"  --seg {atlas_space_fs}" \
         f"  --temp {rawavg}" \
         f"  --o {atlas_space_T1w}" \
