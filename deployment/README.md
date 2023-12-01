@@ -1,7 +1,10 @@
 # PANpipelines deployment
 
 ## Prepare Environment
-conda create -p ./pandev python=3.10.13
+
+Provided below are the python packages required to use the PANpipelines using `conda` as an example.
+```
+conda create -n pandev python=3.10.13
 pip install nipype==1.8.6
 pip install numpy==1.26.1
 pip install nibabel==5.1.0"
@@ -12,6 +15,12 @@ pip install nilearn==0.10.2
 pip install nitransforms==23.0.1
 pip install templateflow==23.1.0
 pip install xnat==0.5.2
+```
+With `conda` the pythin environment can be instantiated as follows:
+```
+conda activate pandev
+```
+
 
 
 ## Install PAN pipelines
@@ -25,7 +34,7 @@ or use this repository and perform:
 ```
 cd PANpipelines
 pip install -e ./
-
+```
 
 ## Testing PANpipelines Deployment 
 
@@ -40,13 +49,14 @@ Change `PWD` to point to the root directory of this deployment directory
 `"PWD": "[Path to]/PANpipelines/deployment",`
 
 Change `PKG_DIR` to point to the directory that contains the pipelines package:
-"PKG_DIR": "[Path to]/PANpipelines/src"
+`"PKG_DIR": "[Path to]/PANpipelines/src"`
 
 Change 'XNAT_HOST' to the XNAT URL
 
 ### credentials
 Change the username and password in `./config/credentials/credentials.json` to your XNAT credentials.
-Change access permissions on credentials.json to prevent unauthorized access. Using Chmod 400 on 'credentials.json` should be the most conservative way to achieve this. You will need to set the folder ./config/credentials/ most conservatively to 500 if you also want to restrict access to the folder. Anything more conservative may prevent access to the file by the program.
+
+Change access permissions on `credentials.json` to prevent unauthorized access. Using `chmod 400` on `credentials.json` should be the most conservative way to achieve this. You will need to set the folder ./config/credentials/ most conservatively to 500 if you also want to restrict access to the folder. Anything more conservative may prevent access to the file by the program.
 
 ### Freesurfer license
 Update the provided freesurfer license in `./config/license.txt` with your personal license.
@@ -54,7 +64,7 @@ Update the provided freesurfer license in `./config/license.txt` with your perso
 ### run_pan_slurm.sh
 
 Change `PKG_DIR` to point to the directory that contains the pipelines package:
-PKG_DIR=[Path to]/PANpipelines/src
+`PKG_DIR=[Path to]/PANpipelines/src`
 
 
 ### batch_scripts/headers
