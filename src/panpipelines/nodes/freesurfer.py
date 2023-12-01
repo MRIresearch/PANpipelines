@@ -13,6 +13,7 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 def freesurfer_proc(labels_dict,bids_dir=""):
 
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
     layout = BIDSLayout(bids_dir)
 
     container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
@@ -36,6 +37,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
                 if container_prerun:
                     IFLOGGER.info("Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
 
+    
+    FREEVER="Unknown"
     command_base = f"{container_run_options} {container} {container_prerun}"
     if container:
         IFLOGGER.info("Checking the recon-all version:")
@@ -45,7 +48,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
         evaluated_command_args = shlex.split(evaluated_command)
         results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
         IFLOGGER.info(results.stdout)
-
+        if "-7.3.2-" in results.stdout:
+            FREEVER="7.3.2"
         IFLOGGER.info("\nChecking the container version:")
         command = f"{command_base} --version"
         evaluated_command=substitute_labels(command, labels_dict)
@@ -61,6 +65,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
         t1w_entity=add_labels(T1wLabel,t1w_entity)
         t1w_entity["subject"]=participant_label
         t1w_entity["extension"]='nii.gz'
+        if session_label:
+            t1w_entity["session"]=session_label
         T1w= layout.get(return_type='file', invalid_filters='allow', **t1w_entity)
         if T1w:
             T1wfile=T1w[0]
@@ -81,6 +87,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
         hippo_t2w_entity=add_labels(HippoLabel,hippo_t2w_entity)
         hippo_t2w_entity["subject"]=participant_label
         hippo_t2w_entity["extension"]='nii.gz'
+        if session_label:
+            hippo_t2w_entity["session"]=session_label
         HippoT2w = layout.get(return_type='file', invalid_filters='allow', **hippo_t2w_entity)
 
         if HippoT2w:
@@ -89,14 +97,19 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     PialT2wfile=None
     PialLabel = getParams(labels_dict,'PIAL_T2W')
     pial_t2w_entity={"acquisition": None, "reconstruction": None}
+    ISFLAIR=False
     if PialLabel is not None:
         pial_t2w_entity=add_labels(PialLabel,pial_t2w_entity)
         pial_t2w_entity["subject"]=participant_label
         pial_t2w_entity["extension"]='nii.gz'
-        PialT2w = layout.get(return_type='file', invalid_filters='allow', **pial_t2w_entity)
+        if session_label:
+            pial_t2w_entity["session"]=session_label
+        PialT2w = layout.get(invalid_filters='allow', **pial_t2w_entity)
 
         if PialT2w:
-            PialT2wfile=PialT2w[0]
+            PialT2wfile=PialT2w[0].path
+            if PialT2w[0].entities['suffix'] == "FLAIR":
+                ISFLAIR=True
 
     subject="sub-"+participant_label
     cwd=os.getcwd()
@@ -108,7 +121,23 @@ def freesurfer_proc(labels_dict,bids_dir=""):
 
     pial_t2_string = ""
     if PialT2wfile:
-        pial_t2_string = f" -T2 {PialT2wfile} -T2pial"
+        if ISFLAIR:
+            pial_t2_string = f" -FLAIR {PialT2wfile} -FLAIRpial"
+            # https://github.com/freesurfer/freesurfer/issues/849
+            # https://surfer.nmr.mgh.harvard.edu/fswiki/ReleaseNotes
+            # Address issue with FLAIR-based pial reconstructions
+            if FREEVER=="7.3.2":
+                IFLOGGER.info("Due to known issue in Freesurfer 7.3.2 while using FLAIR images to reconstruct pial surface we will copy global-expert-options.txt to SUBJECTS_DIR")
+                IFLOGGER.info("See https://github.com/freesurfer/freesurfer/issues/849 and https://surfer.nmr.mgh.harvard.edu/fswiki/ReleaseNotes")
+                command=f"{command_base} cp /subjects_dir/global-expert-options.txt {subjects_dir}"
+                evaluated_command=substitute_labels(command, labels_dict)
+                IFLOGGER.info(evaluated_command)
+                evaluated_command_args = shlex.split(evaluated_command)
+                results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+                IFLOGGER.info(results.stdout)
+
+        else:
+            pial_t2_string = f" -T2 {PialT2wfile} -T2pial"
 
     if not os.path.exists(os.path.join(subjects_dir,"sub-"+participant_label,"recon-all.log")):
         params="-all" \
