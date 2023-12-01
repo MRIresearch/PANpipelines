@@ -20,8 +20,13 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     output_dir=cwd
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     pipeline = getParams(labels_dict,'PIPELINE')
+    session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
 
-    roi_output_dir = os.path.join(cwd,'{}_roi_output_dir'.format(participant_label))
+    if not session_label:
+        roi_output_dir = os.path.join(cwd,f"{participant_label}_roi_output_dir")
+    else:
+        roi_output_dir = os.path.join(cwd,f"{participant_label}_{session_label}_roi_output_dir")
+
     if not os.path.isdir(roi_output_dir):
         os.makedirs(roi_output_dir)
 
@@ -32,6 +37,7 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     if csv_list2 is not None:
         csv_list.extend(csv_list2)
 
+    csv_list.sort()
     IFLOGGER.info(f"List of csv files to collate: {csv_list}")
 
     out_files=[]
@@ -52,7 +58,10 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
                 prefix=""
 
             df = pd.read_table(csv_file,sep=",")
-            df = df.drop("subject_id",axis=1)
+            if "subject_id" in df.columns:
+                df = df.drop("subject_id",axis=1)
+            if "session_id" in df.columns:
+                df = df.drop("session_id",axis=1)
             table_columns = df.columns.tolist()
             table_columns = [prefix+x for x in table_columns]
             cum_table_columns.extend(table_columns)
@@ -66,7 +75,10 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         cum_df_unique = cum_df.loc[:,~cum_df.columns.duplicated()].copy()
         # sort the columns by name alphabetically
         cum_df_unique = cum_df_unique.reindex(sorted(cum_df_unique.columns), axis=1)
-        cum_df_unique.insert(0,"subject_id",["sub-"+participant_label])
+        if session_label is not None and not session_label == "":
+            cum_df_unique.insert(0,"session_id",["ses-"+session_label])
+        if participant_label is not None and not participant_label == "":
+            cum_df_unique.insert(0,"subject_id",["sub-"+participant_label])
     
         collate_name = getParams(labels_dict,"COLLATE_NAME")
         if not collate_name:
@@ -74,9 +86,23 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
                 collate_name="csvgroup"
             else:
                 collate_name="pipeline"
-
-        roi_csv = os.path.join(roi_output_dir,'{}_{}.csv'.format(participant_label,collate_name))
+        
+        if not session_label:
+            roi_csv = os.path.join(roi_output_dir,f"{participant_label}_{collate_name}.csv")
+        else:
+            roi_csv = os.path.join(roi_output_dir,f"{participant_label}_{session_label}_{collate_name}.csv")
         cum_df_unique.to_csv(roi_csv,sep=",",header=True, index=False)
+
+        metadata = {}
+        roi_csv_json = os.path.splitext(roi_csv)[0] + ".json"
+        metadata = updateParams(metadata,"Title","collate_csv_single.py")
+        metadata = updateParams(metadata,"Description","Combine csv files of participant into 1 table.")
+        metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_json}")
+        metadata = updateParams(metadata,"FileCreated",f"{roi_csv}")
+        metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
+        metadata = updateParams(metadata,"Pipeline",f"{pipeline}")
+        metadata = updateParams(metadata,"InputFiles",f"{csv_list}")
+        export_labels(metadata,roi_csv_json)
 
         out_files.insert(0,roi_csv)
 

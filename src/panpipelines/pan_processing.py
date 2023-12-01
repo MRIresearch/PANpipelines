@@ -24,8 +24,10 @@ def parse_params():
     PathExists = partial(path_exists, parser=parser)
     parser.add_argument("config_file", type=PathExists, help="Pipeline Configuration File")
     parser.add_argument("--participants_file", type=PathExists, help="list of participants")
+    parser.add_argument("--sessions_file", type=PathExists, help="Comprehensive list of participants and sessions")
     parser.add_argument("--pipelines", nargs="+")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
+    parser.add_argument("--session_label", nargs="*", type=drop_ses, help="filter by session label (the ses- prefix can be removed).")
     parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=__version__))
     return parser
 
@@ -95,6 +97,15 @@ def main():
             os.makedirs(targetdir)
         getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",targetdir,demographics=False)
 
+    sessions_file = args.sessions_file
+    if args.sessions_file is not None:
+        sessions_file=str(args.sessions_file)
+        label_key="SESSIONS_FILE"
+        label_value=sessions_file
+        panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
+    else:
+        sessions_file = getParams(panpipe_labels,"SESSIONS_FILE")
+
     pipelines=args.pipelines
     if args.pipelines is not None:
         label_key="PIPELINES"
@@ -103,19 +114,35 @@ def main():
     else:
         pipelines = getParams(panpipe_labels,"PIPELINES")
 
-    runtime_labels = updateParams(runtime_labels,"PARTICIPANT_LABEL",getParams(panpipe_labels,"PARTICIPANT_LABEL"))
+    runtime_labels = updateParams(runtime_labels,"PIPELINES",getParams(panpipe_labels,"PIPELINES"))
 
     participant_label = args.participant_label
     if args.participant_label is not None:
-        label_key="PARTICIPANT_LABEL"
+        label_key="PARTICIPANTS"
         label_value=participant_label
         panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
     else:
-        pipelines = getParams(panpipe_labels,"PIPELINES")
+        participant_label = getParams(panpipe_labels,"PARTICIPANTS")
 
-    runtime_labels = updateParams(runtime_labels,"PIPELINES",getParams(panpipe_labels,"PIPELINES"))
+    runtime_labels = updateParams(runtime_labels,"PARTICIPANTS",getParams(panpipe_labels,"PARTICIPANTS"))
+
+    session_label = args.session_label
+    if args.session_label is not None:
+        label_key="SESSION_LABEL"
+        label_value=session_label
+        panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
+    else:
+        session_label = getParams(panpipe_labels,"SESSION_LABEL")
+
+    runtime_labels = updateParams(runtime_labels,"SESSION_LABEL",getParams(panpipe_labels,"SESSION_LABEL"))
+
 
     LOGGER.info(f"Pipelines to be processed : {pipelines}")
+
+    projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file)
+    participant_list = projectmap[0]
+    project_list  = projectmap[1]
+    session_list = projectmap[2]
 
     for pipeline in pipelines:
         LOGGER.info(f"Processing pipeline : {pipeline}")
@@ -134,14 +161,13 @@ def main():
             if analysis_level == "group":
                 updateParams(panpipe_labels, "SLURM_TEMPLATE", getParams(panpipe_labels,"SLURM_GROUP_TEMPLATE"))
                 if participant_label:
-                    updateParams(panpipe_labels,"PARTICIPANTS_LABEL",participant_label)
-                    projectmap = get_projectmap(participant_label, participants_file)
-                    participant_list = projectmap[0]
-                    project_list  = projectmap[1]
-                    updateParams(panpipe_labels,"PARTICIPANTS_XNAT_PROJECT",project_list)
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_label)
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT",project_list)
+                    updateParams(panpipe_labels,"GROUP_SESSION_LABEL",session_list)
                 else:
-                    updateParams(panpipe_labels,"PARTICIPANTS_LABEL","*")
-                    updateParams(panpipe_labels,"PARTICIPANTS_XNAT_PROJECT","*")
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL","*")
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT","*")
+                    updateParams(panpipe_labels,"GROUP_SESSION_LABEL","*")
 
             else:
                 updateParams(panpipe_labels, "SLURM_TEMPLATE", getParams(panpipe_labels,"SLURM_PARTICIPANT_TEMPLATE"))
@@ -152,7 +178,7 @@ def main():
                 updateParams(panpipe_labels, "SLURM_HEADER", getParams(panpipe_labels,"SLURM_CPU_HEADER"))
 
             try:
-                jobid = submit_script(participant_label, participants_file, pipeline, panpipe_labels,job_ids, analysis_level, LOGGER)
+                jobid = submit_script(participant_list, participants_file, pipeline, panpipe_labels,job_ids, analysis_level,projects_list = project_list, sessions_list=session_list, sessions_file = sessions_file, LOGGER=LOGGER)
 
                 job_ids[pipeline]=jobid
             except Exception as ex:
@@ -165,7 +191,7 @@ def main():
 
             use_pipeline_desc = getParams(panpipe_labels,"USE_PIPELINE_DESC")
             if use_pipeline_desc is None:
-                use_pipeline_desc = ""
+                use_pipeline_desc = "N"
 
             pipeline_desc = getParams(panpipe_labels,"PIPELINE_DESC")
             if pipeline_desc is None or use_pipeline_desc == "N":
@@ -177,6 +203,17 @@ def main():
             if not os.path.exists(pipeline_outdir):
                 os.makedirs(pipeline_outdir,exist_ok=True)
 
+            lock_dir=getParams(panpipe_labels,"LOCK_DIR")
+            if lock_dir:
+                if not os.path.exists(lock_dir):
+                    os.makedirs(lock_dir,exist_ok=True)
+            else:
+                lock_dir=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),"datalocks")
+                if not os.path.exists(lock_dir):
+                    os.makedirs(lock_dir,exist_ok=True)
+                panpipe_labels = updateParams(panpipe_labels,"LOCK_DIR",lock_dir)
+                runtime_labels = updateParams(runtime_labels,"LOCK_DIR",lock_dir)
+
             bids_dir = getParams(panpipe_labels,"BIDS_DIR")
 
             execution_json=getParams(panpipe_labels,"NIPYPE_CONFIG")
@@ -185,26 +222,28 @@ def main():
             
             try:
                 procs = getProcNums(panpipe_labels)
-                projectmap = get_projectmap(participant_label, participants_file)
-                participant_list = projectmap[0]
-                project_list  = projectmap[1]
 
                 if analysis_level == "participant":
                     # run serially if procs < 2
                     if procs > 1:
+                        multiproc_zip = zip(participant_list,project_list,session_list)
                         parrunSingleSubject=partial(runSingleSubject, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
                         with mp.Pool(procs) as pool:
-                            completedlist = pool.starmap(parrunSingleSubject,zip(participant_list,project_list))
+                            completedlist = pool.starmap(parrunSingleSubject,multiproc_zip)
                             pool.close()
                             pool.join()
                     else:
                         for part_count in range(len(participant_list)):
-                            runSingleSubject(participant_list[part_count], project_list[part_count],pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
+                            if session_list:
+                                session_label= session_list[part_count]
+                            else:
+                                session_label=None
+                            runSingleSubject(participant_list[part_count], project_list[part_count],session_label,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
                 else:
-                    updateParams(panpipe_labels,"PARTICIPANTS_LABEL",participant_list)
-                    updateParams(panpipe_labels,"PARTICIPANTS_XNAT_PROJECT",project_list,)
-                    runGroupSubjects(participant_list, project_list,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
-
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_list)
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT",project_list)
+                    updateParams(panpipe_labels,"GROUP_SESSION_LABEL",session_list)
+                    runGroupSubjects(participant_list, project_list,session_list,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
 
 
             except Exception as ex:

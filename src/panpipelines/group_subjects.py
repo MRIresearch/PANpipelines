@@ -16,7 +16,7 @@ logger_addstdout(LOGGER, logging.INFO)
 
 panFactory = Factory.getPANFactory()
 
-def runGroupSubjects(participant_label, xnat_projects, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="group"):
+def runGroupSubjects(participant_label, xnat_projects, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="group"):
 
     pipeline_outdir=os.path.join(pipeline_outdir,"group")
     if not os.path.exists(pipeline_outdir):
@@ -32,7 +32,7 @@ def runGroupSubjects(participant_label, xnat_projects, pipeline, pipeline_class,
 
     panProcessor = panFactory.get_processflow(pipeline_class)
 
-    PanProc = panProcessor(panpipe_labels,pipeline_outdir, participant_label, name=pipeline,LOGGER=LOGGER,execution=execution_json, analysis_level = analysis_level, participant_project=xnat_projects)
+    PanProc = panProcessor(panpipe_labels,pipeline_outdir, participant_label, name=pipeline,LOGGER=LOGGER,execution=execution_json, analysis_level = analysis_level, participant_project=xnat_projects, participant_session=session_label)
     PanProc.run()
 
     LOGGER.debug(f"\nDump of configuration settings for group run of {pipeline}")
@@ -101,10 +101,11 @@ def main():
     participants_file = getParams(panpipe_labels,"PARTICIPANTS_FILE")
     bids_dir = getParams(panpipe_labels,"BIDS_DIR")
 
-    participant_labels = getParams(panpipe_labels,"PARTICIPANTS_LABEL")
-    xnat_projects = getParams(panpipe_labels,"PARTICIPANTS_XNAT_PROJECT")
+    participant_labels = getParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL")
+    xnat_projects = getParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT")
+    session_labels = getParams(panpipe_labels,"GROUP_SESSION_LABEL")
     
-    runGroupSubjects(participant_labels,xnat_projects, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level="group")
+    runGroupSubjects(participant_labels,xnat_projects, session_labels, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level="group")
 
 
 
