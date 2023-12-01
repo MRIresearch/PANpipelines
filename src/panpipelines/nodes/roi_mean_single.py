@@ -20,8 +20,12 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     cwd=os.getcwd()
     output_dir=cwd
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
 
-    roi_output_dir = os.path.join(cwd,'{}_roi_output_dir'.format(participant_label))
+    if not session_label:
+        roi_output_dir = os.path.join(cwd,f"sub-{participant_label}_roi_output_dir")
+    else:
+        roi_output_dir = os.path.join(cwd,f"sub-{participant_label}_ses-{session_label}_roi_output_dir")
 
     if not os.path.isdir(roi_output_dir):
         os.makedirs(roi_output_dir)
@@ -46,7 +50,11 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
         convMGZ2NII(input_file, input_file_nii, NEUROIMG)
         input_file = input_file_nii
 
-    roi_raw_txt = os.path.join(roi_output_dir,'{}_roi_raw.txt'.format(participant_label))
+    if not session_label:
+        roi_raw_txt = os.path.join(roi_output_dir,f"{participant_label}_roi_raw.txt")
+    else:
+        roi_raw_txt = os.path.join(roi_output_dir,f"{participant_label}_{session_label}_roi_raw.txt")
+
 
     atlas_type="3D"
 
@@ -110,17 +118,23 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
         modality = os.path.basename(input_file).split('.')[0].split('_')[-1].split('-')[-1]
         csv_basename = csv_basename + "_" + modality
 
-    session = get_bidstag("ses",input_file)
-    if session:
-        csv_basename = session + "_" + csv_basename
-        table_columns = [f"{atlas_name}.{x}.{session}.{modality}" for x in table_columns]
-    else:
-        table_columns = [f"{atlas_name}.{x}.{modality}" for x in table_columns]
+    table_columns = [f"{atlas_name}.{x}.{modality}" for x in table_columns]
 
-    csv_basename = f"sub-{participant_label}" + "_" + csv_basename
+    if not session_label:
+        csv_basename  = f"sub-{participant_label}" + "_" + csv_basename
+    else:
+        csv_basename  = f"sub-{participant_label}_ses-{session_label}" + "_" + csv_basename
+
     roi_csv = os.path.join(roi_output_dir,'{}.csv'.format(csv_basename))
 
     if numrows < 2:
+        if session_label:
+            df2.insert(0,"session_id",["ses-"+session_label])
+            table_columns.insert(0,"session_id")
+        else:
+            df2.insert(0,"session_id",["NotProvided"])
+            table_columns.insert(0,"session_id")
+
         df2.insert(0,"subject_id",["sub-"+participant_label])
         table_columns.insert(0,"subject_id")
 
@@ -133,6 +147,12 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
             flat_vals.extend(df2.iloc[count].to_list())
             flat_tablecolumns.extend([x + f".{count}" for x in table_columns])
         newdf=pd.DataFrame([flat_vals])
+        if session_label:
+            newdf.insert(0,"session_id",["ses-"+session_label])
+            flat_tablecolumns.insert(0,"session_id")
+        else:
+            newdf.insert(0,"session_id",["NotProvided"])
+            flat_tablecolumns.insert(0,"session_id")
         newdf.insert(0,"subject_id",["sub-"+participant_label])
         flat_tablecolumns.insert(0,"subject_id")
         newdf.columns = flat_tablecolumns
@@ -142,6 +162,7 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     metadata = {}
     roi_json = os.path.join(roi_output_dir,'{}.json'.format(csv_basename))
     metadata = updateParams(metadata,"Title","roi_mean_single")
+    metadata = updateParams(metadata,"Description","Extract Measures from Image file using provided atlas.")
     metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
     metadata = updateParams(metadata,"Atlas File",atlas_file)
     metadata = updateParams(metadata,"Atlas Labels",atlas_index)

@@ -18,16 +18,18 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         
     cwd=os.getcwd()
     output_dir=cwd
-    participants_label = getParams(labels_dict,'PARTICIPANTS_LABEL')
-    participants_project = getParams(labels_dict,'PARTICIPANTS_XNAT_PROJECT')
+    participants_label = getParams(labels_dict,'GROUP_PARTICIPANTS_LABEL')
+    participants_project = getParams(labels_dict,'GROUP_PARTICIPANTS_XNAT_PROJECT')
+    participants_session = getParams(labels_dict,'GROUP_SESSION_LABEL')
     pipeline = getParams(labels_dict,'PIPELINE')
 
     csv_list=[]
 
     if (participants_label is not None and (isinstance(participants_label,list) and len(participants_label) > 1)) and (participants_project is not None and (isinstance(participants_project,list) and len(participants_project)> 1)):
-        for part_vals in zip(participants_label,participants_project):
-            panpipe_labels = updateParams(labels_dict,"PARTICIPANT_LABEL",part_vals[0])
-            panpipe_labels = updateParams(labels_dict,"PARTICIPANT_XNAT_PROJECT",part_vals[1])
+        for part_vals in zip(participants_label,participants_project,participants_session):
+            labels_dict = updateParams(labels_dict,"PARTICIPANT_LABEL",part_vals[0])
+            labels_dict = updateParams(labels_dict,"PARTICIPANT_XNAT_PROJECT",part_vals[1])
+            labels_dict = updateParams(labels_dict,"PARTICIPANT_SESSION",part_vals[2])
             for meas_template in csv_list1:
                 evaluated_meas_template = substitute_labels(meas_template,labels_dict)
                 csv_list.extend(glob.glob(evaluated_meas_template))
@@ -35,8 +37,9 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
                 evaluated_meas_template = substitute_labels(meas_template,labels_dict)
                 csv_list.extend(glob.glob(evaluated_meas_template)) 
     else:
-        panpipe_labels = updateParams(labels_dict,"PARTICIPANT_LABEL","*")
-        panpipe_labels = updateParams(labels_dict,"PARTICIPANT_XNAT_PROJECT","*")
+        labels_dict = updateParams(labels_dict,"PARTICIPANT_LABEL","*")
+        labels_dict = updateParams(labels_dict,"PARTICIPANT_XNAT_PROJECT","*")
+        labels_dict = updateParams(labels_dict,"PARTICIPANT_SESSION","*")
         for meas_template in csv_list1:
             evaluated_meas_template = substitute_labels(meas_template,labels_dict)
             csv_list.extend(glob.glob(evaluated_meas_template))
@@ -85,6 +88,28 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
         out_files.insert(0,roi_csv_inner)
         out_files.insert(0,roi_csv_outer)
+
+        metadata = {}
+        roi_csv_inner_json = os.path.splitext(roi_csv_inner)[0] + ".json"
+        metadata = updateParams(metadata,"Title","collate_csv_group.py: Inner Join")
+        metadata = updateParams(metadata,"Description","Combine csv files of provided participants into group table. Only matched columns are retained.")
+        metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_inner_json}")
+        metadata = updateParams(metadata,"FileCreated",f"{roi_csv_inner}")
+        metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
+        metadata = updateParams(metadata,"Pipeline",f"{pipeline}")
+        metadata = updateParams(metadata,"InputFiles",f"{csv_list}")
+        export_labels(metadata,roi_csv_inner_json)
+
+        metadata = {}
+        roi_csv_outer_json = os.path.splitext(roi_csv_outer)[0] + ".json"
+        metadata = updateParams(metadata,"Title","collate_csv_group.py: Outer Join")
+        metadata = updateParams(metadata,"Description","Combine csv files of provided participants into group table. Unmatched columns are retained.")
+        metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_outer_json}")
+        metadata = updateParams(metadata,"FileCreated",f"{roi_csv_outer}")
+        metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
+        metadata = updateParams(metadata,"Pipeline",f"{pipeline}")
+        metadata = updateParams(metadata,"InputFiles",f"{csv_list}")
+        export_labels(metadata,roi_csv_outer_json)
 
     return {
         "roi_csv_inner":roi_csv_inner,
