@@ -13,5 +13,5 @@ conda activate panpython
 pip install panpipelines
 ```
 ## Deployment
-For an example of using the package to process MRI data please refer to the `./deployment` folder. All the necessary parameters for running the pipelines are described in a **config** file which is passed as a parameter to the main module `pan_processing.py`
+For an example of using the package to process MRI data please refer to the `./deployment` folder. All the necessary parameters for running the pipelines are described in a **config** file in the `./config` subdirectory which is passed as a parameter to the main module `pan_processing.py`. In the example provided this file is name `panpipeconfig_slurm.config`.
 
