@@ -1534,3 +1534,53 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     # Print New Line on Complete
     if iteration == total: 
         print()
+
+def arrangePipelines(jsondict,pipelines=[]):
+    # build up dictionary of pipelines and dependencies
+    pipeline_dict={}
+    drop_pipelines=[]
+    for pipeline in pipelines:
+        if pipeline in jsondict.keys():
+            pipeline_dict[pipeline]=""
+            if "DEPENDENCY" in jsondict[pipeline]:
+                dependency = jsondict[pipeline]["DEPENDENCY"]
+                if not isinstance(dependency,list):
+                    dependency = [dependency]
+                pipeline_dict[pipeline]=dependency
+        else:
+            UTLOGGER.info(f"{pipeline} not defined in configuration file. Please check spelling. Removing from list of pipelines")
+            drop_pipelines.append(pipeline)
+
+    # Drop pipelines that are not defined
+    for droppipes in drop_pipelines:
+        pipelines.remove(droppipes)
+
+    arranged_pipelines=pipelines.copy()
+    # Now sort pipelines according to order of dependencies.start with first pipeline and make sure it runs after dependency.
+    for pipeline in pipelines:
+        arranged_pipelines = shufflePipelines(pipeline_dict, pipeline, arranged_pipelines)
+
+    return arranged_pipelines
+
+
+
+def shufflePipelines(pipeline_dict,pipeline,pipelines):
+
+    pipeindex = pipelines.index(pipeline)
+
+    newpipeindex = pipeindex
+    for pipe in pipelines:
+        if pipe != pipeline:
+            if pipe in pipeline_dict[pipeline]:
+                newpipeindex=max(newpipeindex,pipelines.index(pipe))
+
+    if newpipeindex != pipeindex:
+        if newpipeindex > pipeindex:
+            pipelines.insert(newpipeindex+1,pipeline)
+            pipelines.pop(pipeindex)
+        else:
+            pipelines.insert(newpipeindex,pipeline)
+            pipelines.pop(pipeindex+1)
+
+    return pipelines
+
