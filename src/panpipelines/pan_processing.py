@@ -114,6 +114,14 @@ def main():
     else:
         pipelines = getParams(panpipe_labels,"PIPELINES")
 
+    if not pipelines:
+        LOGGER.info("No pipelines specified at command line. All pipelines in configuration file will be run.")
+        pipelines = [p for p in panpipeconfig_json.keys() if p != "all_pipelines"]
+
+    LOGGER.info(f"About to arrange pipelines by dependency. Pipeline list is {pipelines}")    
+    pipelines = arrangePipelines(panpipeconfig_json,pipelines=pipelines)
+    LOGGER.info(f"Pipelines arranged by dependency. Pipeline list is {pipelines}")    
+
     runtime_labels = updateParams(runtime_labels,"PIPELINES",getParams(panpipe_labels,"PIPELINES"))
 
     participant_label = args.participant_label
