@@ -42,7 +42,7 @@ def fmriprep_proc(labels_dict,bids_dir=""):
         " --fs-license-file <FSLICENSE>"\
         " --omp-nthreads <BIDSAPP_THREADS>"\
         " -w " + cwd + "/fmriwork"
-            " " + reset_params 
+        " " + reset_params 
 
     extra_params=getParams(labels_dict,"FMRIPREP_EXTRA_PARAMS")
     if not extra_params:
