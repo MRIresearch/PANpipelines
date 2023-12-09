@@ -23,6 +23,7 @@ def parse_params():
     parser = ArgumentParser(description="Pan pipelines")
     PathExists = partial(path_exists, parser=parser)
     parser.add_argument("config_file", type=PathExists, help="Pipeline Configuration File")
+    parser.add_argument("--pipeline_outdir", help="directory to place pipeline output")
     parser.add_argument("--participants_file", type=PathExists, help="list of participants")
     parser.add_argument("--sessions_file", type=PathExists, help="Comprehensive list of participants and sessions")
     parser.add_argument("--pipelines", nargs="+")
@@ -40,26 +41,57 @@ def main():
     parser=parse_params()
     args, unknown_args = parser.parse_known_args()
 
-    runtime_labels={}
     panpipe_labels={}
 
-    panpipe_labels = insertParams(panpipe_labels,'PWD',str(os.getcwd()))
-    runtime_labels = insertParams(runtime_labels,'PWD',str(os.getcwd()))
-    panpipe_labels = insertParams(panpipe_labels,'DATE_LABEL',datelabel)
-    runtime_labels = insertParams(runtime_labels,'DATE_LABEL',datelabel)
+    #  TO DO:
+    #  In general need to think through how config variables are pulled in and overwritten at the 
+    #  general and pipeline level. Current approach leaves a lot to be desired.
+    #  We are lucky that pipeline_dir is really only referenced within the pipelines themselves and so we
+    #  can get away with this here.
+    #
+    #  Envisage an approach whereby variables are referenced by a pipeline from both general and pipeline specific
+    #  Using keyword in dictionary.
+    #
+    pipeline_outdir = args.pipeline_outdir
+    if pipeline_outdir:
+        pipeline_outdir = os.path.abspath(pipeline_outdir)
+        panpipe_labels = updateParams(panpipe_labels,"PIPELINE_DIR",pipeline_outdir)
 
     panpipeconfig_file=str(args.config_file)
     panpipeconfig_json=None
     if os.path.exists(panpipeconfig_file):
         with open(panpipeconfig_file, 'r') as infile:
             panpipeconfig_json = json.load(infile)
-    panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels)
+    # obtain labels but do not process yet
+    panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels,insert=True, postpone=True)
 
-    pipeline_outdir=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"))
+    if __file__:
+        pkgdir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+        panpipe_labels = insertParams(panpipe_labels,'PKG_DIR',pkgdir)
+    panpipe_labels = insertParams(panpipe_labels,'PWD',str(os.getcwd()))
+
+   # only need date label if pipeline outdir not provided. This helps with nipype caching for repeat runs
+    if not pipeline_outdir:
+        pipeline_outdir_suffix = "_" + datelabel
+        pipeline_outdir_config = getParams(panpipe_labels,"PIPELINE_DIR")
+        if pipeline_outdir_config:
+            panpipe_labels = updateParams(panpipe_labels,"PIPELINE_DIR",pipeline_outdir_config + pipeline_outdir_suffix)
+        else:
+            pipeline_outdir_config = os.path.join(os.getcwd(),"pan_output" +  pipeline_outdir_suffix) 
+            panpipe_labels = updateParams(panpipe_labels,"PIPELINE_DIR",pipeline_outdir_config)
+
+
+    # Now we can resolve all the references based on precedence
+    panpipe_labels = update_labels(panpipe_labels)
+
+    pipeline_outdir=os.path.abspath(getParams(panpipe_labels,"PIPELINE_DIR"))
     if not os.path.exists(pipeline_outdir):
         os.makedirs(pipeline_outdir)
 
-    LOGFILE=os.path.join(pipeline_outdir,f"{datelabel}_pan_processing.log")
+    # reproducible and slightly more robust name to faciliate nipype caching
+    panlabel=os.path.basename(pipeline_outdir)
+
+    LOGFILE=os.path.join(pipeline_outdir,f"{panlabel}_pan_processing.log")
     logger_addfile(LOGGER, LOGFILE, logging.DEBUG)
 
     LOGGER.info(f"Running {__file__} v{__version__}")
@@ -69,7 +101,6 @@ def main():
     label_key="CONFIG_FILE"
     label_value=panpipeconfig_file
     panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
-    runtime_labels = updateParams(runtime_labels,"CONFIG_FILE",getParams(panpipe_labels,"CONFIG_FILE"))
 
     credentials = os.path.abspath(getParams(panpipe_labels,"CREDENTIALS"))
     if credentials is not None and os.path.exists(credentials):
@@ -122,8 +153,6 @@ def main():
     pipelines = arrangePipelines(panpipeconfig_json,pipelines=pipelines)
     LOGGER.info(f"Pipelines arranged by dependency. Pipeline list is {pipelines}")    
 
-    runtime_labels = updateParams(runtime_labels,"PIPELINES",getParams(panpipe_labels,"PIPELINES"))
-
     participant_label = args.participant_label
     if args.participant_label is not None:
         label_key="PARTICIPANTS"
@@ -131,8 +160,6 @@ def main():
         panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
     else:
         participant_label = getParams(panpipe_labels,"PARTICIPANTS")
-
-    runtime_labels = updateParams(runtime_labels,"PARTICIPANTS",getParams(panpipe_labels,"PARTICIPANTS"))
 
     session_label = args.session_label
     if args.session_label is not None:
@@ -142,8 +169,6 @@ def main():
     else:
         session_label = getParams(panpipe_labels,"SESSION_LABEL")
 
-    runtime_labels = updateParams(runtime_labels,"SESSION_LABEL",getParams(panpipe_labels,"SESSION_LABEL"))
-
 
     LOGGER.info(f"Pipelines to be processed : {pipelines}")
 
@@ -152,10 +177,17 @@ def main():
     project_list  = projectmap[1]
     session_list = projectmap[2]
 
+    # take snapshot of the runtime labels for all pipelines
+    runtime_labels = panpipe_labels.copy()
+
     for pipeline in pipelines:
         LOGGER.info(f"Processing pipeline : {pipeline}")
         updateParams(panpipe_labels, "PIPELINE", pipeline)
         panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels,pipeline)
+        
+        # Now we can resolve all the references based on precedence in the pipeline section
+        panpipe_labels = update_labels(panpipe_labels)
+
         analysis_level = getParams(panpipe_labels,"ANALYSIS_LEVEL")
 
         processing_environment=getParams(panpipe_labels,"PROCESSING_ENVIRONMENT") 
@@ -186,7 +218,7 @@ def main():
                 updateParams(panpipe_labels, "SLURM_HEADER", getParams(panpipe_labels,"SLURM_CPU_HEADER"))
 
             try:
-                jobid = submit_script(participant_list, participants_file, pipeline, panpipe_labels,job_ids, analysis_level,projects_list = project_list, sessions_list=session_list, sessions_file = sessions_file, LOGGER=LOGGER)
+                jobid = submit_script(participant_list, participants_file, pipeline, panpipe_labels,job_ids, analysis_level,projects_list = project_list, sessions_list=session_list, sessions_file = sessions_file, LOGGER=LOGGER,panlabel=panlabel)
 
                 job_ids[pipeline]=jobid
             except Exception as ex:
@@ -220,7 +252,6 @@ def main():
                 if not os.path.exists(lock_dir):
                     os.makedirs(lock_dir,exist_ok=True)
                 panpipe_labels = updateParams(panpipe_labels,"LOCK_DIR",lock_dir)
-                runtime_labels = updateParams(runtime_labels,"LOCK_DIR",lock_dir)
 
             bids_dir = getParams(panpipe_labels,"BIDS_DIR")
 
@@ -260,10 +291,8 @@ def main():
         else:
             LOGGER.info(f"processing environment {processing_environment} not currently supported. Options are {PROCESSING_OPTIONS}.")
 
-
-        panpipe_labels = remove_labels(panpipe_labels,panpipeconfig_json,pipeline)
-        panpipe_labels = removeParam(panpipe_labels, "PIPELINE")
-        panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels)
+        # clear out and restore runtime labels for next pipeline
+        panpipe_labels = {}
         panpipe_labels = add_labels(runtime_labels,panpipe_labels)
        
     LOGGER.info(f"All pipelines {pipelines} successfully submitted.")

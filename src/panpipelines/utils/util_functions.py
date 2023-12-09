@@ -170,7 +170,7 @@ def add_labels(config_dict,labels_dict,postpone=False):
 
     return labels_dict
 
-def process_labels(config_json,config_file,labels_dict,pipeline=None,uselabel=True):  
+def process_labels(config_json,config_file,labels_dict,pipeline=None,uselabel=True,insert=False,postpone=False):  
     # Process Labels
 
     try:
@@ -188,9 +188,41 @@ def process_labels(config_json,config_file,labels_dict,pipeline=None,uselabel=Tr
         return labels_dict
 
     for itemkey,itemvalue in LABELS.items():
-            updateParams(labels_dict,itemkey,itemvalue)
+        if insert:
+            insertParams(labels_dict,itemkey,itemvalue,postpone=postpone)
+        else:
+            updateParams(labels_dict,itemkey,itemvalue,postpone=postpone)
 
     return labels_dict
+    
+
+def update_labels(labels_dict):  
+    # update Labels
+    varkeys = list(labels_dict.keys())
+    ordered_varkeys = order_varkeys(varkeys,labels_dict,varkeys.copy())
+
+    for itemkey in ordered_varkeys:
+        itemvalue = labels_dict[itemkey]
+        labels_dict[itemkey]=substitute_labels(itemvalue,labels_dict)
+
+    return labels_dict
+
+def order_varkeys(varkeys, labels_dict, orderedkeys):
+    for key in varkeys:
+        if key in labels_dict.keys():
+            keyindex = orderedkeys.index(key)
+            if isinstance(labels_dict[key],str):
+                braced_vars = re.findall(r'\<.*?\>',labels_dict[key])
+                if braced_vars:
+                    for braced_var in braced_vars:
+                        unbraced_var = braced_var.replace('<','').replace('>','')
+                        if unbraced_var in orderedkeys:
+                            varkeyindex = orderedkeys.index(unbraced_var)
+                            if varkeyindex > keyindex:
+                                orderedkeys.insert(keyindex,unbraced_var)
+                                orderedkeys.pop(varkeyindex+1)
+        
+    return orderedkeys
 
 
 def process_dict(config_dict,labels):  
@@ -218,6 +250,8 @@ def process_fsl_glm(panpipe_labels):
     fslcontrast_text = getParams(panpipe_labels,"TEXT_FSL_CONTRAST")
     fslftest_text = getParams(panpipe_labels,"TEXT_FSL_FTEST")
 
+    command_base, container = getContainer(panpipe_labels,nodename="process_fsl_glm",SPECIFIC="NEURO_CONTAINER")
+
     if os.path.exists(fsldesign_text):
         designdir=os.path.dirname(fsldesign_text)
         outputdir=os.path.join(designdir,"fslglm")
@@ -233,25 +267,19 @@ def process_fsl_glm(panpipe_labels):
         df.pop(0)
         df.to_csv(newfsldesign_text,sep=" ",header=False, index=False)
 
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER>"\
+        command=f"{command_base}"\
             " Text2Vest " + newfsldesign_text + " " + newfsldesign
         evaluated_command=substitute_labels(command, panpipe_labels)
-        UTLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        UTLOGGER.info(results.stdout)
+        results = runCommand(evaluated_command)
         panpipe_labels = updateParams(panpipe_labels,"FSL_DESIGN",newfsldesign)
 
 
         if fslcontrast_text is not None and os.path.exists(fslcontrast_text):
             newfslcontrast=os.path.join(outputdir,os.path.basename(fslcontrast_text).split(".")[0] + '.con')
-            command="singularity run --cleanenv --no-home <NEURO_CONTAINER>"\
+            command=f"{command_base}"\
             " Text2Vest " + fslcontrast_text + " " + newfslcontrast
             evaluated_command=substitute_labels(command, panpipe_labels)
-            UTLOGGER.info(evaluated_command)
-            evaluated_command_args = shlex.split(evaluated_command)
-            results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-            UTLOGGER.info(results.stdout)
+            results = runCommand(evaluated_command)
             panpipe_labels = updateParams(panpipe_labels,"FSL_CONTRAST",newfslcontrast)
         else:
             print("TEXT_FSL_CONTRAST Contrast not defined or doed not exist")
@@ -259,13 +287,10 @@ def process_fsl_glm(panpipe_labels):
 
         if fslftest_text is not None and os.path.exists(fslftest_text):
             newfslftest=os.path.join(outputdir,os.path.basename(fslftest_text).split(".")[0] + '.fts')
-            command="singularity run --cleanenv --no-home <NEURO_CONTAINER>"\
+            command=f"{command_base}"\
             " Text2Vest " + fslftest_text + " " + newfslftest
             evaluated_command=substitute_labels(command, panpipe_labels)
-            UTLOGGER.info(evaluated_command)
-            evaluated_command_args = shlex.split(evaluated_command)
-            results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-            UTLOGGER.info(results.stdout)
+            results = runCommand(evaluated_command)
             panpipe_labels = updateParams(panpipe_labels,"FSL_FTEST",newfslftest)
         else:
             print("TEXT_FSL_FTEST Ftest not defined or doed not exist")
@@ -440,8 +465,10 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
 
     try:
         if not os.path.isdir(os.path.join(bids_dir,"sub-"+participant_label)):
+            command_base, container = getContainer(labels_dict,nodename="process_fsl_glm",SPECIFIC="XNATDOWNLOAD_CONTAINER")
+
             UTLOGGER.info("BIDS folder for {} not present. Downloading started from XNAT.".format(participant_label))
-            command="singularity run --cleanenv --no-home <XNATDOWNLOAD_CONTAINER> python /src/xnatDownload.py downloadSubjectSessions"\
+            command=f"{command_base} python /src/xnatDownload.py downloadSubjectSessions"\
                     " BIDS-AACAZ "+bids_dir+\
                     " --host <XNAT_HOST>"\
                     " --subject "+participant_label+\
@@ -449,10 +476,8 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
                     " --user " + user + \
                     " --password " + password
 
-            evaluated_command=substitute_labels(command, labels_dict)
-            evaluated_command_args = shlex.split(evaluated_command)
-            results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-            UTLOGGER.info(results.stdout)
+            evaluated_command=substitute_labels(command,labels_dict)
+            results = runCommand(evaluated_command,suppress=evaluated_command.split("--user")[0])
     
         else:
             print("BIDS folder for {} already present. No need to download".format(participant_label))
@@ -720,12 +745,13 @@ def getDependencies(job_ids,panpipe_labels,LOGGER=UTLOGGER):
 
 
 
-def submit_script(participants, participants_file, pipeline, panpipe_labels,job_ids, analysis_level,projects_list = None, sessions_list=None, sessions_file = None, LOGGER=UTLOGGER, script_dir=None):
+def submit_script(participants, participants_file, pipeline, panpipe_labels,job_ids, analysis_level,projects_list = None, sessions_list=None, sessions_file = None, LOGGER=UTLOGGER, script_dir=None, panlabel=None):
     headerfile=getParams(panpipe_labels,"SLURM_HEADER")
     templatefile=getParams(panpipe_labels,"SLURM_TEMPLATE")
-    datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") 
+    if not panlabel:
+        panlabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") 
 
-    script_base=pipeline + "_" + datelabel
+    script_base=pipeline + "_" + panlabel
    
     if script_dir is None:
         script_dir=os.path.join(getParams(panpipe_labels,"SLURM_SCRIPT_DIR"),script_base)
@@ -739,10 +765,14 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
     create_script(headerfile,templatefile,panpipe_labels, script_file)
     updateParams(panpipe_labels, "PIPELINE_SCRIPT", script_file)
     dependencies = getDependencies(job_ids,panpipe_labels)
+
+    if LOGGER:
+        LOGGER.info(f"Runtime Config file created: {labels_file}")
+        LOGGER.info(f"Pipelne Script file created: {script_file}")
     
     if analysis_level == "participant":
 
-        outlog =f"log-%A_%a_{pipeline}_{datelabel}.panout"
+        outlog =f"log-%a_{pipeline}_{panlabel}.panout"
         jobname = f"{pipeline}_pan_ss"
 
         array = create_array(participants, participants_file,projects_list = projects_list, sessions_list=sessions_list, sessions_file = sessions_file)
@@ -754,7 +784,7 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
         " " + dependencies + \
         " " + script_file
     else:
-        outlog =f"log-%A_group_{pipeline}_{datelabel}.panout"
+        outlog =f"log-group_{pipeline}_{panlabel}.panout"
         jobname = f"{pipeline}_pan_grp"
 
         command = "sbatch"\
@@ -769,6 +799,10 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
 
     updateParams(panpipe_labels, "SLURM_COMMAND", evaluated_command)
     evaluated_command_args = shlex.split(evaluated_command)
+
+    # A bit of a hack - these labels in labels_dict prevent nupype from caching properly as they always change, so remove before saving
+    removeParam(panpipe_labels, "RUNTIME_CONFIG_FILE")
+    removeParam(panpipe_labels, "PIPELINE_SCRIPT")
 
     export_labels(panpipe_labels,labels_file)
 
@@ -907,19 +941,18 @@ def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, high_thresh=Non
     else:
         LOWTHRESH=""
 
-    # store roi in work dir for 
+    # store roi in work dir for
+    command_base, container = getContainer(panpipe_labels,nodename="add_atlas_roi",SPECIFIC="NEURO_CONTAINER")
     new_roi=newfile(trans_workdir, roi_in, suffix="desc-label")
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+    command = f"{command_base} fslmaths"\
         f"  {roi_in}" +\
         PROBTHRESH +\
         " -bin "\
         f" -mul {roi_value}" \
         f" {new_roi}"
-    evaluated_command = substitute_labels(command,panpipe_labels)
-    UTLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    UTLOGGER.info(results.stdout)
+    
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
     from panpipelines.nodes.antstransform import antstransform_proc
 
@@ -936,23 +969,19 @@ def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, high_thresh=Non
 
 
     if os.path.exists(atlas_file):
-        command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+        command = f"{command_base} fslmaths"\
             f"  {new_roi_transformed}"\
             f" -add {atlas_file}" +\
             LOWTHRESH +\
             HIGHTHRESH +\
             f" {atlas_file}"
     else:
-        command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+        command = f"{command_base} fslmaths"\
             f" {new_roi_transformed}"\
             f" {atlas_file}" 
     
-    evaluated_command = substitute_labels(command,panpipe_labels)
-    UTLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    UTLOGGER.info(results.stdout)
-    return atlas_file
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
 
 def create_3d_atlas_from_rois(atlas_file, roi_list,panpipe_labels, roi_values=None,prob_thresh=0.5,explode3d=True):
@@ -996,6 +1025,8 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
     else:
         LOWTHRESH=""
 
+    command_base, container = getContainer(panpipe_labels,nodename="merge_atlas_roi",SPECIFIC="NEURO_CONTAINER")
+
     roicount=0
     numrois=len(roi_list)
     roi_files=[]
@@ -1003,17 +1034,14 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
         # store roi in work dir\
         roicount=roicount+1
         new_roi=newfile(workdir, roi_in,suffix="desc-bin")
-        command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+        command = f"{command_base} fslmaths"\
             f"  {roi_in}" +\
             LOWTHRESH +\
             HIGHTHRESH +\
             " -bin "\
             f" {new_roi}"
-        evaluated_command = substitute_labels(command,panpipe_labels)
-        UTLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-        UTLOGGER.info(results.stdout)
+        evaluated_command=substitute_labels(command,panpipe_labels)
+        results = runCommand(evaluated_command)
         roi_files.append(new_roi)
 
     from panpipelines.nodes.antstransform import antstransform_proc
@@ -1036,16 +1064,13 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
         
     if roi_files_transformed:
         roi_string=" ".join(roi_files_transformed)
-        command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmerge"\
+        command = f"{command_base} fslmerge"\
             " -t" \
             f" {atlas_file}" +\
             " " + roi_string
 
-        evaluated_command = substitute_labels(command,panpipe_labels)
-        UTLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-        UTLOGGER.info(results.stdout)
+        evaluated_command=substitute_labels(command,panpipe_labels)
+        results = runCommand(evaluated_command)
 
     return atlas_file
 
@@ -1081,6 +1106,8 @@ def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
     newatlas_transform = getParams(panpipe_labels,"NEWATLAS_TRANSFORM_MAT")
     new_roi_list = []
     roi_count = 0
+
+    command_base, container = getContainer(panpipe_labels,nodename="expand_rois",SPECIFIC="NEURO_CONTAINER")
     for roi in roi_list:
 
         # using fsl for manipulations, so convert freesurfer files to nifti
@@ -1089,10 +1116,9 @@ def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
             mgzdir = os.path.join(out_dir,'roi_mgz_temp')
             if not os.path.isdir(mgzdir):
                 os.makedirs(mgzdir)
-
-            NEUROIMG=getParams(panpipe_labels,"NEURO_CONTAINER")
+            fs_command_base, fscontainer = getContainer(panpipe_labels,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER")
             roi_nii = newfile(mgzdir,roi,extension=".nii.gz")
-            convMGZ2NII(roi, roi_nii, NEUROIMG)
+            convMGZ2NII(roi, roi_nii, fs_command_base)
             roi = roi_nii
 
         roi_transform = None
@@ -1106,16 +1132,13 @@ def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
             for vol in range(len(roi_shape[3])):
                 sub_roi_num=vol + 1
                 new_roi=newfile(workdir,roi, prefix=f"{roi_count:0>5}_{sub_roi_num:0>5}",suffix="desc-roi")
-                command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslroi"\
+                command = f"{command_base} fslroi"\
                     f"  {roi}" \
                     f" {new_roi}" \
                     f" {vol}" \
                     " 1" 
-                evaluated_command = substitute_labels(command,panpipe_labels)
-                UTLOGGER.info(evaluated_command)
-                evaluated_command_args = shlex.split(evaluated_command)
-                results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-                UTLOGGER.info(results.stdout)
+                evaluated_command=substitute_labels(command,panpipe_labels)
+                results = runCommand(evaluated_command)
                 new_roi_list.append(new_roi)
                 if roi_transform:
                     roi_transform_list.append(roi_transform)
@@ -1125,17 +1148,14 @@ def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
                 atlas_dict,atlas_list=get_avail_labels(roi)
                 for thresh in atlas_list:
                     new_roi=newfile(workdir,roi, prefix=f"{roi_count:0>5}_{thresh:0>5}",suffix="desc-roi")
-                    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+                    command = f"{command_base} fslmaths"\
                         f" {roi}" \
                         f" -thr {thresh}" \
                         f" -uthr {thresh}" \
                         " -bin "\
                         f" {new_roi}"
-                    evaluated_command = substitute_labels(command,panpipe_labels)
-                    UTLOGGER.info(evaluated_command)
-                    evaluated_command_args = shlex.split(evaluated_command)
-                    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-                    UTLOGGER.info(results.stdout)
+                    evaluated_command=substitute_labels(command,panpipe_labels)
+                    results = runCommand(evaluated_command)
                     new_roi_list.append(new_roi)
                     if roi_transform:
                         roi_transform_list.append(roi_transform)
@@ -1145,11 +1165,8 @@ def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
                 command = "cp"\
                 " " + roi +\
                 " " + new_roi
-                evaluated_command = substitute_labels(command,panpipe_labels)
-                UTLOGGER.info(evaluated_command)
-                evaluated_command_args = shlex.split(evaluated_command)
-                results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-                UTLOGGER.info(results.stdout)
+                evaluated_command=substitute_labels(command,panpipe_labels)
+                results = runCommand(evaluated_command)
                 new_roi_list.append(new_roi)
                 if roi_transform:
                         roi_transform_list.append(roi_transform)
@@ -1226,13 +1243,14 @@ def get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False):
     return atlas_dict,atlas_index_out
 
             
-def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
+def create_3d_hcpmmp1_aseg(atlas_file,roi_list,panpipe_labels):
     out_dir = os.path.dirname(atlas_file)
     workdir = os.path.join(out_dir,"hcpmmp1_workdir")
     if not os.path.isdir(workdir):
         os.makedirs(workdir)
 
-    NEUROIMG = getParams(panpipe_labels,"NEURO_CONTAINER")
+    command_base, container = getContainer(panpipe_labels,nodename="create_3d_hcppmmp1_aseg",SPECIFIC="NEURO_CONTAINER")
+
     atlas_dir = getParams(panpipe_labels,"ATLAS_DIR")
     SUB=f"sub-{getParams(panpipe_labels,'PARTICIPANT_LABEL')}"
     freesurfer_dir = getParams(panpipe_labels,"FREESURFER_DIR")
@@ -1245,89 +1263,69 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
     rh_hcpannot = os.path.join(atlas_dir, "rh.HCP-MMP1.annot")
     rh_hcpannot_trg = os.path.join(freesurfer_dir,SUB,"label","rh.HCP-MMP1.annot")
 
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> ln"\
+    command = f"{command_base} ln"\
         "  -s" \
         f" {os.path.join(freesurfer_home,'subjects','fsaverage')}" \
         f" {os.path.join(freesurfer_dir,'fsaverage')}" 
-    evaluated_command = substitute_labels(command,panpipe_labels)
-    UTLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    UTLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> ln"\
+    command = f"{command_base} ln"\
         "  -s" \
         f" {os.path.join(freesurfer_home,'subjects','lh.EC_average')}" \
         f" {os.path.join(freesurfer_dir,'lh.EC_average')}" 
-    evaluated_command = substitute_labels(command,panpipe_labels)
-    UTLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    UTLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> ln"\
+    command = f"{command_base} ln"\
         "  -s" \
         f" {os.path.join(freesurfer_home,'subjects','rh.EC_average')}" \
         f" {os.path.join(freesurfer_dir,'rh.EC_average')}" 
-    evaluated_command = substitute_labels(command,panpipe_labels)
-    UTLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    UTLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
     os.environ["SINGULARITYENV_SUBJECTS_DIR"]=freesurfer_dir
 
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> mri_surf2surf"\
+    command = f"{command_base} mri_surf2surf"\
         " --srcsubject fsaverage" \
         f" --trgsubject {SUB}" \
         " --hemi lh" \
         f" --sval-annot {lh_hcpannot}" \
         f" --tval {lh_hcpannot_trg}"
-    evaluated_command = substitute_labels(command,panpipe_labels)
-    UTLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    UTLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> mri_surf2surf"\
+    command = f"{command_base}  mri_surf2surf"\
         " --srcsubject fsaverage" \
         f" --trgsubject {SUB}" \
         " --hemi rh" \
         f" --sval-annot {rh_hcpannot}" \
         f" --tval {rh_hcpannot_trg}"
-    evaluated_command = substitute_labels(command,panpipe_labels)
-    UTLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    UTLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
     atlas_space_fs = newfile(workdir, atlas_file, suffix="desc-hcpmmp1_space-fs")
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> mri_aparc2aseg"\
+    command = f"{command_base} mri_aparc2aseg"\
         f"  --s {SUB}" \
         "  --old-ribbon" \
         " --annot HCP-MMP1" \
         f" --o {atlas_space_fs}" 
-    evaluated_command = substitute_labels(command,panpipe_labels)
-    UTLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    UTLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
     atlas_space_T1w = newfile(workdir, atlas_file, suffix="desc-hcpmmp1_space-T1w",extension=".mgz")
     rawavg=os.path.join(freesurfer_dir,SUB,"mri","rawavg.mgz")
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> mri_label2vol"\
+    command = f"{command_base} mri_label2vol"\
         f"  --seg {atlas_space_fs}" \
         f"  --temp {rawavg}" \
         f"  --o {atlas_space_T1w}" \
         f"  --regheader {atlas_space_fs}" 
-    evaluated_command = substitute_labels(command,panpipe_labels)
-    UTLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    UTLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
     atlas_space_T1w_nii = newfile(workdir, atlas_space_T1w,suffix="desc-unordered",extension=".nii.gz")
-    convMGZ2NII(atlas_space_T1w,atlas_space_T1w_nii,NEUROIMG)
+    fs_command_base, fscontainer = getContainer(panpipe_labels,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER")
+    convMGZ2NII(atlas_space_T1w,atlas_space_T1w_nii, fs_command_base)
 
 
     from panpipelines.nodes.antstransform import antstransform_proc
@@ -1348,16 +1346,13 @@ def create_3d_hcppmmp1_aseg(atlas_file,roi_list,panpipe_labels):
     hcpmmp_original = os.path.join(atlas_dir, "hcpmmp1_original.txt")
     hcpmmp_ordered = os.path.join(atlas_dir, "hcpmmp1_ordered.txt")
 
-    command = "singularity run --cleanenv --no-home <NEURO_CONTAINER> labelconvert"\
+    command = f"{command_base} labelconvert"\
         f"  {atlas_space_transform}" \
         f"  {hcpmmp_original}" \
         f"  {hcpmmp_ordered}" \
         f"  {atlas_file}" 
-    evaluated_command = substitute_labels(command,panpipe_labels)
-    UTLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    UTLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
     return [f"get_freesurfer_atlas_index:{hcpmmp_ordered}"]
 
@@ -1562,8 +1557,6 @@ def arrangePipelines(jsondict,pipelines=[]):
 
     return arranged_pipelines
 
-
-
 def shufflePipelines(pipeline_dict,pipeline,pipelines):
 
     pipeindex = pipelines.index(pipeline)
@@ -1584,3 +1577,58 @@ def shufflePipelines(pipeline_dict,pipeline,pipelines):
 
     return pipelines
 
+def getContainer(labels_dict,nodename="",SPECIFIC=None,CONTAINERALT="PAN_CONTAINER", LOGGER=UTLOGGER):
+    if SPECIFIC:
+        container_run_options = getParams(labels_dict,f"{SPECIFIC}_RUN_OPTIONS")
+        container_prerun = getParams(labels_dict,f"{SPECIFIC}_PRERUN")
+        container = getParams(labels_dict,f"{SPECIFIC}")
+    else:
+        container_run_options = None
+        container_prerun = None
+        container = None
+
+    if not container_run_options:
+        container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
+        if not container_run_options:
+            container_run_options = ""
+
+    if not container_prerun:
+        container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
+        if not container_prerun:
+            container_prerun = ""
+
+    if not container:
+        container = getParams(labels_dict,'CONTAINER')
+        if not container:
+            container = getParams(labels_dict,f'{CONTAINERALT}')
+            if not container:
+                container = getParams(labels_dict,'NEURO_CONTAINER')
+                if not container:
+                    container=""
+
+                    LOGGER.info(f"Container not defined for {nodename} node. Required commands should be accessible on local path for pipeline to succeed")
+                    if container_run_options:
+                        LOGGER.info(f"Note that '{container_run_options}' set as run options for non-existing container. This may cause the pipeline to fail.")
+                    
+                    if container_prerun:
+                        LOGGER.info(f"Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
+
+    command_base = f"{container_run_options} {container} {container_prerun}"
+    LOGGER.info("Container base run command is:")
+    LOGGER.info(f"{command_base}")
+
+    return command_base, container
+
+def runCommand(command,LOGGER=UTLOGGER,suppress=""):
+    if suppress:
+        LOGGER.info(suppress)
+    else:
+        LOGGER.info(command)
+    evaluated_command_args = shlex.split(command)
+    if suppress:
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        return "<Suppressed>"
+    else:
+        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+        LOGGER.info(results.stdout)
+        return results.stdout
