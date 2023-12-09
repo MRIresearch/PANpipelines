@@ -70,13 +70,7 @@ cp -R /path/to/PANpipelines/deployment /path/to/newdeployment
 
 In the configuration file `./config/panpipeconfig_slurm.config` make the following changes:
 
-Change `PWD` to point to the root directory of this deployment directory
-`"PWD": "/path/to/newdeployment",`
-
-Change `PKG_DIR` to point to the directory that contains the pipelines package:
-`"PKG_DIR": "/Path/to/PANpipelines/src"`
-
-Change 'XNAT_HOST' to the XNAT URL
+Change `XNAT_HOST` to the XNAT URL i.e. `https://....`
 
 ### credentials
 Change the username and password in `./config/credentials/credentials.json` to your XNAT credentials.
@@ -94,18 +88,28 @@ Change the call to PYTHON depending on how it is invoked in your environment. So
 Change `PKG_DIR` to point to the directory that contains the pipelines package:
 `PKG_DIR=[Path to]/PANpipelines/src`
 
-If you have decided not to install the PANpipelines package but have downloaded the repository then add the path to the `src` folder in the `PYTHONPATh` environmental variable as follows:
+If you have decided not to install the PANpipelines package but have downloaded the repository then add the path to the `src` folder in the `PYTHONPATH` environmental variable as follows:
 ```
 export PYTHONPATH=${PKG_DIR}:$PYTHONPATH
 ```
 
 ### slurm templates in ./batch_script
-Edit `group_template.pbs` and `participant_template.pbs` and change the call to PYTHON depending on how it is invoked in your environment. Some environments require Python version 3 to be invoked as `python3`. In that case set `PYTHON=python3`
+Edit `group_template.pbs` and `participant_template.pbs` and add commands required to instantiate your python environment e.g. module load env, conda activate env etc.
+
+Also change the call to PYTHON depending on how it is invoked in your environment. Some environments require Python version 3 to be invoked as `python3`. In that case set `PYTHON=python3`
+
+If you have decided not to install the PANpipelines package but have downloaded the repository then you may need to add the path to the `src` folder in the `PYTHONPATH` environmental variable as follows:
+```
+export PYTHONPATH=${PKG_DIR}:$PYTHONPATH
+```
+
 ### batch_scripts/headers
 Go through each of the different slurm headers to adjust times and credentials as necessary. These are referenced in the config entries as `SLURM_CPU_HEADER` and `SLURM_GPU_HEADER` as required.
 
 ### Deploy
-run as `./run_pan_slurm.sh`
+run as `./run_pan_slurm.sh`.
+
+On your first run please allow a few minutes for the PAN participation information to be obtained for all the projects from the server.
 
 
 ## Troubleshooting
