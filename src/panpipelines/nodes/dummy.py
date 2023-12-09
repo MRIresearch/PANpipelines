@@ -13,6 +13,16 @@ def dummy_proc(labels_dict,bids_dir=""):
 
     DEBUG=True
 
+    TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
+    os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
+    os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
+
+    command_base, container = getContainer(labels_dict,nodename="qsiprep", SPECIFIC="QSIPREP_CONTAINER",LOGGER=IFLOGGER)
+    IFLOGGER.info("Checking the qsiprep version:")
+    command = f"{command_base} --version"
+    evaluated_command=substitute_labels(command,labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
+
     params="--participant_label <PARTICIPANT_LABEL>" \
         " --separate-all-dwis"\
         " --hmc-model eddy"\
@@ -26,7 +36,7 @@ def dummy_proc(labels_dict,bids_dir=""):
         " --write-graph"\
         " --output-resolution <OUTPUT_RES>"
 
-    command="singularity run --cleanenv --nv --no-home <QSIPREP_CONTAINER>"\
+    command=f"{command_base}"\
             " "+bids_dir +\
             " <CWD>"\
             " participant"\

@@ -6,7 +6,7 @@ import tempfile
 import glob
 from subprocess import check_call
 import re
-from panpipelines.utils import util_functions
+from panpipelines.utils import util_functions as ut
 import logging
 import sys
 
@@ -19,10 +19,10 @@ stdout_handler.setFormatter(formatter)
 LOGGER.addHandler(stdout_handler)
 
 
-def fsleyes_view(NEURO_CONTAINER,params):
-    command=f"singularity run {NEURO_CONTAINER} fsleyes"\
+def fsleyes_view(command_base,params):
+    command=f"{command_base} fsleyes"\
             " "+params
-    os.system(command)
+    results = ut.runCommand(command)
 
 def get_orientation_from_file(filename,type="default"):
     if type=="ants_transform":
@@ -42,15 +42,17 @@ def reorient(input_file, ori, out_file=None):
     reorient_node = Node(Reorient(),name="reorient_to_{}".format(ori))
     reorient_node.inputs.in_file =  input_file
     reorient_node.inputs.orientation=ori
-    results = reorient_node.run()
+    reorient_results = reorient_node.run()
     if out_file is not None:
         if os.path.isdir(out_file):
-            os.system("cp {} {}".format(results.outputs.out_file,out_file))
-            out_file=os.path.join(out_file, os.path.basename(results.outputs.out_file))
+            command = "cp {} {}".format(reorient_results.outputs.out_file,out_file)
+            results = ut.runCommand(command)
+            out_file=os.path.join(out_file, os.path.basename(reorient_results.outputs.out_file))
         else:
-            os.system("cp {} {}".format(results.outputs.out_file,out_file))
+            command = "cp {} {}".format(reorient_results.outputs.out_file,out_file)
+            results = ut.runCommand(command)
     else:
-        out_file = results.outputs.out_file
+        out_file = reorient_results.outputs.out_file
     return out_file
 
 def convert_affine_ants_to_fsl(antstrans_file, moving, reference, fsltrans_file):
@@ -75,26 +77,26 @@ def get_template_ref(TEMPLATEFLOW_HOME,template_space,suffix=None,desc=None,reso
     template_ref=tf.get(template_space,resolution=resolution,desc=desc,suffix=suffix,extension=extension)
     return template_ref
 
-def apply_transform_mni_to_mni2009_ants_ori(TEMPLATEFLOW_HOME,input_file,out_file, NEURO_CONTAINER,resolution=1,transform_ori="RAS:RAS",target_ori="RAS",reverse=False, costfunction=None,output_type=None):
+def apply_transform_mni_to_mni2009_ants_ori(TEMPLATEFLOW_HOME,input_file,out_file, COMMANDBASE,resolution=1,transform_ori="RAS:RAS",target_ori="RAS",reverse=False, costfunction=None,output_type=None):
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
 
     from templateflow import api as tf
     mninlin6_mni2009_trans=tf.get("MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
     mni2009_t1_ref=tf.get("MNI152NLin2009cAsym",resolution=resolution,desc=None,suffix="T1w",extension=[".nii.gz"])
 
-    apply_transform_ants_ori(input_file, mni2009_t1_ref,out_file,mninlin6_mni2009_trans,NEURO_CONTAINER,transform_ori="RAS:RAS",target_ori="RAS",reverse=reverse, costfunction=costfunction,output_type=output_type)
+    apply_transform_ants_ori(input_file, mni2009_t1_ref,out_file,mninlin6_mni2009_trans,COMMANDBASE,transform_ori="RAS:RAS",target_ori="RAS",reverse=reverse, costfunction=costfunction,output_type=output_type)
 
 
-def apply_transform_mni_to_mni2009_ants(TEMPLATEFLOW_HOME,input_file,out_file, NEURO_CONTAINER,resolution=1,reverse=False, costfunction=None,output_type=None):
+def apply_transform_mni_to_mni2009_ants(TEMPLATEFLOW_HOME,input_file,out_file, COMMANDBASE,resolution=1,reverse=False, costfunction=None,output_type=None):
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
 
     from templateflow import api as tf
     mninlin6_mni2009_trans=tf.get("MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
     mni2009_t1_ref=tf.get("MNI152NLin2009cAsym",resolution=resolution,desc=None,suffix="T1w",extension=[".nii.gz"])
 
-    apply_transform_ants(input_file, mni2009_t1_ref,out_file,mninlin6_mni2009_trans,NEURO_CONTAINER,reverse=reverse, costfunction=costfunction,output_type=output_type)
+    apply_transform_ants(input_file, mni2009_t1_ref,out_file,mninlin6_mni2009_trans,COMMANDBASE,reverse=reverse, costfunction=costfunction,output_type=output_type)
 
-def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, NEURO_CONTAINER, transform_ori="RAS:RAS",target_ori="RAS", reverse=False, costfunction=None, output_type=None):
+def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBASE, transform_ori="RAS:RAS",target_ori="RAS", reverse=False, costfunction=None, output_type=None):
 
     input_file = os.path.abspath(input_file)
     ref_file=os.path.abspath(ref_file)
@@ -159,16 +161,16 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, NEURO_CON
         " -v 1"  + \
         " " + output_type
 
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsApplyTransforms"\
+    command=f"{COMMANDBASE} antsApplyTransforms"\
             " "+params
 
     print(command)
-    os.system(command)
+    results = ut.runCommand(command)
 
     # quick hack to fix issue with templateflow transfomr - 5 dims instead of 3 dims used in header
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} fslroi"\
+    command=f"{COMMANDBASE} fslroi"\
             " "+out_file+" "+out_file + " 0 "+str(dimz)
-    os.system(command)
+    results = ut.runCommand(command)
 
     # Transform to target orientation
     # Ensure input_file, reference_file and transform are in the same orientation
@@ -180,7 +182,7 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, NEURO_CON
     return out_file
 
 
-def apply_transform_ants(input_file,ref_file, out_file, trans_mat, NEURO_CONTAINER, reverse=False, costfunction=None,output_type=None):
+def apply_transform_ants(input_file,ref_file, out_file, trans_mat, COMMANDBASE, reverse=False, costfunction=None,output_type=None):
 
     input_file = os.path.abspath(input_file)
     ref_file=os.path.abspath(ref_file)
@@ -232,19 +234,18 @@ def apply_transform_ants(input_file,ref_file, out_file, trans_mat, NEURO_CONTAIN
         " -v 1" + \
         " " + output_type
 
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsApplyTransforms"\
+    command=f"{COMMANDBASE} antsApplyTransforms"\
             " "+params
 
-    print(command)
-    os.system(command)
+    results = ut.runCommand(command)
 
     # quick hack to fix issue with templateflow transfomr - 5 dims instead of 3 dims used in header
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} fslroi"\
+    command=f"{COMMANDBASE} fslroi"\
             " "+out_file+" "+out_file + " 0 "+str(dimz)
-    os.system(command)
+    results = ut.runCommand(command)
 
 
-def resample_ants_ori(input_file,ref_file, out_file, NEURO_CONTAINER,transform_ori="RAS:RAS",target_ori="RAS", costfunction=None,output_type=None):
+def resample_ants_ori(input_file,ref_file, out_file, COMMANDBASE,transform_ori="RAS:RAS",target_ori="RAS", costfunction=None,output_type=None):
 
     input_file = os.path.abspath(input_file)
     ref_file=os.path.abspath(ref_file)
@@ -293,12 +294,12 @@ def resample_ants_ori(input_file,ref_file, out_file, NEURO_CONTAINER,transform_o
         " -v 1" + \
         " " + output_type
 
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsApplyTransforms"\
+    command=f"{COMMANDBASE} antsApplyTransforms"\
             " "+params
 
-    os.system(command)
+    results = ut.runCommand(command)
     
-def resample_ants(input_file,ref_file, out_file, NEURO_CONTAINER, costfunction=None,output_type=None):
+def resample_ants(input_file,ref_file, out_file, COMMANDBASE, costfunction=None,output_type=None):
 
     input_file = os.path.abspath(input_file)
     ref_file=os.path.abspath(ref_file)
@@ -333,12 +334,12 @@ def resample_ants(input_file,ref_file, out_file, NEURO_CONTAINER, costfunction=N
         " -v 1" + \
         " " + output_type
 
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsApplyTransforms"\
+    command=f"{COMMANDBASE} antsApplyTransforms"\
             " "+params
 
-    os.system(command)
+    results = ut.runCommand(command)
 
-def ants_registration_ori(moving, reference, transform, NEURO_CONTAINER, transform_ori="RAS:RAS",target_ori="RAS", composite=False):
+def ants_registration_ori(moving, reference, transform, COMMANDBASE, transform_ori="RAS:RAS",target_ori="RAS", composite=False):
     
     transform=os.path.abspath(transform)
     reference=os.path.abspath(reference)
@@ -389,10 +390,10 @@ def ants_registration_ori(moving, reference, transform, NEURO_CONTAINER, transfo
     + composite_param
 
     
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsRegistration"\
+    command=f"{COMMANDBASE} antsRegistration"\
             " "+params
 
-    os.system(command)
+    results = ut.runCommand(command)
     
     transform_dir=os.path.dirname(transform)
     dirs = os.listdir(transform_dir)
@@ -406,7 +407,7 @@ def ants_registration_ori(moving, reference, transform, NEURO_CONTAINER, transfo
     
     
     
-def ants_registration(moving, reference, transform, NEURO_CONTAINER, composite=False):
+def ants_registration(moving, reference, transform, COMMANDBASE, composite=False):
     
     transform=os.path.abspath(transform)
     reference=os.path.abspath(reference)
@@ -443,10 +444,10 @@ def ants_registration(moving, reference, transform, NEURO_CONTAINER, composite=F
     + composite_param
 
     
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsRegistration"\
+    command=f"{COMMANDBASE} antsRegistration"\
             " "+params
 
-    os.system(command)
+    results = ut.runCommand(command)
     
     transform_dir=os.path.dirname(transform)
     dirs = os.listdir(transform_dir)
@@ -460,7 +461,7 @@ def ants_registration(moving, reference, transform, NEURO_CONTAINER, composite=F
     
 
 # ensure that moving and reference are in RAS before calculating transform
-def ants_registration_rigid_ori(moving, reference, transform, NEURO_CONTAINER,transform_ori="RAS:RAS",target_ori="RAS"):
+def ants_registration_rigid_ori(moving, reference, transform, COMMANDBASE,transform_ori="RAS:RAS",target_ori="RAS"):
     
     transform=os.path.abspath(transform)
     reference=os.path.abspath(reference)
@@ -495,16 +496,16 @@ def ants_registration_rigid_ori(moving, reference, transform, NEURO_CONTAINER,tr
     " --winsorize-image-intensities [ 0.025, 0.975 ]"\
     " --write-composite-transform 0"
 
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsRegistration"\
+    command=f"{COMMANDBASE} antsRegistration"\
             " "+params
 
-    os.system(command)
+    results = ut.runCommand(command)
     
     final_transform=transform+"0GenericAffine.mat"
 
     return final_transform
 
-def ants_registration_rigid(moving, reference, transform, NEURO_CONTAINER):
+def ants_registration_rigid(moving, reference, transform, COMMANDBASE):
     
     transform=os.path.abspath(transform)
     reference=os.path.abspath(reference)
@@ -525,17 +526,17 @@ def ants_registration_rigid(moving, reference, transform, NEURO_CONTAINER):
     " --winsorize-image-intensities [ 0.025, 0.975 ]"\
     " --write-composite-transform 0"
 
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsRegistration"\
+    command=f"{COMMANDBASE} antsRegistration"\
             " "+params
 
-    os.system(command)
+    results = ut.runCommand(command)
     
     final_transform=transform+"0GenericAffine.mat"
 
     return final_transform
 
 # ensure that moving and reference are in RAS before calculating transform
-def ants_registration_quick_ori(moving, reference, transform, NEURO_CONTAINER,transform_ori="RAS:RAS",target_ori="RAS",threads=8):
+def ants_registration_quick_ori(moving, reference, transform, COMMANDBASE,transform_ori="RAS:RAS",target_ori="RAS",threads=8):
     
     transform=os.path.abspath(transform)
     reference=os.path.abspath(reference)
@@ -563,10 +564,10 @@ def ants_registration_quick_ori(moving, reference, transform, NEURO_CONTAINER,tr
     f" -o {transform}"\
     + threadparams
 
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsRegistrationSyNQuick.sh"\
+    command=f"{COMMANDBASE} antsRegistrationSyNQuick.sh"\
             " "+params
 
-    os.system(command)
+    results = ut.runCommand(command)
     
     transform_dir=os.path.dirname(transform)
     dirs = os.listdir(transform_dir)
@@ -579,7 +580,7 @@ def ants_registration_quick_ori(moving, reference, transform, NEURO_CONTAINER,tr
     return {"forward": forward, "inverse" : inverse}
 
 # ensure that moving and reference are in RAS before calculating transform
-def ants_registration_quick(moving, reference, transform, NEURO_CONTAINER,threads=8):
+def ants_registration_quick(moving, reference, transform, COMMANDBASE,threads=8):
     
     transform=os.path.abspath(transform)
     reference=os.path.abspath(reference)
@@ -593,10 +594,10 @@ def ants_registration_quick(moving, reference, transform, NEURO_CONTAINER,thread
     f" -o {transform}"\
     + threadparams
 
-    command=f"singularity run --cleanenv --no-home {NEURO_CONTAINER} antsRegistrationSyNQuick.sh"\
+    command=f"{COMMANDBASE} antsRegistrationSyNQuick.sh"\
             " "+params
 
-    os.system(command)
+    results = ut.runCommand(command)
     
     transform_dir=os.path.dirname(transform)
     dirs = os.listdir(transform_dir)
@@ -612,58 +613,58 @@ def ants_registration_quick(moving, reference, transform, NEURO_CONTAINER,thread
     return candidates
 
 
-def fsl_reg_flirt(input,reference,out,transmat,neuroimg,dof="12",cost="mutualinfo"):
-    cmd=f"singularity run {neuroimg} flirt"\
+def fsl_reg_flirt(input,reference,out,transmat,COMMANDBASE,dof="12",cost="mutualinfo"):
+    command=f"{COMMANDBASE} flirt"\
         f" -in {input}"\
         f" -ref {reference}"\
         f" -out {out}"\
         f" -omat {transmat}"\
         f" -dof {dof}"\
         f" -cost {cost}"
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
 
-def applyAffine_flirt(input,reference,out,transmat,neuroimg,interp="trilinear"):
-    cmd=f"singularity run {neuroimg} flirt"\
+def applyAffine_flirt(input,reference,out,transmat,COMMANDBASE,interp="trilinear"):
+    command=f"{COMMANDBASE} flirt"\
         f" -in {input}"\
         f" -ref {reference}"\
         f" -out {out}"\
         f" -applyxfm"\
         f" -interp {interp}"\
         f" -init {transmat}"
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
 
-def fsl_reg_fnirt(input,reference,out,transwarp,neuroimg,transmat=None):
+def fsl_reg_fnirt(input,reference,out,transwarp,COMMANDBASE,transmat=None):
     if transmat is not None:
         transmat_param=f" --aff={transmat}"
     else:
         transmat_param=""
     
-    cmd=f"singularity run {neuroimg} fnirt"\
+    command=f"{COMMANDBASE} fnirt"\
         f" --in={input}"\
         f" --ref={reference}"\
         f" --iout={out}"\
         + transmat_param + \
         f" --cout={transwarp}"
     
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
     
-def fsl_register_nonlin(input,reference,out,neuroimg):
-    trans_str= util_functions.getTransName(input, reference)
-    pre_aff = util_functions.newfile(prefix=f"{trans_str}",suffix="affine",extension="mat")
-    pre_aff_out = util_functions.newfile(assocfile=pre_aff,suffix="outfile",extension=".nii.gz")
-    fsl_reg_flirt(input,reference,pre_aff_out,pre_aff,neuroimg)
+def fsl_register_nonlin(input,reference,out,COMMANDBASE):
+    trans_str= ut.getTransName(input, reference)
+    pre_aff = ut.newfile(prefix=f"{trans_str}",suffix="affine",extension="mat")
+    pre_aff_out = ut.newfile(assocfile=pre_aff,suffix="outfile",extension=".nii.gz")
+    fsl_reg_flirt(input,reference,pre_aff_out,pre_aff,COMMANDBASE)
     
-    fwd_warp = util_functions.newfile(prefix=f"{trans_str}",suffix="warp",extension="nii.gz")
-    fwd_warp_out = util_functions.newfile(assocfile=fwd_warp,suffix="outfile",extension=".nii.gz")
-    fsl_reg_fnirt(input,reference,fwd_warp_out,fwd_warp,neuroimg,transmat=pre_aff)
+    fwd_warp = ut.newfile(prefix=f"{trans_str}",suffix="warp",extension="nii.gz")
+    fwd_warp_out = ut.newfile(assocfile=fwd_warp,suffix="outfile",extension=".nii.gz")
+    fsl_reg_fnirt(input,reference,fwd_warp_out,fwd_warp,COMMANDBASE,transmat=pre_aff)
     
-    inv_warp = util_functions.newfile(prefix=f"{trans_str}",suffix="invwarp",extension="nii.gz")
-    invertWarpfield_FNIRT(input, fwd_warp, inv_warp, neuroimg)
+    inv_warp = ut.newfile(prefix=f"{trans_str}",suffix="invwarp",extension="nii.gz")
+    invertWarpfield_FNIRT(input, fwd_warp, inv_warp, COMMANDBASE)
     
     return {"forward": fwd_warp, "inverse": inv_warp}
 
     
-def applyWarp_fnirt(input,reference,out,transwarp,neuroimg,interp="trilinear",premat=None,postmat=None):
+def applyWarp_fnirt(input,reference,out,transwarp,COMMANDBASE,interp="trilinear",premat=None,postmat=None):
 
     if premat is not None:
         premat_param=f"--premat={premat}"
@@ -675,7 +676,7 @@ def applyWarp_fnirt(input,reference,out,transwarp,neuroimg,interp="trilinear",pr
     else:
         post_param=""
     
-    cmd=f"singularity run {neuroimg} applywarp"\
+    command=f"{COMMANDBASE} applywarp"\
         f" --in={input}"\
         f" --ref={reference}"\
         f" --out={out}"\
@@ -683,85 +684,85 @@ def applyWarp_fnirt(input,reference,out,transwarp,neuroimg,interp="trilinear",pr
         f" --interp={interp}"\
         + premat_param + \
         + postmat_param 
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
 
-def tkregister2_fslout(moving,target,neuroimg,outmat_fsl):
-    cmd=f"singularity run {neuroimg} tkregister2"\
+def tkregister2_fslout(moving,target,COMMANDBASE,outmat_fsl):
+    command=f"{COMMANDBASE} tkregister2"\
         f" --mov {moving}"\
         f" --targ {target}"\
         f" --regheader --reg junk --fslregout {outmat_fsl} --noedit"
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
     
-def convMGZ2NII(mgz_in, nifti_out, neuroimg):
-    cmd=f"singularity run {neuroimg} mri_convert"\
+def convMGZ2NII(mgz_in, nifti_out, COMMANDBASE):
+    command=f"{COMMANDBASE} mri_convert"\
         f" --in_type mgz"\
         f" --out_type nii"\
         f" {mgz_in} {nifti_out}"
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
     
-def disassembleTransforms(trans_in, trans_prefix, neuroimg):
-    cmd=f"singularity run {neuroimg} --homedir={os.getcwd()} CompositeTransformUtil --disassemble"\
+def disassembleTransforms(trans_in, trans_prefix, COMMANDBASE):
+    command=f"{COMMANDBASE} --homedir={os.getcwd()} CompositeTransformUtil --disassemble"\
         f" {trans_in}"\
         f" {trans_prefix}"
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
     mats=glob.glob(os.path.join(os.getcwd(),f"*_{trans_prefix}_*"))
     return mats
 
-def assembleTransforms(trans_in, trans_filename, neuroimg):
+def assembleTransforms(trans_in, trans_filename, COMMANDBASE):
     if isinstance(trans_in,list):
         trans_string = " ".join(trans_in)
-        cmd=f"singularity run {neuroimg} --homedir={os.getcwd()} CompositeTransformUtil --assemble"\
+        command=f"singularity run {COMMANDBASE} --homedir={os.getcwd()} CompositeTransformUtil --assemble"\
             f" {trans_filename}"\
             f" {trans_string}"
-        exit_code = check_call([cmd], shell=True)
+        results = ut.runCommand(command)
     else:
         print("list of transforms not passed. Skipping.")
         
-def convertWarp_toFNIRT(ants_warp_field,fnirt_warp_field,source, neuroimg ):
-    cmd=f"singularity run {neuroimg} wb_command -convert-warpfield"\
+def convertWarp_toFNIRT(ants_warp_field,fnirt_warp_field,source, COMMANDBASE ):
+    command=f"{COMMANDBASE} wb_command -convert-warpfield"\
         f" -from-itk {ants_warp_field}"\
         f" -to-fnirt {fnirt_warp_field}"\
         f" {source}"   
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
 
-def convertwarp_toANTS(fnirt_warp_field,source, ants_warp_field, neuroimg,absolute="" ):
-    cmd=f"singularity run {neuroimg} wb_command -convert-warpfield"\
+def convertwarp_toANTS(fnirt_warp_field,source, ants_warp_field, COMMANDBASE,absolute="" ):
+    command=f"{COMMANDBASE} wb_command -convert-warpfield"\
         f" -from-fnirt {fnirt_warp_field}"\
         f" {source}"\
         f" {absolute}"\
         f" -to-itk {ants_warp_field}"
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
 
-def invertWarpfield_FNIRT(orig_source, fwd_warp_field, inv_warp_field, neuroimg):
-    cmd=f"singularity run {neuroimg} invwarp"\
+def invertWarpfield_FNIRT(orig_source, fwd_warp_field, inv_warp_field, COMMANDBASE):
+    command=f"{COMMANDBASE} invwarp"\
         f" --ref={orig_source}"\
         f" --warp={fwd_warp_field}"\
         f" --out={inv_warp_field}"
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
     
 # absolute="-absolute" definitely did not work
-def invertWarpfield_ANTS(ants_fwd_field, ants_inv_field, orig_source,orig_destination, neuroimg,absolute=""):
+def invertWarpfield_ANTS(ants_fwd_field, ants_inv_field, orig_source,orig_destination, COMMANDBASE,absolute=""):
     fnirt_fwd_field = tempfile.mkstemp()[1] + ".nii.gz"
-    convertWarp_toFNIRT(ants_fwd_field,fnirt_fwd_field,orig_source, neuroimg )
+    convertWarp_toFNIRT(ants_fwd_field,fnirt_fwd_field,orig_source, COMMANDBASE )
     
     fnirt_inv_field = tempfile.mkstemp()[1] + ".nii.gz"
-    invertWarpfield_FNIRT(orig_source, fnirt_fwd_field, fnirt_inv_field , neuroimg)
+    invertWarpfield_FNIRT(orig_source, fnirt_fwd_field, fnirt_inv_field , COMMANDBASE)
     
-    convertwarp_toANTS(fnirt_inv_field,orig_destination, ants_inv_field, neuroimg,absolute)
+    convertwarp_toANTS(fnirt_inv_field,orig_destination, ants_inv_field, COMMANDBASE,absolute)
 
-def invertAffine_FLIRT(fwd_affine, inv_affine, neuroimg):
-    cmd=f"singularity run {neuroimg} comvert_xfm"\
+def invertAffine_FLIRT(fwd_affine, inv_affine, COMMANDBASE):
+    command=f"{COMMANDBASE} comvert_xfm"\
         f" -omat {inv_affine}"\
         f" -inverse"\
         f" {fwd_affine}"
-    exit_code = check_call([cmd], shell=True)
+    results = ut.runCommand(command)
 
-def invertAffine_ANTS(fwd_affine, inv_affine, moving, reference, neuroimg):
+def invertAffine_ANTS(fwd_affine, inv_affine, moving, reference, COMMANDBASE):
     fsl_fwd_affine = tempfile.mkstemp()[1] + ".mat"
     convert_affine_ants_to_fsl(fwd_affine, moving, reference,  fsl_fwd_affine)
     
     fsl_inv_affine = tempfile.mkstemp()[1] + ".mat"
-    invertAffine_FLIRT(fsl_fwd_affine, fsl_inv_affine, neuroimg)
+    invertAffine_FLIRT(fsl_fwd_affine, fsl_inv_affine, COMMANDBASE)
     
     convert_affine_fsl_to_ants(fsl_inv_affine, reference, moving, inv_affine)
 

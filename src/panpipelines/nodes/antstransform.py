@@ -15,51 +15,25 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     cwd=os.getcwd()
     output_dir = cwd
 
-    container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
-    if not container_run_options:
-        container_run_options = ""
-
-    container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
-    if not container_prerun:
-        container_prerun = ""
-    container = getParams(labels_dict,'CONTAINER')
-    if not container:
-        container = getParams(labels_dict,'ANTS_CONTAINER')
-        if not container:
-            container = getParams(labels_dict,'NEURO_CONTAINER')
-            if not container:
-                IFLOGGER.info("Container not defined for ants transform pipeline. Recon-all should be accessible on local path for pipeline to succeed")
-                if container_run_options:
-                    IFLOGGER.info("Note that '{container_run_options}' set as run options for non-existing container. This may cause the pipeline to fail.")
-                
-                if container_prerun:
-                    IFLOGGER.info("Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
-    
-    command_base = f"{container_run_options} {container} {container_prerun}"
+    command_base, container = getContainer(labels_dict,nodename="antstransform",SPECIFIC="ANTS_CONTAINER",LOGGER=IFLOGGER)
+    IFLOGGER.info("Checking the ants version:")
+    command = f"{command_base} antsRegistration --version"
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
     if container:
-        IFLOGGER.info("Checking the ants version:")
-        command = f"{command_base} antsRegistration --version"
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
-
         IFLOGGER.info("\nChecking the container version:")
         command = f"{command_base} --version"
         evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        results = runCommand(evaluated_command,IFLOGGER)
 
     if Path(input_file).suffix == ".mgz":
         mgzdir = os.path.join(cwd,'mgz_nii')
         if not os.path.isdir(mgzdir):
             os.makedirs(mgzdir)
 
+        fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
         input_file_nii = newfile(mgzdir,input_file,extension=".nii.gz")
-        convMGZ2NII(input_file, input_file_nii, container)
+        convMGZ2NII(input_file, input_file_nii, fs_command_base)
         input_file = input_file_nii
 
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
@@ -142,22 +116,23 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         else:
             reverse_list.append(False)
 
-
-               
+              
         if transform == "from-MNI152NLin6Asym_to-MNI152NLin2009cAsym_res-1":
             resolution=1
             transform = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
 
         if transform == "tkregister2_fslout":
             new_freesurfer_transform = newfile(work_dir,transform,suffix="fsl-transform")
-            tkregister2_fslout(trans_source,trans_reference,container,new_freesurfer_transform)
+            fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
+            tkregister2_fslout(trans_source,trans_reference, fs_command_base,new_freesurfer_transform)
             transform = new_freesurfer_transform
 
         if trans_type == "FSL":
             
             if pathlib.Path(transform).suffix == ".gz":
                 new_ants_transform=newfile(work_dir,transform,suffix="ants-transform", extension=".nii.gz")
-                convertwarp_toANTS(transform,trans_source, new_ants_transform, container )
+                wb_command_base, wbcontainer = getContainer(labels_dict,nodename="convertwarp_toANTS",SPECIFIC="WB_CONTAINER",LOGGER=IFLOGGER)
+                convertwarp_toANTS(transform,trans_source, new_ants_transform, wb_command_base )
             else:
                 new_ants_transform=newfile(work_dir,transform,suffix="ants-transform", extension=".mat")
                 convert_affine_fsl_to_ants(transform, trans_source, trans_reference, new_ants_transform)
@@ -184,7 +159,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
                             ref_file,
                             out_file,
                             transform_list,
-                            container,                                              
+                            command_base,                                              
                             costfunction=costfunction,
                             output_type=output_type,
                             reverse=reverse_list)

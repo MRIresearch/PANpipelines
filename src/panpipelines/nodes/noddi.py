@@ -15,36 +15,11 @@ def noddi_proc(labels_dict,input_dir):
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     
-    container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
-    if not container_run_options:
-        container_run_options = ""
-
-    container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
-    if not container_prerun:
-        container_prerun = ""
-
-    container = getParams(labels_dict,'CONTAINER')
-    if not container:
-        container = getParams(labels_dict,'QSIPREP_CONTAINER')
-        if not container:
-            container = getParams(labels_dict,'NEURO_CONTAINER')
-            if not container:
-                IFLOGGER.info("Container not defined for qsiprep pipeline. Qsiprep should be accessible on local path for pipeline to succeed")
-                if container_run_options:
-                    IFLOGGER.info("Note that '{container_run_options}' set as run options for non-existing container. This may cause the pipeline to fail.")
-                
-                if container_prerun:
-                    IFLOGGER.info("Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
-
-    command_base = f"{container_run_options} {container} {container_prerun}"
-    if container:
-        IFLOGGER.info("Checking the qsiprep version:")
-        command = f"{command_base} --version"
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+    command_base, container = getContainer(labels_dict,nodename="qsiprep", SPECIFIC="QSIPREP_CONTAINER",LOGGER=IFLOGGER)
+    IFLOGGER.info("Checking the qsiprep version:")
+    command = f"{command_base} --version"
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     input_dir=substitute_labels(input_dir,labels_dict)
 
@@ -67,10 +42,7 @@ def noddi_proc(labels_dict,input_dir):
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     cwd=os.getcwd()
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')

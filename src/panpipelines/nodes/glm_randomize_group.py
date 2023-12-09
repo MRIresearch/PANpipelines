@@ -19,6 +19,12 @@ def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_f
     fsldesign_text = getParams(labels_dict,"TEXT_FSL_DESIGN")
     df = pd.read_table(fsldesign_text,sep=",",header=None)
 
+    command_base, container = getContainer(labels_dict,nodename="fslanat", SPECIFIC="FSL_CONTAINER",LOGGER=IFLOGGER)
+    IFLOGGER.info("Checking the fsl version:")
+    command = f"{command_base} fslversion"
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
+
     groupmaskdata=None
     for subindex in range(len(df)):
         participant_label=df[0][subindex].split('sub-')[1]
@@ -41,34 +47,23 @@ def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_f
         groupmaskdata[groupmaskdata > 0] = 1
         save_image_to_disk(subject_mask,groupmaskdata,group_mask)
 
-
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslreorient2std"\
+        command=f"{command_base} fslreorient2std"\
             " "+group_mask+ " "+group_mask
 
         evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        results = runCommand(evaluated_command,IFLOGGER)
 
-
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+        command=f"{command_base} fslmaths"\
             " "+group_mask+ " -bin "+group_mask
 
         evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        results = runCommand(evaluated_command,IFLOGGER)
 
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmaths"\
+        command=f"{command_base} fslmaths"\
             " "+group_mask+ " -dilM -fillh "+group_mask
 
         evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        results = runCommand(evaluated_command,IFLOGGER)
 
     statsimagestring=''
     stats_image=None
@@ -88,14 +83,11 @@ def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_f
             " "+ stats_image + \
             " " + statsimagestring 
 
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmerge"\
+        command=f"{command_base} fslmerge"\
             " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        results = runCommand(evaluated_command,IFLOGGER)
 
     
     # permutation
@@ -116,14 +108,11 @@ def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_f
             " -n "+PERMS+\
             " -T"
 
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> randomise_parallel"\
+        command=f"{command_base} randomise_parallel"\
             " "+params
 
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        evaluated_command=substitute_labels(command,labels_dict)
+        results = runCommand(evaluated_command,IFLOGGER)
 
     out_files=[]
     out_files.insert(0,group_mask)

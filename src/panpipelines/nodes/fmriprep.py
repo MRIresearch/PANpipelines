@@ -11,43 +11,17 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def fmriprep_proc(labels_dict,bids_dir=""):
 
-
-    container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
-    if not container_run_options:
-        container_run_options = ""
-
-    container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
-    if not container_prerun:
-        container_prerun = ""
-
-    container = getParams(labels_dict,'CONTAINER')
-    if not container:
-        container = getParams(labels_dict,'FMRIPREP_CONTAINER')
-        if not container:
-            container = getParams(labels_dict,'NEURO_CONTAINER')
-            if not container:
-                IFLOGGER.info("Container not defined for FMRIprep pipeline. Qsiprep should be accessible on local path for pipeline to succeed")
-                if container_run_options:
-                    IFLOGGER.info("Note that '{container_run_options}' set as run options for non-existing container. This may cause the pipeline to fail.")
-                
-                if container_prerun:
-                    IFLOGGER.info("Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
-
-    command_base = f"{container_run_options} {container} {container_prerun}"
-    if container:
-        IFLOGGER.info("Checking the fmriprep version:")
-        command = f"{command_base} --version"
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
-
     cwd=os.getcwd()
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
+
+    command_base, container = getContainer(labels_dict,nodename="qsiprep", SPECIFIC="FMRIPREP_CONTAINER",LOGGER=IFLOGGER)
+    IFLOGGER.info("Checking the fmriprep version:")
+    command = f"{command_base} --version"
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     params="--participant_label <PARTICIPANT_LABEL>" \
         " --output-spaces MNI152NLin6Asym:res-1 MNI152NLin2009cAsym:res-1 fsLR fsaverage anat func"\
@@ -59,17 +33,29 @@ def fmriprep_proc(labels_dict,bids_dir=""):
         " --omp-nthreads <BIDSAPP_THREADS>"\
         " -w " + cwd + "/fmriwork"
 
+    reset_params=getParams(labels_dict,"FMRIPREP_RESET_PARAMS")
+    if reset_params:
+        params="--participant_label <PARTICIPANT_LABEL>" \
+        " --skip-bids-validation"\
+        " --mem_mb <BIDSAPP_MEMORY>" \
+        " --nthreads <BIDSAPP_THREADS>"\
+        " --fs-license-file <FSLICENSE>"\
+        " --omp-nthreads <BIDSAPP_THREADS>"\
+        " -w " + cwd + "/fmriwork"
+            " " + reset_params 
+
+    extra_params=getParams(labels_dict,"FMRIPREP_EXTRA_PARAMS")
+    if not extra_params:
+        extra_params=""  
+
     command=f"{command_base}"\
             " "+ bids_dir +\
             " "+ cwd +"/fmrioutput"\
             " participant"\
-            " "+ params
+            " "+ params + extra_params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     fmri_preprocess_mnilin6 = getGlob(os.path.join(cwd,'fmrioutput','fmriprep','sub-{}'.format(participant_label),'ses-*','func','*space-MNI152NLin6Asym*preproc_bold.nii.gz'))
     fmri_preprocess_mni2009 = getGlob(os.path.join(cwd,'fmrioutput','fmriprep','sub-{}'.format(participant_label),'ses-*','func','*space-MNI152NLin2009cAsym*preproc_bold.nii.gz'))

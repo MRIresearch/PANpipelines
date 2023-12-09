@@ -33,7 +33,7 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
     atlas_type = "3D"
     atlas_type = getParams(labels_dict,'NEWATLAS_TYPE')
     if special_atlas_type == "hcpmmp1aseg":
-        roilabels_list=create_3d_hcppmmp1_aseg(atlas_file,roi_list,labels_dict)
+        roilabels_list=create_3d_hcpmmp1_aseg(atlas_file,roi_list,labels_dict)
         roi_list = [atlas_file]
     elif atlas_type == "3D":
         create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict)
