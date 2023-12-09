@@ -20,6 +20,13 @@ def roi_mean_group_proc(labels_dict,file_template,atlas_file,atlas_index):
     fsldesign_text = getParams(labels_dict,"TEXT_FSL_DESIGN")
     df = pd.read_table(fsldesign_text,sep=",",header=None)
 
+
+    command_base, container = getContainer(labels_dict,nodename="roi_mean_group", SPECIFIC="FSL_CONTAINER",LOGGER=IFLOGGER)
+    IFLOGGER.info("Checking the fsl version:")
+    command = f"{command_base} fslversion"
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
+
     statsimagestring=''
     stats_image=None
     for subindex in range(len(df)):
@@ -38,14 +45,11 @@ def roi_mean_group_proc(labels_dict,file_template,atlas_file,atlas_index):
             " "+ stats_image + \
             " " + statsimagestring 
 
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmerge"\
+        command=f"{command_base} fslmerge"\
             " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        results = runCommand(evaluated_command,IFLOGGER)
 
 
     
@@ -62,14 +66,11 @@ def roi_mean_group_proc(labels_dict,file_template,atlas_file,atlas_index):
             " -o "+roi_raw_txt+\
             " --label="+atlas_file
 
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmeants"\
+        command=f"{command_base} fslmeants"\
             " "+params
 
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        evaluated_command=substitute_labels(command,labels_dict)
+        results = runCommand(evaluated_command,IFLOGGER)
 
 
     with open(atlas_index, 'r') as in_file:

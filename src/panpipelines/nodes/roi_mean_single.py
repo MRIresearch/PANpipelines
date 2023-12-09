@@ -22,6 +22,12 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
 
+    command_base, container = getContainer(labels_dict,nodename="roi_mean_single", SPECIFIC="FSL_CONTAINER",LOGGER=IFLOGGER)
+    IFLOGGER.info("Checking the fsl version:")
+    command = f"{command_base} fslversion"
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
+
     if not session_label:
         roi_output_dir = os.path.join(cwd,f"sub-{participant_label}_roi_output_dir")
     else:
@@ -35,9 +41,9 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
         if not os.path.isdir(mgzdir):
             os.makedirs(mgzdir)
 
-        NEUROIMG=getParams(labels_dict,"NEURO_CONTAINER")
+        fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
         atlas_file_nii = newfile(mgzdir,atlas_file,extension=".nii.gz")
-        convMGZ2NII(atlas_file, atlas_file_nii, NEUROIMG)
+        convMGZ2NII(atlas_file, atlas_file_nii, fs_command_base)
         atlas_file = atlas_file_nii
 
     if Path(input_file).suffix == ".mgz":
@@ -45,9 +51,9 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
         if not os.path.isdir(mgzdir):
             os.makedirs(mgzdir)
 
-        NEUROIMG=getParams(labels_dict,"NEURO_CONTAINER")
+        fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
         input_file_nii = newfile(mgzdir,input_file,extension=".nii.gz")
-        convMGZ2NII(input_file, input_file_nii, NEUROIMG)
+        convMGZ2NII(input_file, input_file_nii, fs_command_base)
         input_file = input_file_nii
 
     if not session_label:
@@ -68,27 +74,21 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
             " -d "+atlas_file + \
             " -o "+roi_raw_txt
 
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fsl_glm"\
+        command=f"{command_base} fsl_glm"\
                 " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        results = runCommand(evaluated_command,IFLOGGER)
     else:
         params = " -i "+input_file+ \
             " -o "+roi_raw_txt+\
             " --label="+atlas_file
             
-        command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fslmeants"\
+        command=f"{command_base} fslmeants"\
                 " "+params
 
         evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)     
+        results = runCommand(evaluated_command,IFLOGGER)
 
     if atlas_index.split(":")[0] == "get_freesurfer_atlas_index":
         lutfile = substitute_labels(atlas_index.split(":")[1],labels_dict)
@@ -166,7 +166,7 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
     metadata = updateParams(metadata,"Atlas File",atlas_file)
     metadata = updateParams(metadata,"Atlas Labels",atlas_index)
-    metadata = updateParams(metadata,"Input File",atlas_index)
+    metadata = updateParams(metadata,"Input File",input_file)
     metadata = updateParams(metadata,"Command",evaluated_command)
     export_labels(metadata,roi_json)
 

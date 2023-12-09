@@ -15,36 +15,11 @@ def aslprep_proc(labels_dict,bids_dir=""):
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     
-    container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
-    if not container_run_options:
-        container_run_options = ""
-
-    container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
-    if not container_prerun:
-        container_prerun = ""
-
-    container = getParams(labels_dict,'CONTAINER')
-    if not container:
-        container = getParams(labels_dict,'ASLPREP_CONTAINER')
-        if not container:
-            container = getParams(labels_dict,'NEURO_CONTAINER')
-            if not container:
-                IFLOGGER.info("Container not defined for qsiprep pipeline. ASLPrep should be accessible on local path for pipeline to succeed")
-                if container_run_options:
-                    IFLOGGER.info("Note that '{container_run_options}' set as run options for non-existing container. This may cause the pipeline to fail.")
-                
-                if container_prerun:
-                    IFLOGGER.info("Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
-
-    command_base = f"{container_run_options} {container} {container_prerun}"
-    if container:
-        IFLOGGER.info("Checking the aslprep version:")
-        command = f"{command_base} --version"
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+    command_base, container = getContainer(labels_dict,nodename="aslprep",SPECIFIC="ASLPREP_CONTAINER",LOGGER=IFLOGGER)
+    IFLOGGER.info("Checking the aslprep version:")
+    command = f"{command_base} --version"
+    evaluated_command=substitute_labels(command,labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     cwd=os.getcwd()
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
@@ -63,17 +38,30 @@ def aslprep_proc(labels_dict,bids_dir=""):
         " --ignore fieldmaps"\
         " -w <CWD>/aslprep_work"
 
+    reset_params=getParams(labels_dict,"ASLPREP_RESET_PARAMS")
+    if reset_params:
+        params = "--participant_label <PARTICIPANT_LABEL>" \
+            " --low-mem"\
+            " --skip-bids-validation"\
+            " --stop-on-first-crash" \
+            " --mem_mb <BIDSAPP_MEMORY>" \
+            " --nthreads <BIDSAPP_THREADS>"\
+            " --fs-license-file <FSLICENSE>"\
+            " -w <CWD>/aslprep_work"\
+            " " + reset_params 
+
+    extra_params=getParams(labels_dict,"ASLPREP_EXTRA_PARAMS")
+    if not extra_params:
+        extra_params=""   
+
     command = f"{command_base}"\
         " <BIDS_DIR>"\
         " <CWD>"\
         " participant"\
-        " "+params
+        " "+params + " " + extra_params
 
-    evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     cbf_preprocess = getGlob(os.path.join(cwd,'aslprep','sub-{}'.format(participant_label),'ses-*','perf','*cbf.nii.gz'))
     mat_t12perf = getGlob(os.path.join(cwd,'aslprep','sub-{}'.format(participant_label),'ses-*','perf','*from-T1w*mode-image_xfm.txt'))

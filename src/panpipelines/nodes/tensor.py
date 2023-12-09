@@ -25,6 +25,7 @@ def tensor_proc(labels_dict,input_dir):
     bval = getGlob(os.path.join(input_dir,'sub-{}'.format(participant_label),'ses-{}'.format(search_session_label),'dwi','*_desc-preproc_dwi.bval'))
     bvec = getGlob(os.path.join(input_dir,'sub-{}'.format(participant_label),'ses-{}'.format(search_session_label),'dwi','*_desc-preproc_dwi.bvec'))
     mask = getGlob(os.path.join(input_dir,'sub-{}'.format(participant_label),'ses-{}'.format(search_session_label),'dwi','*_desc-brain_mask.nii.gz'))
+    grad = getGlob(os.path.join(input_dir,'sub-{}'.format(participant_label),'ses-{}'.format(search_session_label),'dwi','*_desc-preproc_dwi.b'))
 
     tensor_dir = os.path.join(cwd,'tensors')
     if not os.path.isdir(tensor_dir):
@@ -42,47 +43,20 @@ def tensor_proc(labels_dict,input_dir):
         tensor_mrtrix = os.path.join(tensor_dir,'sub-{}_ses-{}_tensor.mif'.format(participant_label,session_label))
         kurtosis_mrtrix = os.path.join(tensor_dir,'sub-{}_ses-{}_kurtosis.mif'.format(participant_label,session_label))
 
-    container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
-    if not container_run_options:
-        container_run_options = ""
+    command_base, container = getContainer(labels_dict,nodename="tensor", SPECIFIC="MRTRIX_CONTAINER",LOGGER=IFLOGGER)
+    IFLOGGER.info("Checking the dwi2tensor version:")
+    command = f"{command_base} dwi2tensor --version"
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
-    container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
-    if not container_prerun:
-        container_prerun = ""
-
-    container = getParams(labels_dict,'CONTAINER')
-    if not container:
-        container = getParams(labels_dict,'MRTRIX_CONTAINER')
-        if not container:
-            container = getParams(labels_dict,'NEURO_CONTAINER')
-            if not container:
-                IFLOGGER.info("Container not defined for Mrtrix pipeline. dwi2tensor, tensor2metric and mrconvert should be accessible on local path for pipeline to succeed")
-                if container_run_options:
-                    IFLOGGER.info("Note that '{container_run_options}' set as run options for non-existing container. This may cause the pipeline to fail.")
-                
-                if container_prerun:
-                    IFLOGGER.info("Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
-
-    command_base = f"{container_run_options} {container} {container_prerun}"
     if container:
-        IFLOGGER.info("Checking the dwi2tensor version:")
-        command = f"{command_base} dwi2tensor --version"
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
-
         IFLOGGER.info("\nChecking the container version:")
         command = f"{command_base} --version"
         evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        results = runCommand(evaluated_command,IFLOGGER)
 
-    # generate tensors using mrtrix
-    params="-fslgrad "+bvec+" "+bval+\
+    # generate tensors using mrtrix, use grad from qsiprep
+    params="-grad "+grad+\
         " -mask "+mask+\
         " -dkt "+kurtosis_mrtrix+\
         " "+dwi+\
@@ -92,10 +66,7 @@ def tensor_proc(labels_dict,input_dir):
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    results = runCommand(evaluated_command,IFLOGGER)
     
     # generate tensor metrics
     tensor_metrics_dir = os.path.join(cwd,'tensor_metrics')
@@ -133,10 +104,7 @@ def tensor_proc(labels_dict,input_dir):
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     # convert to nifti
     if not session_label:
@@ -163,37 +131,25 @@ def tensor_proc(labels_dict,input_dir):
     command=f"{command_base} mrconvert"\
             " "+params
     evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     params=adc_mrtrix+" "+ adc_fsl
     command=f"{command_base} mrconvert"\
             " "+params
     evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     params=ad_mrtrix+" "+ ad_fsl
     command=f"{command_base} mrconvert"\
             " "+params
     evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     params=rd_mrtrix+" "+ rd_fsl
     command=f"{command_base} mrconvert"\
             " "+params
     evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     out_files=[]
     out_files.insert(0,fa_fsl)

@@ -15,6 +15,12 @@ def fslanat_proc(labels_dict,bids_dir=""):
 
     cwd=os.getcwd()
 
+    command_base, container = getContainer(labels_dict,nodename="fslanat", SPECIFIC="FSL_CONTAINER",LOGGER=IFLOGGER)
+    IFLOGGER.info("Checking the fsl version:")
+    command = f"{command_base} fslversion"
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
+
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     layout = BIDSLayout(bids_dir)
     T1w=layout.get(subject=participant_label,suffix='T1w', extension='nii.gz')
@@ -26,14 +32,11 @@ def fslanat_proc(labels_dict,bids_dir=""):
              " -i " + structin + \
              " -o " + structout
 
-    command="singularity run --cleanenv --no-home <NEURO_CONTAINER> fsl_anat"\
+    command=f"{command_base} fsl_anat"\
             " "+params
 
     evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     fslanat_dir = structout + ".anat"
     T1w_biascorr = getGlob(os.path.join(fslanat_dir,"T1_biascorr.nii.gz"))

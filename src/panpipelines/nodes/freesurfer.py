@@ -16,47 +16,26 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
     layout = BIDSLayout(bids_dir)
 
-    container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
-    if not container_run_options:
-        container_run_options = ""
+    subject="sub-"+participant_label
+    cwd=os.getcwd()
+    subjects_dir = os.path.join(cwd,'subjects_dir')
+    if not os.path.isdir(subjects_dir):
+        os.makedirs(subjects_dir)
+    os.environ["SINGULARITYENV_SUBJECTS_DIR"]=subjects_dir
 
-    container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
-    if not container_prerun:
-        container_prerun = ""
-
-    container = getParams(labels_dict,'CONTAINER')
-    if not container:
-        container = getParams(labels_dict,'FREESURFER_CONTAINER')
-        if not container:
-            container = getParams(labels_dict,'NEURO_CONTAINER')
-            if not container:
-                IFLOGGER.info("Container not defined for Freesurfer pipeline. Recon-all should be accessible on local path for pipeline to succeed")
-                if container_run_options:
-                    IFLOGGER.info("Note that '{container_run_options}' set as run options for non-existing container. This may cause the pipeline to fail.")
-                
-                if container_prerun:
-                    IFLOGGER.info("Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
-
-    
+    command_base, container = getContainer(labels_dict,nodename="freesurfer", SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)   
     FREEVER="Unknown"
-    command_base = f"{container_run_options} {container} {container_prerun}"
-    if container:
-        IFLOGGER.info("Checking the recon-all version:")
-        command = f"{command_base} recon-all --version"
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
-        if "-7.3.2-" in results.stdout:
-            FREEVER="7.3.2"
-        IFLOGGER.info("\nChecking the container version:")
-        command = f"{command_base} --version"
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+    IFLOGGER.info("Checking the recon-all version:")
+    command = f"{command_base} recon-all --version"
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
+    if "-7.3.2-" in results:
+        FREEVER="7.3.2"
+
+    IFLOGGER.info("\nChecking the container version:")
+    command = f"{command_base} --version"
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     T1wfile=None
     T1wLabel = getParams(labels_dict,'T1W')
@@ -111,14 +90,6 @@ def freesurfer_proc(labels_dict,bids_dir=""):
             if PialT2w[0].entities['suffix'] == "FLAIR":
                 ISFLAIR=True
 
-    subject="sub-"+participant_label
-    cwd=os.getcwd()
-    subjects_dir = os.path.join(cwd,'subjects_dir')
-    if not os.path.isdir(subjects_dir):
-        os.makedirs(subjects_dir)
-
-    os.environ["SINGULARITYENV_SUBJECTS_DIR"]=subjects_dir
-
     pial_t2_string = ""
     if PialT2wfile:
         if ISFLAIR:
@@ -161,11 +132,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
                 " "+params
 
 
-    evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
 
     # Hipposubfields segmentation just T1
@@ -174,11 +142,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     command=f"{command_base} segmentHA_T1.sh"\
             " "+params
 
-    evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     # Test new beta Hipposubfields segmentation released in 7.3.2 that only uses T1
     params= " hippo-amygdala"\
@@ -188,11 +153,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     command=f"{command_base} segment_subregions"\
             " "+params
 
-    evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
 
     if HippoT2wfile:
@@ -206,11 +168,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
         command=f"{command_base} segmentHA_T2.sh"\
                 " "+params
 
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        evaluated_command=substitute_labels(command,labels_dict)
+        results = runCommand(evaluated_command,IFLOGGER)
 
         # Hipposubfields segmentation using just T2
         useT1="0"
@@ -222,11 +181,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
         command=f"{command_base} segmentHA_T2.sh"\
                 " "+params
 
-        evaluated_command=substitute_labels(command, labels_dict)
-        IFLOGGER.info(evaluated_command)
-        evaluated_command_args = shlex.split(evaluated_command)
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        IFLOGGER.info(results.stdout)
+        evaluated_command=substitute_labels(command,labels_dict)
+        results = runCommand(evaluated_command,IFLOGGER)
     else:
         hippo_id="T1"
 
@@ -237,11 +193,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     command=f"{command_base} segmentThalamicNuclei.sh"\
             " "+params
 
-    evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
     # Test new beta Thalamic and Brainstem segmentation released in 7.3.2 that only uses T1
     params= " thalamus"\
@@ -251,11 +204,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     command=f"{command_base} segment_subregions"\
             " "+params
 
-    evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
 
     params= " brainstem"\
@@ -265,11 +215,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     command=f"{command_base} segment_subregions"\
             " "+params
 
-    evaluated_command=substitute_labels(command, labels_dict)
-    IFLOGGER.info(evaluated_command)
-    evaluated_command_args = shlex.split(evaluated_command)
-    results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-    IFLOGGER.info(results.stdout)
+    evaluated_command=substitute_labels(command,labels_dict)
+    results = runCommand(evaluated_command,IFLOGGER)
 
  
     L_hipposubfields = getGlob(os.path.join(subjects_dir,'sub-{}'.format(participant_label),'stats','hipposubfields.lh.*{}*'.format(hippo_id)))   
