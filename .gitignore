@@ -5,8 +5,6 @@ startenv.sh
 
 # files
 *.pklz
-*.nii.gz
-*.nii
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
