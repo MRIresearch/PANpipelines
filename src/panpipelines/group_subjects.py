@@ -16,14 +16,17 @@ logger_addstdout(LOGGER, logging.INFO)
 
 panFactory = Factory.getPANFactory()
 
-def runGroupSubjects(participant_label, xnat_projects, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="group"):
+def runGroupSubjects(participant_label, xnat_projects, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="group",panlabel=None):
+
+    # get parent directory
+    if not panlabel:
+        panlabel=os.path.basename(os.path.dirname(pipeline_outdir))
 
     pipeline_outdir=os.path.join(pipeline_outdir,"group")
     if not os.path.exists(pipeline_outdir):
         os.makedirs(pipeline_outdir,exist_ok=True)
     
-    datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    LOGFILE=os.path.join(pipeline_outdir,f"group_{datelabel}_{pipeline}_single_subject.log")
+    LOGFILE=os.path.join(pipeline_outdir,f"group_{pipeline}_{panlabel}.log")
     logger_addfile(LOGGER, LOGFILE, logging.DEBUG)
     nipype_loggers_setup(logging.INFO,LOGFILE,logging.DEBUG)
 

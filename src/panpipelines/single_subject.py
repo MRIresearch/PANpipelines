@@ -16,10 +16,14 @@ logger_addstdout(LOGGER, logging.INFO)
 
 panFactory = Factory.getPANFactory()
 
-def runSingleSubject(participant_label, xnat_project, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="participant"):
+def runSingleSubject(participant_label, xnat_project, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="participant",panlabel=None):
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_PROJECT",xnat_project)
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_SESSION",session_label)
+
+    if not panlabel:
+        # get parent directory
+        panlabel=os.path.basename(os.path.dirname(pipeline_outdir))
 
     pipeline_outdir=os.path.join(pipeline_outdir,xnat_project)
     if not os.path.exists(pipeline_outdir):
@@ -31,11 +35,10 @@ def runSingleSubject(participant_label, xnat_project, session_label, pipeline, p
     else:
         participant_index = "_" + str(participant_index)
         
-    datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     if not session_label:
-        LOGFILE=os.path.join(pipeline_outdir,f"{participant_label}{participant_index}_{datelabel}_{xnat_project}_{pipeline}_single_subject.log")
+        LOGFILE=os.path.join(pipeline_outdir,f"{participant_label}{participant_index}_{xnat_project}_{pipeline}_{panlabel}.log")
     else:
-        LOGFILE=os.path.join(pipeline_outdir,f"{participant_label}{participant_index}_{session_label}_{datelabel}_{xnat_project}_{pipeline}_single_subject.log")
+        LOGFILE=os.path.join(pipeline_outdir,f"{participant_label}{participant_index}_{session_label}_{xnat_project}_{pipeline}_{panlabel}.log")
     logger_addfile(LOGGER, LOGFILE, logging.DEBUG)
     nipype_loggers_setup(logging.INFO,LOGFILE,logging.DEBUG)
 
