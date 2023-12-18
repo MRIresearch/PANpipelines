@@ -31,7 +31,6 @@ def aslprep_proc(labels_dict,bids_dir=""):
         " --low-mem"\
         " --skip-bids-validation"\
         " --stop-on-first-crash" \
-        " --use-syn-sdc"\
         " --mem_mb <BIDSAPP_MEMORY>" \
         " --nthreads <BIDSAPP_THREADS>"\
         " --fs-license-file <FSLICENSE>"\
