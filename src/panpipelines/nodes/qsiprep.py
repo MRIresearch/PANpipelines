@@ -35,6 +35,7 @@ def qsiprep_proc(labels_dict,bids_dir=""):
     params="--participant_label <PARTICIPANT_LABEL>" \
         " --separate-all-dwis"\
         " --hmc-model eddy"\
+        " --unringing-method rpg"\
         " --eddy-config <EDDY_CONFIG>" \
         " --mem_mb <BIDSAPP_MEMORY>" \
         " --nthreads <BIDSAPP_THREADS>"\
