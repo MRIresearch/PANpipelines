@@ -37,16 +37,16 @@ pip install -e ./
 With this option you will need to manually install the required python packages as follows:
 
 ```
-pip install --user nipype==1.8.6
-pip install --user numpy==1.24.4
-pip install --user nibabel==5.1.0
-pip install --user nilearn==0.10.2
-pip install --user pandas==2.0.3
-pip install --user xnat==0.5.2
-pip install --user pydicom==2.4.3
-pip install --user templateflow==23.1.0
-pip install --user nitransforms==23.0.1
-pip install --user pybids==0.16.3
+pip install nipype==1.8.6
+pip install numpy==1.24.4
+pip install nibabel==5.1.0
+pip install nilearn==0.10.2
+pip install pandas==2.0.3
+pip install xnat==0.5.2
+pip install pydicom==2.4.3
+pip install templateflow==23.1.0
+pip install nitransforms==23.0.1
+pip install pybids==0.16.3
 ```
 
 
