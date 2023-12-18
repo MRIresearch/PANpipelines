@@ -86,7 +86,7 @@ def main():
 
     pipeline_outdir=os.path.abspath(getParams(panpipe_labels,"PIPELINE_DIR"))
     if not os.path.exists(pipeline_outdir):
-        os.makedirs(pipeline_outdir)
+        os.makedirs(pipeline_outdir,exist_ok=True)
 
     # reproducible and slightly more robust name to faciliate nipype caching
     panlabel=os.path.basename(pipeline_outdir)
@@ -295,7 +295,7 @@ def main():
         panpipe_labels = {}
         panpipe_labels = add_labels(runtime_labels,panpipe_labels)
        
-    LOGGER.info(f"All pipelines {pipelines} successfully submitted.")
+    LOGGER.info(f"All pipelines {pipelines} successfully run/submitted.")
     LOGGER.info(f"View logs at {LOGFILE}.")
     LOGGER.debug("\n------  environment dump -----------")
     LOGGER.debug(os.environ)

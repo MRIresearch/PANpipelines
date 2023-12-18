@@ -452,6 +452,8 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
     lock_path = os.path.join(getParams(labels_dict,"LOCK_DIR"),participant_label + LOCK_SUFFIX)
     lock_file = acquire_lock(lock_path)
 
+    xnat_host = getParams(labels_dict,"XNAT_HOST")
+
     count = 0
     # 6 minutes timeout - this should be enough!
     TIMEOUT=360
@@ -468,17 +470,7 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
             command_base, container = getContainer(labels_dict,nodename="process_fsl_glm",SPECIFIC="XNATDOWNLOAD_CONTAINER")
 
             UTLOGGER.info("BIDS folder for {} not present. Downloading started from XNAT.".format(participant_label))
-            command=f"{command_base} python /src/xnatDownload.py downloadSubjectSessions"\
-                    " BIDS-AACAZ "+bids_dir+\
-                    " --host <XNAT_HOST>"\
-                    " --subject "+participant_label+\
-                    " --project "+xnat_project+\
-                    " --user " + user + \
-                    " --password " + password
-
-            evaluated_command=substitute_labels(command,labels_dict)
-            results = runCommand(evaluated_command,suppress=evaluated_command.split("--user")[0])
-    
+            getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password)    
         else:
             print("BIDS folder for {} already present. No need to download".format(participant_label))
     finally:
@@ -487,6 +479,33 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
             os.remove(lock_path)
         except Exception as e:
             pass
+
+def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,user,password):
+
+    import xnat
+    with xnat.connect(server=host,user=user, password=password) as connection:
+        project = connection.projects[project]
+        subject = project.subjects[subject_label]
+        experiments = subject.experiments
+        expcount = len(experiments)
+        for expnum in range(expcount):
+            experiment = experiments[expnum]
+            if resource_label in experiment.resources:
+                resource = experiment.resources[resource_label]
+                tmpdir = tempfile.mkstemp()[1] + "_" + subject_label
+                if not os.path.exists(tmpdir):
+                    os.makedirs(tmpdir,exist_ok=True)
+                tmpzip = os.path.join(tmpdir,subject_label + ".zip")
+                resource.download(tmpzip)
+                shutil.unpack_archive(tmpzip,tmpdir)
+                bidspath = glob.glob(os.path.join(tmpdir,"*MR*/resources/*/*"))
+                if bidspath:
+                    bidspath = bidspath[0]
+                    shutil.copytree(bidspath,bids_dir, dirs_exist_ok=True)
+                    shutil.rmtree(tmpdir)
+                else:
+                    UTLOGGER.info(f"Problem dowbloading data for {subject_label} using {resource_label} in {experiment.label}")
+
 
 
 def get_freesurfer_subregionstats(stats_file, prefix="",participant_label="",session_label=""):
@@ -907,7 +926,7 @@ def getProcNums(panpipe_labels):
         ENV_PROCS = getParams(panpipe_labels,"ENV_PROCS")
         if ENV_PROCS is not None and ENV_PROCS in os.environ.keys():
             env_count = int(os.environ[ENV_PROCS])
-        procnum_list.append(env_count)
+            procnum_list.append(env_count)
     except ValueError as ve:
         pass
     except TypeError as te:
@@ -1536,7 +1555,7 @@ def arrangePipelines(jsondict,pipelines=[]):
     drop_pipelines=[]
     for pipeline in pipelines:
         if pipeline in jsondict.keys():
-            pipeline_dict[pipeline]=""
+            pipeline_dict[pipeline]=[]
             if "DEPENDENCY" in jsondict[pipeline]:
                 dependency = jsondict[pipeline]["DEPENDENCY"]
                 if not isinstance(dependency,list):
@@ -1565,17 +1584,22 @@ def shufflePipelines(pipeline_dict,pipeline,pipelines):
     for pipe in pipelines:
         if pipe != pipeline:
             if pipe in pipeline_dict[pipeline]:
-                newpipeindex=max(newpipeindex,pipelines.index(pipe))
+                newpipeindex=recursePipe([newpipeindex],pipe,pipelines,pipeline_dict)
 
     if newpipeindex != pipeindex:
         if newpipeindex > pipeindex:
             pipelines.insert(newpipeindex+1,pipeline)
             pipelines.pop(pipeindex)
-        else:
-            pipelines.insert(newpipeindex,pipeline)
-            pipelines.pop(pipeindex+1)
+
 
     return pipelines
+
+def recursePipe(recurselist,pipe,pipelines,pipeline_dict):
+    recurselist.append(pipelines.index(pipe))
+    for dep in pipeline_dict[pipe]:
+        recursePipe(recurselist,dep,pipelines,pipeline_dict)
+    return max(recurselist)
+
 
 def getContainer(labels_dict,nodename="",SPECIFIC=None,CONTAINERALT="PAN_CONTAINER", LOGGER=UTLOGGER):
     if SPECIFIC:
