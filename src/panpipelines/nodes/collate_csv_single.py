@@ -17,6 +17,8 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         csv_list2 = []
 
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+    
     output_dir=cwd
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     pipeline = getParams(labels_dict,'PIPELINE')

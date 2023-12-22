@@ -12,6 +12,7 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 def atlascreate_proc(labels_dict,roi_list,roilabels_list):
 
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
     output_dir = cwd
  
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')

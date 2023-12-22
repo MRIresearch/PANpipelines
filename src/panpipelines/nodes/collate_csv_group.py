@@ -17,6 +17,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         csv_list2 = []
         
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+    
     output_dir=cwd
     participants_label = getParams(labels_dict,'GROUP_PARTICIPANTS_LABEL')
     participants_project = getParams(labels_dict,'GROUP_PARTICIPANTS_XNAT_PROJECT')

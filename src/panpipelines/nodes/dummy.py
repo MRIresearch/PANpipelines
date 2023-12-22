@@ -13,6 +13,10 @@ def dummy_proc(labels_dict,bids_dir=""):
 
     DEBUG=True
 
+    cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+
+
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
@@ -52,7 +56,6 @@ def dummy_proc(labels_dict,bids_dir=""):
         results = subprocess.run(evaluated_command_args)
         IFLOGGER.info(results.stdout)
 
-    cwd=os.getcwd()
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     dwi_preprocess = getGlob(os.path.join(cwd,'qsiprep','sub-{}'.format(participant_label),'ses-*','dwi','*preproc_dwi.nii.gz'))
     mat_t12mni = getGlob(os.path.join(cwd,'qsiprep','sub-{}'.format(participant_label),'anat','*from-T1w*mode-image_xfm.h5'))

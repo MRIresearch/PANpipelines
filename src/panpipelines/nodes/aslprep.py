@@ -22,6 +22,8 @@ def aslprep_proc(labels_dict,bids_dir=""):
     results = runCommand(evaluated_command,IFLOGGER)
 
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+    
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME

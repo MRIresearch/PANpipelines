@@ -18,6 +18,7 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
     output_dir=cwd
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
