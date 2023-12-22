@@ -15,5 +15,6 @@ __all__ = [
     "aslprep",
     "fmriprep",
     "dummy_node",
-    "atlascreate.py"
+    "atlascreate.py",
+    "lst.py"
 ]

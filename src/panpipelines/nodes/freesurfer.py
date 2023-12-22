@@ -18,6 +18,8 @@ def freesurfer_proc(labels_dict,bids_dir=""):
 
     subject="sub-"+participant_label
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+    
     subjects_dir = os.path.join(cwd,'subjects_dir')
     if not os.path.isdir(subjects_dir):
         os.makedirs(subjects_dir)

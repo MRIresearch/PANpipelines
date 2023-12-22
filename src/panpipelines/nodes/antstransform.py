@@ -13,6 +13,7 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
 
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
     output_dir = cwd
 
     command_base, container = getContainer(labels_dict,nodename="antstransform",SPECIFIC="ANTS_CONTAINER",LOGGER=IFLOGGER)

@@ -10,5 +10,6 @@ __all__ = [
     "volmeasures_workflow",
     "textmeasures_workflow",
     "collatecsv_workflow",
-    "collatecsvgroup_workflow"
+    "collatecsvgroup_workflow",
+    "lst_workflow"
 ]

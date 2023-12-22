@@ -12,6 +12,8 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 def fmriprep_proc(labels_dict,bids_dir=""):
 
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+    
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME

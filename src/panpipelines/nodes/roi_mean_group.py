@@ -15,6 +15,7 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 def roi_mean_group_proc(labels_dict,file_template,atlas_file,atlas_index):
 
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
     output_dir=cwd
     # retrieve subject list
     fsldesign_text = getParams(labels_dict,"TEXT_FSL_DESIGN")

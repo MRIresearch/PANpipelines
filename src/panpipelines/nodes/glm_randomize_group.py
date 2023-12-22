@@ -14,6 +14,8 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_file,ftest_file):
 
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+    
     output_dir=cwd
     # retrieve subject list
     fsldesign_text = getParams(labels_dict,"TEXT_FSL_DESIGN")

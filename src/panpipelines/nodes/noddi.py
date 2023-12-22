@@ -11,6 +11,9 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def noddi_proc(labels_dict,input_dir):
 
+    cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
@@ -44,7 +47,6 @@ def noddi_proc(labels_dict,input_dir):
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
 
-    cwd=os.getcwd()
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     icvf = getGlob(os.path.join(cwd,'qsirecon','sub-{}'.format(participant_label),'ses-*','dwi','*ICVF_NODDI.nii.gz'))
     isovf = getGlob(os.path.join(cwd,'qsirecon','sub-{}'.format(participant_label),'ses-*','dwi','*ISOVF_NODDI.nii.gz'))

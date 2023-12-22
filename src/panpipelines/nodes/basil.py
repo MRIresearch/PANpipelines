@@ -55,6 +55,8 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
     basil_dict = updateParams(basil_dict,FIXBAT,IS_PRESENT)
     
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+    
     output_dir=os.path.join(cwd,"basiloutput")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)

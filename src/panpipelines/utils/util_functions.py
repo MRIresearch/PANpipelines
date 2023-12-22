@@ -139,13 +139,10 @@ def substitute_labels(expression,panpipe_labels,exceptions=[]):
     if isinstance(expression,str):
         braced_vars = re.findall(r'\<.*?\>',expression)
         for braced_var in braced_vars:
-            if braced_var == '<CWD>':
-                expression = expression.replace(braced_var,str(os.getcwd()))
-            else:
-                unbraced_var = braced_var.replace('<','').replace('>','')
-                lookup_var = getParams(panpipe_labels,unbraced_var)
-                if isinstance(lookup_var,str) and lookup_var is not None and unbraced_var not in exceptions:
-                    expression = expression.replace(braced_var,lookup_var)            
+            unbraced_var = braced_var.replace('<','').replace('>','')
+            lookup_var = getParams(panpipe_labels,unbraced_var)
+            if isinstance(lookup_var,str) and lookup_var is not None and unbraced_var not in exceptions:
+                expression = expression.replace(braced_var,lookup_var)            
     return expression
 
 def remove_labels(labels_dict, config_json,pipeline):  

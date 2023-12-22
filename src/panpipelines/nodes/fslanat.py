@@ -14,6 +14,7 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 def fslanat_proc(labels_dict,bids_dir=""):
 
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
 
     command_base, container = getContainer(labels_dict,nodename="fslanat", SPECIFIC="FSL_CONTAINER",LOGGER=IFLOGGER)
     IFLOGGER.info("Checking the fsl version:")

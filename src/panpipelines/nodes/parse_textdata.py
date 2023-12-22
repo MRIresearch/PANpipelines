@@ -12,6 +12,8 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 def parse_textdata_proc(labels_dict, textdata, textdata_type):
 
     cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+    
     output_dir=cwd
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
