@@ -84,6 +84,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
 
     transform_list=[]
     reverse_list=[]
+    trans_ori = "RAS"
 
     for trans in trans_mat:
         trans_parts = trans.split(":")
@@ -93,7 +94,13 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         trans_reference = ""
         trans_reverse =  ""
 
-        if len(trans_parts) == 5:
+        if len(trans_parts) == 6:
+            trans_type = trans_parts[1]
+            trans_source = substitute_labels(trans_parts[2],labels_dict)
+            trans_reference = substitute_labels(trans_parts[3],labels_dict)
+            trans_reverse = trans_parts[4]
+            trans_ori = trans_parts[5]
+        elif len(trans_parts) == 5:
             trans_type = trans_parts[1]
             trans_source = substitute_labels(trans_parts[2],labels_dict)
             trans_reference = substitute_labels(trans_parts[3],labels_dict)
@@ -119,7 +126,6 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
 
               
         if transform == "from-MNI152NLin6Asym_to-MNI152NLin2009cAsym_res-1":
-            resolution=1
             transform = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
 
         if transform == "tkregister2_fslout":
@@ -141,17 +147,69 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         
         transform_list.append(transform)
 
+    # Process Reference_file
+    ref_parts = ref_file.split(":")
+    ref_file = ref_parts[0]
+    new_ref_file = newfile(work_dir,ref_file,suffix="desc-resample")
+
     if ref_file == "MNI152NLin2009cAsym_res-1":
         resolution=1
         ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
 
+    if len(ref_parts) == 5:
+        newdims = ref_parts[1]
+        ref_ori = ref_parts[2]
+        interpolation_type = ref_parts[3]
+        output_type = ref_parts[4]
+        IFLOGGER.info("Calling function resampleimage_ants_ori with parameters:")
+        IFLOGGER.info(f"input_file: {ref_file}")
+        IFLOGGER.info(f"out_file: {new_ref_file}")
+        IFLOGGER.info(f"newdims: {newdims}")
+        IFLOGGER.info(f"ref_ori: {ref_ori}")
+        IFLOGGER.info(f"interpolation_type: {interpolation_type}")
+        IFLOGGER.info(f"output_type: {output_type:}")
+        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base,target_ori=ref_ori,interpolation_type=interpolation_type,output_type=output_type)
+
+    elif len(ref_parts) == 4:
+        newdims = ref_parts[1]
+        ref_ori = ref_parts[2]
+        interpolation_type = ref_parts[3]
+        IFLOGGER.info("Calling function resampleimage_ants_ori with parameters:")
+        IFLOGGER.info(f"input_file: {ref_file}")
+        IFLOGGER.info(f"out_file: {new_ref_file}")
+        IFLOGGER.info(f"newdims: {newdims}")
+        IFLOGGER.info(f"ref_ori: {ref_ori}")
+        IFLOGGER.info(f"interpolation_type: {interpolation_type}")
+        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base,target_ori=ref_ori,interpolation_type=interpolation_type)
+    
+    elif len(ref_parts) == 3:
+        newdims = ref_parts[1]
+        ref_ori = ref_parts[2]
+        IFLOGGER.info("Calling function resampleimage_ants_ori with parameters:")
+        IFLOGGER.info(f"input_file: {ref_file}")
+        IFLOGGER.info(f"out_file: {new_ref_file}")
+        IFLOGGER.info(f"newdims: {newdims}")
+        IFLOGGER.info(f"ref_ori: {ref_ori}")
+        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base,target_ori=ref_ori)
+
+    elif len(ref_parts) == 2:
+        newdims = ref_parts[1]
+        IFLOGGER.info("Calling function resampleimage_ants_ori with parameters:")
+        IFLOGGER.info(f"input_file: {ref_file}")
+        IFLOGGER.info(f"out_file: {new_ref_file}")
+        IFLOGGER.info(f"newdims: {newdims}")
+        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base)
+
+    if os.path.exists(new_ref_file):
+        ref_file = new_ref_file
 
     IFLOGGER.info("Calling function apply_transform_ants_ori with parameters:")
     IFLOGGER.info(f"input_file: {input_file}")
     IFLOGGER.info(f"ref_file: {ref_file}")
     IFLOGGER.info(f"out_file: {out_file}")
     IFLOGGER.info(f"transform_list: {transform_list}")
-    IFLOGGER.info(f"container: {container}")
+    IFLOGGER.info(f"target_ori: {trans_ori}")
+    IFLOGGER.info(f"costfunction: {costfunction}")
     IFLOGGER.info(f"costfunction: {costfunction}")
     IFLOGGER.info(f"output_type: {output_type}")
     IFLOGGER.info(f"reverse_list: {reverse_list}")
@@ -160,14 +218,11 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
                             ref_file,
                             out_file,
                             transform_list,
-                            command_base,                                              
+                            command_base,
+                            target_ori=trans_ori,                                              
                             costfunction=costfunction,
                             output_type=output_type,
                             reverse=reverse_list)
-
-
-
-
 
     out_files=[]
     out_files.insert(0,out_file)

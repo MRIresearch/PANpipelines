@@ -90,7 +90,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
         pan_workflow.connect(measures_transform_map_node,'out_file',roimean_map_node,'input_file')
             
     else:
-        pan_workflow.connect(measures_list,'out_file',roimean_map_node,'input_file')
+        roimean_map_node.inputs.input_file = measures_list
 
 
     if createGraph:
