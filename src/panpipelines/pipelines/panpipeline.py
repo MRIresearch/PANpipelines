@@ -61,7 +61,7 @@ class panpipeline:
         if self.analysis_level == "participant":
             log_message = log_message + f"participant {self.participant_label} in "
             if self.participant_session:
-                log_message = log_message + f"session {self.participant_session} in"
+                log_message = log_message + f"session {self.participant_session} in "
                 if self.participant_project:
                     log_message = log_message + f"project {self.participant_project} "
         else:
@@ -69,7 +69,7 @@ class panpipeline:
             for part_info in participant_info_pairing:
                 log_message = log_message + f"participant {part_info[0]} in "
                 if part_info[1]:
-                    log_message = log_message + f"session {part_info[1]} in"
+                    log_message = log_message + f"session {part_info[1]} in "
                     if part_info[2]:
                         log_message = log_message + f"project {part_info[2]} \n" 
         if self.LOGGER:

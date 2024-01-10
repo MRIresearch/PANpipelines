@@ -10,6 +10,8 @@ from panpipelines.utils import util_functions as ut
 import logging
 import sys
 
+TRANSFORM_LITERALS=["identity"]
+
 LOGGER = logging.getLogger("panpipelines.utils.transformer")
 LOGGER.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(name)s | %(asctime)s | %(levelname)s | %(message)s')
@@ -136,7 +138,10 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBA
     TRANSFORMS=""
     if isinstance(trans_mat,list) and isinstance(reverse,list):
         for transcount in range(len(trans_mat)):
-            trans_item = os.path.abspath(trans_mat[transcount])
+            if not trans_mat[transcount] in TRANSFORM_LITERALS:
+                trans_item = os.path.abspath(trans_mat[transcount])
+            else:
+                trans_item = trans_mat[transcount]
             reverse_item = reverse[transcount]
             if reverse_item:
                 TRANSFORMS = " -t [" + str(trans_item) + ",1]" + TRANSFORMS
@@ -245,6 +250,49 @@ def apply_transform_ants(input_file,ref_file, out_file, trans_mat, COMMANDBASE, 
     results = ut.runCommand(command)
 
 
+def resampleimage_ants_ori(input_file, out_file, newdims, COMMANDBASE, target_ori=None,interpolation_type=None,output_type=None):
+
+    input_file = os.path.abspath(input_file)
+    out_file=os.path.abspath(out_file)
+    
+    img = nib.load(input_file)
+    dimz=1
+    if len(img.header.get_data_shape()) > 3:
+        dimz = img.header.get_data_shape()[3]
+
+    image_dim = "3"
+    if dimz > 3:
+        image_dim = "4"
+        newdims = newdims + f"x{dimz}"
+
+    if interpolation_type is None:
+        interpolation_type="0"
+
+    if output_type is None:
+        output_type = ""
+
+    params=f"{image_dim}" \
+        f" {input_file}"\
+        f" {out_file}"\
+        f" {newdims}"\
+        f" {interpolation_type}"\
+        f" {output_type}"
+
+    command=f"{COMMANDBASE} ResampleImage"\
+            " "+params
+
+    results = ut.runCommand(command)
+    # Transform to target orientation
+    # Ensure input_file, reference_file and transform are in the same orientation
+    if target_ori:
+        actual_target_ori = get_orientation_from_file(out_file,"image")
+        if not actual_target_ori[0] == target_ori:
+            print("reorienting  target_file {} from actual_target_ori {} to {}".format(out_file, actual_target_ori, target_ori))
+            out_file=reorient(out_file, target_ori,out_file)
+
+    return out_file
+
+
 def resample_ants_ori(input_file,ref_file, out_file, COMMANDBASE,transform_ori="RAS:RAS",target_ori="RAS", costfunction=None,output_type=None):
 
     input_file = os.path.abspath(input_file)
@@ -298,6 +346,15 @@ def resample_ants_ori(input_file,ref_file, out_file, COMMANDBASE,transform_ori="
             " "+params
 
     results = ut.runCommand(command)
+
+    # Transform to target orientation
+    # Ensure input_file, reference_file and transform are in the same orientation
+    actual_target_ori = get_orientation_from_file(out_file,"image")
+    if not actual_target_ori[0] == target_ori:
+        print("reorienting  target_file {} from actual_target_ori {} to {}".format(out_file, actual_target_ori, target_ori))
+        out_file=reorient(out_file, target_ori,out_file)
+
+    return out_file
     
 def resample_ants(input_file,ref_file, out_file, COMMANDBASE, costfunction=None,output_type=None):
 
