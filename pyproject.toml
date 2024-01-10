@@ -33,7 +33,8 @@ dependencies = [
   "pydicom>=2.4.3",
   "templateflow>=23.1.0",
   "nitransforms>=23.0.1",
-  "pybids>=0.16.3"
+  "pybids>=0.16.3",
+  "scipy>=1.10.1"
 ]
 
 [project.urls]
