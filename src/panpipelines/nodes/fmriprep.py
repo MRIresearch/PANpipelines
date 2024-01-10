@@ -13,6 +13,12 @@ def fmriprep_proc(labels_dict,bids_dir=""):
 
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
+    labels_dict = updateParams(labels_dict,"FMRIWORK",cwd + "/fmriwork")
+    if not os.path.isdir(cwd + "/fmriwork"):
+        os.makedirs(cwd + "/fmriwork")
+    labels_dict = updateParams(labels_dict,"FMRIOUTPUT",cwd + "/fmrioutput")
+    if not os.path.isdir(cwd + "/fmrioutput"):
+        os.makedirs(cwd + "/fmrioutput")
     
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
@@ -25,6 +31,8 @@ def fmriprep_proc(labels_dict,bids_dir=""):
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
 
+
+
     params="--participant_label <PARTICIPANT_LABEL>" \
         " --output-spaces MNI152NLin6Asym:res-1 MNI152NLin2009cAsym:res-1 fsLR fsaverage anat func"\
         " --skip-bids-validation"\
@@ -33,7 +41,7 @@ def fmriprep_proc(labels_dict,bids_dir=""):
         " --nthreads <BIDSAPP_THREADS>"\
         " --fs-license-file <FSLICENSE>"\
         " --omp-nthreads <BIDSAPP_THREADS>"\
-        " -w " + cwd + "/fmriwork"
+        " -w /work"
 
     reset_params=getParams(labels_dict,"FMRIPREP_RESET_PARAMS")
     if reset_params:
@@ -43,7 +51,7 @@ def fmriprep_proc(labels_dict,bids_dir=""):
         " --nthreads <BIDSAPP_THREADS>"\
         " --fs-license-file <FSLICENSE>"\
         " --omp-nthreads <BIDSAPP_THREADS>"\
-        " -w " + cwd + "/fmriwork"
+        " -w /work"
         " " + reset_params 
 
     extra_params=getParams(labels_dict,"FMRIPREP_EXTRA_PARAMS")
@@ -52,7 +60,7 @@ def fmriprep_proc(labels_dict,bids_dir=""):
 
     command=f"{command_base}"\
             " "+ bids_dir +\
-            " "+ cwd +"/fmrioutput"\
+            " /out"\
             " participant"\
             " "+ params + extra_params
 
