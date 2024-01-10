@@ -1,15 +1,16 @@
 
-# Add commands here to start your python environment if required
-# e.g. module load python/3.8/3.8.2 or conda activate [ENVNAME]
+# Add commands below to start your python environment if required
+# e.g. module load python/3.8/3.8.2 and source /path/to/activate, or conda activate [ENVNAME]. 
 # module load python/3.8/3.8.2
+# source /xdisk/ryant/chidiugonna/venvs/panvenv/bin/activate
 
 # Change PYTHON=python3 if this is required to access python version.
 PYTHON=python
 
 # Export python path in case 'panpipelines' python package not accessible. This should not be necessary if
 # panpipelines has been installed in yout python environment.Just uncomment 2 lines below.
-#PKG_DIR=<PKG_DIR>
-#export PYTHONPATH=${PKG_DIR}:$PYTHONPATH
+$ PKG_DIR=<PKG_DIR>
+# export PYTHONPATH=${PKG_DIR}:$PYTHONPATH
 
 ##### ----- Do not edit below this line ----- #######
 
