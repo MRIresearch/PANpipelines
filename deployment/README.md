@@ -7,7 +7,7 @@ The most convenient approach to deploying these pipelines in the U of A's HPC Cl
 
 
 ```
-module load python/3.8/3.8.2
+module load python/3.11/3.11.4
 pip install --user virtualenv
 ```
 
@@ -21,7 +21,7 @@ virtualenv -p python3 ./panvenv
 
 Activate environment and Install the latest version of PAN pipelines using `pip`
 ```
-module load python/3.8/3.8.2
+module load python/3.11/3.11.4
 source /xdisk/ryant/[USERNAME]/venvs/panvenv/bin/activate
 pip install -U panpipelines
 ```
@@ -89,14 +89,14 @@ Most problems can be avoided by creating a clean new python environment using `c
 --- 
 # General HPC Deployment
 ## Prepare Virtual Environment
-It is advisable to create a virtual python environment to run the PAN pipelines An example using a `conda` virtual environment is shown below however `virtualenv` as demonstrated above could also be used. It is recommended to use a python version of `3.8.2` or greater.
+It is advisable to create a virtual python environment to run the PAN pipelines An example using a `conda` virtual environment is shown below however `virtualenv` as demonstrated above could also be used. It is recommended to use a python version of `3.9` or greater.
 ```
-conda create -n pandev python=3.8.2
+conda create -n pandev python=3.11.4
 ```
 
 if you would like to create your virtual environment in a specific folder location then use the `-p` prefix parameter instead of the `-n` name parameter as follows:
 ```
-conda create -p /path/to/pandev python=3.8.2
+conda create -p /path/to/pandev python=3.11.4
 ```
 
 With `conda` the python environment can be instantiated as follows depending on if the environment was created with the `-n` or the `p` parameter:
@@ -126,16 +126,16 @@ With this option you will need to manually install the required python packages 
 
 ```
 pip install nipype==1.8.6
-pip install numpy==1.24.4
-pip install nibabel==5.1.0
+pip install numpy==1.26.3
+pip install nibabel==5.2.0
 pip install nilearn==0.10.2
-pip install pandas==2.0.3
-pip install xnat==0.5.2
-pip install pydicom==2.4.3
+pip install pandas==2.1.4
+pip install xnat==0.5.3
+pip install pydicom==2.4.4
 pip install templateflow==23.1.0
 pip install nitransforms==23.0.1
-pip install pybids==0.16.3
-pip install scipy==1.10.1
+pip install pybids==0.16.4
+pip install scipy==1.11.4
 ```
 
 

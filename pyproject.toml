@@ -16,7 +16,7 @@ authors = [
 description = "MRI Processing Pipelines for PAN Healthy Minds for Life Study"
 license = { file = "LICENSE" }
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -24,17 +24,17 @@ classifiers = [
 ]
 
 dependencies = [
-  "nipype>=1.8.6",
-  "numpy>=1.24.4",
-  "nibabel>=5.1.0",
-  "nilearn>=0.10.2",
-  "pandas>=2.0.3",
-  "xnat>=0.5.2",
-  "pydicom>=2.4.3",
-  "templateflow>=23.1.0",
-  "nitransforms>=23.0.1",
-  "pybids>=0.16.3",
-  "scipy>=1.10.1"
+  "nipype==1.8.6",
+  "numpy==1.26.3",
+  "nibabel==5.2.0",
+  "nilearn==0.10.2",
+  "pandas==2.1.4",
+  "xnat==0.5.3",
+  "pydicom==2.4.4",
+  "templateflow==23.1.0",
+  "nitransforms==23.0.1",
+  "pybids==0.16.4",
+  "scipy==1.11.4"
 ]
 
 [project.urls]
