@@ -62,7 +62,7 @@ def fmriprep_proc(labels_dict,bids_dir=""):
             " "+ bids_dir +\
             " /out"\
             " participant"\
-            " "+ params + extra_params
+            " "+ params + " " + extra_params
 
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
