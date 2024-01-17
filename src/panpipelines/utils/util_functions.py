@@ -836,9 +836,18 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
 
     return results.stdout.split()[3]
 
-def getGlob(globstring,default_result=""):
-    glob_results = glob.glob(globstring)
-    return getFirstFromList(glob_results,default_result)
+def getGlob(globstring,multiple=False,default_result=""):
+    if globstring:
+        if "*" in globstring:
+            glob_results = glob.glob(globstring)
+            if not multiple:
+                return getFirstFromList(glob_results,default_result)
+            else:
+                return glob_results
+        else:
+            return globstring
+    else:
+        return default_result
 
 def getFirstFromList(itemlist,default_result=""):
     if len (itemlist) > 0:
@@ -1640,7 +1649,7 @@ def getContainer(labels_dict,nodename="",SPECIFIC=None,CONTAINERALT="PAN_CONTAIN
 
     return command_base, container
 
-def runCommand(command,LOGGER=UTLOGGER,suppress=""):
+def runCommand(command,LOGGER=UTLOGGER,suppress="",interactive=False):
     if suppress:
         LOGGER.info(suppress)
     else:
@@ -1650,6 +1659,9 @@ def runCommand(command,LOGGER=UTLOGGER,suppress=""):
         results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
         return "<Suppressed>"
     else:
-        results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
-        LOGGER.info(results.stdout)
-        return results.stdout
+        if not interactive:
+            results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
+            LOGGER.info(results.stdout)
+            return results.stdout
+        else:
+            results = subprocess.run(evaluated_command_args)

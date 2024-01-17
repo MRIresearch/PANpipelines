@@ -16,10 +16,15 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
         pan_workflow.config = process_dict(pan_workflow.config,execution)
 
     # Specify node inputs
-    fslanat_node = fslanat.create(labels_dict,LOGGER=LOGGER)
-    basil_node = basil.create(labels_dict,LOGGER=LOGGER)
-
-    pan_workflow.connect(fslanat_node,'fslanat_dir',basil_node,'fslanat_dir')
+    fslanat_manual=getParams(labels_dict,"FSLANAT_MANUAL")
+    if fslanat_manual and fslanat_manual == "Y":
+        fslanat_dir=getParams(labels_dict,"FSLANAT_DIR")
+        basil_node = basil.create(labels_dict,fslanat_dir=fslanat_dir,LOGGER=LOGGER)
+        pan_workflow.add_nodes([basil_node])
+    else:
+        fslanat_node = fslanat.create(labels_dict,LOGGER=LOGGER)
+        basil_node = basil.create(labels_dict,LOGGER=LOGGER)
+        pan_workflow.connect(fslanat_node,'fslanat_dir',basil_node,'fslanat_dir')
 
     if createGraph:
          pan_workflow.write_graph(graph2use='flat')
