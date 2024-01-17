@@ -182,9 +182,27 @@ def main():
 
     for pipeline in pipelines:
         LOGGER.info(f"Processing pipeline : {pipeline}")
-        updateParams(panpipe_labels, "PIPELINE", pipeline)
+        panpipe_labels = updateParams(panpipe_labels, "PIPELINE", pipeline)
         panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels,pipeline)
-        
+
+        # We handle the <DEPENDENCY> key specially as this is a list that we need to resolve into DEPENDENCY1, DEPENDENCY2, ...DEPENDENCYN
+        dependency_list = getParams(panpipe_labels,"DEPENDENCY")
+        if dependency_list:
+            depcount=1
+            if isinstance(dependency_list,list):
+                for dependency in dependency_list:
+                    panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}",dependency)
+                    dependency_dir = f"<PIPELINE_DIR>/<DEPENDENCY{depcount}>/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/<DEPENDENCY{depcount}>_wf"
+                    panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}_DIR",dependency_dir)
+                    depcount = depcount + 1
+            else:
+                # can refere to single DEPENDENCY also as DEPENDENCY1
+                panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY1",dependency_list)
+                dependency_dir1 = f"<PIPELINE_DIR>/<DEPENDENCY{depcount}>/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/<DEPENDENCY{depcount}>_wf"
+                panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}_DIR",dependency_dir1)
+                dependency_dir = f"<PIPELINE_DIR>/<DEPENDENCY>/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/<DEPENDENCY>_wf"
+                panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY_DIR",dependency_dir)
+            
         # Now we can resolve all the references based on precedence in the pipeline section
         panpipe_labels = update_labels(panpipe_labels)
 

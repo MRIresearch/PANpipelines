@@ -17,6 +17,12 @@ logger_addstdout(LOGGER, logging.INFO)
 panFactory = Factory.getPANFactory()
 
 def runSingleSubject(participant_label, xnat_project, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="participant",panlabel=None):
+
+    pipeline_start = datetime.datetime.now()
+    LOGGER.info("---------------------------------------------------------------------------------")
+    LOGGER.info(f"Single Subject Processing for {participant_label} started at: {str(pipeline_start)}")
+    LOGGER.info("---------------------------------------------------------------------------------")
+
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_PROJECT",xnat_project)
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_SESSION",session_label)
@@ -58,6 +64,14 @@ def runSingleSubject(participant_label, xnat_project, session_label, pipeline, p
     PanProc = panProcessor(panpipe_labels,pipeline_outdir_subject, participant_label, name=pipeline,LOGGER=LOGGER,execution=execution_json,analysis_level=analysis_level,participant_project=xnat_project, participant_session=session_label)
     PanProc.run()
 
+    pipeline_end = datetime.datetime.now()
+    LOGGER.info("---------------------------------------------------------------------------------")
+    LOGGER.info(f"Single Subject Processing for {participant_label} Completed at: {str(pipeline_end)}")
+    LOGGER.info("---------------------------------------------------------------------------------")
+    pipeline_duration = pipeline_end - pipeline_start
+    LOGGER.info(f"Single Subject Processing for {participant_label} Duration: {str(pipeline_duration)}")
+    LOGGER.info("---------------------------------------------------------------------------------")
+
     LOGGER.debug(f"\nDump of configuration settings for {participant_label} run of {pipeline}")
     LOGGER.debug("---------------------------------------------------------------------------------")
     LOGGER.debug(f"{panpipe_labels!r}")
@@ -74,7 +88,6 @@ def parse_params():
     return parser
 
 def main():
-    
     parser=parse_params()
     args, unknown_args = parser.parse_known_args()
 
