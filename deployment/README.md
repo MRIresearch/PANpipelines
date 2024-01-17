@@ -14,24 +14,23 @@ pip install --user virtualenv
 Create a virtual environment called `panvenv`
 
 ```
-mkdir /xdisk/ryant/[USERNAME]/venvs
-cd /xdisk/ryant/[USERNAME]/venvs
-virtualenv -p python3 ./panvenv
+mkdir /xdisk/ryant/$USER/venvs
+virtualenv -p python3 /xdisk/ryant/[USERNAME]/venvs/panvenv
 ```
 
 Activate environment and Install the latest version of PAN pipelines using `pip`
 ```
 module load python/3.11/3.11.4
-source /xdisk/ryant/[USERNAME]/venvs/panvenv/bin/activate
+source /xdisk/ryant/$USER/venvs/panvenv/bin/activate
 pip install -U panpipelines
 ```
 
 ## Create personal deployment directory
 Clone the PANpipelines repsoitory and copy the deployment folder to your own workspace as follows:
 ```
-cd /xdisk/ryant/[USERNAME]
+cd /xdisk/ryant/$USER
 git clone https://github.com/MRIresearch/PANpipelines.git
-cp -R /xdisk/ryant/[USERNAME]/PANpipelines/deployment //xdisk/ryant/[USERNAME]/newdeployment
+cp -R /xdisk/ryant/$USER/PANpipelines/deployment /xdisk/ryant/$USER/pandeployment
 ```
 
 
