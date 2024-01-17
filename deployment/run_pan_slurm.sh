@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # 1. Add commands here to start your python environment if required
-# e.g. module load python/3.8/3.8.2 and source /path/to/activate, or conda activate [ENVNAME]. 
-# module load python/3.8/3.8.2
-# source /xdisk/ryant/chidiugonna/venvs/panvenv/bin/activate
+# e.g. module load python//3.11/3.11.4and source /path/to/activate, or conda activate [ENVNAME]. 
+module load python/3.11/3.11.4
+source /xdisk/ryant/$USER/venvs/panvenv/bin/activate
 
 # 2. Change PYTHON=python3 if this is required to access python version.
 PYTHON=python
 
-PKG_DIR="/xdisk/ryant/chidiugonna/PANpipelines/src"
+PKG_DIR="/xdisk/ryant/$USER/PANpipelines/src"
 LOCPY=${PKG_DIR}/panpipelines
 
 # 3. Export python path in case 'panpipelines' python package not accessible. This should not be necessary if
@@ -17,7 +17,7 @@ LOCPY=${PKG_DIR}/panpipelines
 
 CONFIG=$PWD/config/panpipeconfig_slurm.config
 
-PARTICIPANTS="HML0182 vJ7xkAAS vleDFAA0 HML0253 HML0134 HML0223 xGwFuAAK HML0249 z6OYeAAM HML0173 11zUYBAA2 z7pAcAAI 7HY6AAM HML0153 HML0227 z5WEWAA2"
+PARTICIPANTS="HML0182 vJ7xKAAS vleDFAA0 HML0253 HML0134 HML0223 xGwFuAAK HML0249 z6OYeAAM HML0173 11zUYBAA2 z7pAcAAI 7HY6AAM HML0153 HML0227 z5WEWAA2"
 
 ${PYTHON} ${LOCPY}/pan_processing.py $CONFIG  --participant_label $PARTICIPANTS
 

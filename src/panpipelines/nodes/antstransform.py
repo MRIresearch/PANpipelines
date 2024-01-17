@@ -64,7 +64,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         old_space=None
 
     
-    if old_space is not None:
+    if old_space:
         out_file = os.path.join(output_dir,input_file_basename.replace(old_space, trans_space))
     else:
         out_file = newfile(output_dir,input_file_basename,intwix=trans_space)
@@ -88,7 +88,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
 
     for trans in trans_mat:
         trans_parts = trans.split(":")
-        transform = substitute_labels(trans_parts[0],labels_dict)
+        transform = getGlob(substitute_labels(trans_parts[0],labels_dict))
         trans_type =""
         trans_source = ""
         trans_reference = ""
@@ -124,9 +124,17 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         else:
             reverse_list.append(False)
 
-              
-        if transform == "from-MNI152NLin6Asym_to-MNI152NLin2009cAsym_res-1":
+        TRANSLIT="from-MNI152NLin6Asym_to-MNI152NLin2009cAsym_res-"
+        if TRANSLIT in str(transform):
+            resolution=int(transform.split(TRANSLIT)[1])
+            # we dont use resolution for transforms from template flow 
             transform = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
+
+        TRANSLIT="from-MNI152NLin2009cAsym_to-MNI152NLin6Asym_res-"
+        if TRANSLIT in str(transform):
+            resolution=int(transform.split(TRANSLIT)[1])
+            # we dont use resolution for transforms from templateflow
+            transform = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",suffix="xfm",extension=[".h5"])
 
         if transform == "tkregister2_fslout":
             new_freesurfer_transform = newfile(work_dir,transform,suffix="fsl-transform")
@@ -137,6 +145,15 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         if trans_type == "FSL":
             
             if pathlib.Path(transform).suffix == ".gz":
+                # if we need the inverse of non-linear transform FSL transform then do that first before converting to ANTS and then reset reverse:
+                if reverse_list[-1]==True:
+                    new_transform = newfile(work_dir,transform,suffix="desc-inverse",extension=".nii.gz")
+                    fsl_command_base, fslcontainer = getContainer(labels_dict,nodename="invertWarpfield_FNIRT",SPECIFIC="FSL_CONTAINER",LOGGER=IFLOGGER)
+                    invertWarpfield_FNIRT(trans_source, transform, new_transform ,fsl_command_base)
+                    transform = new_transform
+                    reverse_list[-1]=False
+                    trans_source = trans_reference
+
                 new_ants_transform=newfile(work_dir,transform,suffix="ants-transform", extension=".nii.gz")
                 wb_command_base, wbcontainer = getContainer(labels_dict,nodename="convertwarp_toANTS",SPECIFIC="WB_CONTAINER",LOGGER=IFLOGGER)
                 convertwarp_toANTS(transform,trans_source, new_ants_transform, wb_command_base )
@@ -149,12 +166,18 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
 
     # Process Reference_file
     ref_parts = ref_file.split(":")
-    ref_file = ref_parts[0]
+    ref_file = getGlob(ref_parts[0])
     new_ref_file = newfile(work_dir,ref_file,suffix="desc-resample")
 
-    if ref_file == "MNI152NLin2009cAsym_res-1":
-        resolution=1
+    REFLIT="MNI152NLin2009cAsym_res-"
+    if REFLIT in str(ref_file):
+        resolution=int(ref_file.split(REFLIT)[1])
         ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
+
+    REFLIT="MNI152NLin6Asym_res-"
+    if REFLIT in str(ref_file):
+        resolution=int(ref_file.split(REFLIT)[1])
+        ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
 
     if len(ref_parts) == 5:
         newdims = ref_parts[1]
