@@ -2,12 +2,10 @@ from nipype.interfaces.base import BaseInterfaceInputSpec, BaseInterface, File, 
 from nipype import Node
 from panpipelines.utils.util_functions import *
 import os
-import glob
 import nibabel as nb
 from bids import BIDSLayout
-import shlex
-import subprocess
 from nipype import logging as nlogging
+import json
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
@@ -29,8 +27,136 @@ PVCORR="--pvcorr"
 FSLANAT="--fslanat"
 DEBUG="--debug"
 REGIONANALYSIS="--region-analysis"
+WHITEPAPER="--wp"
+
+FMAP="--fmap"
+FMAPMAG="--fmapmag"
+FMAPMAGBRAIN="--fmapmagbrain"
+ECHOSPACING="--echospacing"
+PEDIR="--pedir"
 
 IS_PRESENT="^^^"
+IGNORE="###"
+
+def process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir):
+    IFLOGGER.info("Preparing fieldmap from fmriprep for use in SDC.")
+    fmap = getGlob(os.path.join(fmriprep_fieldmap_dir,"*desc-preproc_fieldmap.nii.gz"))
+    fmaprads = newfile(work_dir,assocfile=fmap,intwix="desc-rads")
+    fmapjson = getGlob(os.path.join(fmriprep_fieldmap_dir,"*desc-preproc_fieldmap.json"))
+
+    IFLOGGER.info(f"Fieldmap located at {fmap}")
+    fmapdict={}
+    if fmapjson:
+        with open(fmapjson,"r") as infile:
+            fmapdict=json.load(infile)
+
+        if "Units" in fmapdict.keys():
+            if fmapdict["Units"] == "Hz":
+                IFLOGGER.info(f"Convert {fmap} in Hz to {fmaprads} in rad/s")
+                if "RawSources" in fmapdict.keys():
+                    sources = fmapdict["RawSources"]
+                    phase1 = [x for x in sources if "phase1" in x]
+                    echo1=None
+                    if phase1:
+                        phase1_entities = layout.parse_file_entities(phase1[0])
+                        phase1_md = layout.get(**phase1_entities)[0].get_metadata()
+                        if phase1_md:
+                            echo1=phase1_md["EchoTime"]
+                    phase2 = [x for x in sources if "phase2" in x]
+                    echo2=None
+                    if phase2:
+                        phase2_entities = layout.parse_file_entities(phase2[0])
+                        phase2_md = layout.get(**phase2_entities)[0].get_metadata()
+                        if phase2_md:
+                            echo2=phase2_md["EchoTime"]
+
+                    if echo1 and echo2:
+                        echodiff = echo2 - echo1
+                        mult = 2 * np.pi * np.abs(echodiff)
+
+                        params = f"{fmap}"\
+                            f" -mul {mult}" \
+                            f" {fmaprads}" \
+                            " -odt float"
+
+                        command=f"{command_base} fslmaths"\
+                            " "+params
+
+                        evaluated_command=substitute_labels(command, labels_dict)
+                        runCommand(evaluated_command,IFLOGGER)
+                        basil_dict = updateParams(basil_dict,FMAP,fmaprads)
+            
+            elif fmapdict["Units"] == "rad/s":
+                IFLOGGER.info(f"{fmap} ialready in rad/s. Rename to {fmaprads}.")
+                fmaprads = fmap
+                basil_dict = updateParams(basil_dict,FMAP,fmaprads)
+            else:
+                unkunits = fmapdict["Units"]
+                IFLOGGER.info(f"Units {unkunits} not recognized.")
+           
+    
+    if os.path.exists(fmaprads): 
+        fmapmag = getGlob(os.path.join(fmriprep_fieldmap_dir,"*desc-magnitude_fieldmap.nii.gz"))
+        fmapmag_brain = newfile(work_dir,assocfile=fmapmag,intwix="desc-brain")
+        IFLOGGER.info(f"Create brain-extracted {fmapmag_brain} from {fmapmag}.")   
+
+        params = f"{fmapmag}"\
+            f" {fmapmag_brain}" \
+            " -R"
+
+        command=f"{command_base} bet"\
+            " "+params
+
+        evaluated_command=substitute_labels(command, labels_dict)
+        runCommand(evaluated_command,IFLOGGER)
+
+        basil_dict = updateParams(basil_dict,FMAPMAG,fmapmag)
+        basil_dict = updateParams(basil_dict,FMAPMAGBRAIN,fmapmag_brain)
+
+    if os.path.exists(fmapmag_brain):
+        echospacing = None
+        ECHOSPACING_DICT= getParams(labels_dict,"ASL_ECHOSPACING")
+        if ECHOSPACING_DICT is not None and isinstance(ECHOSPACING_DICT, dict):
+            if asl_acq in ECHOSPACING_DICT.keys():
+                echospacing = ECHOSPACING_DICT[asl_acq]
+
+        basil_dict = updateParams(basil_dict,ECHOSPACING,echospacing)
+        if echospacing:
+            IFLOGGER.info(f"Echospacing {echospacing} obtained from config file.")   
+        else:
+            IFLOGGER.error(f"Echospacing not defined. Fieldmap correction will not work.") 
+            raise ValueError("<ASL_ECHOSPACING> not defined in config file for fieldmap processing.") 
+        pedir_ijk = asljson["PhaseEncodingDirection"]
+        IFLOGGER.info(f"PE Direction of ASL is {pedir_ijk}")   
+        pedir_fsl = pedir_ijk.replace('j-','-y').replace('j','y').replace('i-','-x').replace('i','x').replace('k-','-z').replace('k','z')
+        IFLOGGER.info(f"PE Direction of ASL converted to {pedir_fsl} for BASIL.")    
+        basil_dict = updateParams(basil_dict,PEDIR,pedir_fsl)
+
+
+    return basil_dict
+
+# work in progress
+def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljson, asl_acq, command_base, work_dir):
+
+    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+
+    phase1 = layout.get(subject=participant_label,suffix='phase1', extension='nii.gz')
+    echo1=None
+    if phase1:
+        phase1_md = phase1[0].get_metadata()
+        if phase1_md:
+            echo1=phase1_md["EchoTime1"]
+
+    phase2 = layout.get(subject=participant_label,suffix='phase2', extension='nii.gz')
+    echo2=None
+    if phase2:
+        phase2_md = phase2[0].get_metadata()
+        if phase2_md:
+            echo2=phase2_md["EchoTime2"]
+
+    mag1 = layout.get(subject=participant_label,suffix='magnitude1', extension='nii.gz')
+    mag2 = layout.get(subject=participant_label,suffix='magnitude2', extension='nii.gz')
+    return basil_dict
 
 def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
@@ -53,7 +179,8 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
     basil_dict = updateParams(basil_dict,DEBUG,IS_PRESENT)
     basil_dict = updateParams(basil_dict,REGIONANALYSIS,IS_PRESENT)
     basil_dict = updateParams(basil_dict,FIXBAT,IS_PRESENT)
-    
+    basil_dict = updateParams(basil_dict,WHITEPAPER,IS_PRESENT)
+  
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
     
@@ -62,12 +189,12 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
         os.makedirs(output_dir)
     basil_dict = updateParams(basil_dict,ASL_OUTPUT,output_dir)
 
+    work_dir=os.path.join(output_dir,"basilwork_pan")
+    if not os.path.exists(work_dir):
+        os.makedirs(work_dir)
+
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     layout = BIDSLayout(bids_dir)
-
-    fslanat_dir=os.path.abspath(fslanat_dir)
-    basil_dict = updateParams(basil_dict,FSLANAT,fslanat_dir)
-
     asl=layout.get(subject=participant_label,suffix='asl', extension='nii.gz')
 
     if len(asl) > 0:
@@ -80,6 +207,9 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
             asl_acq = "acq-" + asl_entities["acquisition"]
         else:
             asl_acq = get_bidstag("acq",asl_bidsfile.filename)
+        
+        if not asl_acq:
+            asl_acq = "default"
 
         asl_img = nb.load(asl_file)
         rpts=int(asl_img.header["dim"][4]/2)
@@ -119,9 +249,33 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 basil_dict = updateParams(basil_dict,TIS,str(tis))
 
 
+        # process field map if it exists
+        fieldmap_type=None
+        FIELDMAP_TYPE_DICT = getParams(labels_dict,'FIELDMAP_TYPE')
+        if FIELDMAP_TYPE_DICT  is not None and isinstance(FIELDMAP_TYPE_DICT,dict):
+            if asl_acq in FIELDMAP_TYPE_DICT.keys():
+                fieldmap_type = substitute_labels(FIELDMAP_TYPE_DICT[asl_acq],labels_dict)
+
+        if fieldmap_type:
+            # use preprocessed field mao from fmriprep
+            if fieldmap_type == "fmriprep_preproc":
+                fmriprep_fieldmap_dir = None
+                FMRIPREP_FIELDMAP_DIR_DICT  = getParams(labels_dict,'FMRIPREP_FIELDMAP_DIR')
+                if FMRIPREP_FIELDMAP_DIR_DICT is not None and isinstance(FMRIPREP_FIELDMAP_DIR_DICT ,dict):
+                    if asl_acq in FMRIPREP_FIELDMAP_DIR_DICT.keys():
+                        fmriprep_fieldmap_dir = substitute_labels(FMRIPREP_FIELDMAP_DIR_DICT[asl_acq],labels_dict)
+
+                if fmriprep_fieldmap_dir and os.path.exists(fmriprep_fieldmap_dir):
+                    basil_dict = process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir)
+            elif fieldmap_type == "fsl_prepare_fieldmap":
+                basil_dict = process_fsl_prepare_fieldmap(layout, asljson,basil_dict,labels_dict, asljson, asl_acq, command_base, work_dir)
+
+        fslanat_dir=os.path.abspath(fslanat_dir)
+        basil_dict = updateParams(basil_dict,FSLANAT,fslanat_dir)
+
         basil_dict = updateParams(basil_dict,IAF,"tc")
         ASLCONTEXT = getParams(labels_dict,"ASLCONTEXT")
-        if ASLCONTEXT is not None and isinstance(ASLCONTEXT,dict):
+        if ASLCONTEXT and isinstance(ASLCONTEXT,dict):
             if asl_acq in ASLCONTEXT.keys():
                 if ASLCONTEXT[asl_acq] == "control:label":
                     basil_dict = updateParams(basil_dict,IAF,"ct")
@@ -140,11 +294,18 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
             m0_file=m0[0]
             basil_dict = updateParams(basil_dict,CALIBRATION,m0_file)
 
+        # Additional params
+        BASIL_OVERRIDE_PARAMS = getParams(labels_dict,"BASIL_OVERRIDE_PARAMS")
+        if BASIL_OVERRIDE_PARAMS and isinstance(BASIL_OVERRIDE_PARAMS,dict):
+            add_labels(BASIL_OVERRIDE_PARAMS,basil_dict)        
+
         params = ""
         for basil_tag, basil_value in basil_dict.items():
             if "--" in basil_tag:
                 if basil_value == IS_PRESENT:
                     params=params + " " + basil_tag
+                elif basil_value == IGNORE:
+                    IFLOGGER.info(f"Parameter {basil_tag} is being skipped. This has been explicitly required in configuration.")
                 else:
                     params = params + " " + basil_tag+"="+basil_value
 
