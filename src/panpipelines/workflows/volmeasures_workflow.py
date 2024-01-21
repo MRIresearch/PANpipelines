@@ -74,7 +74,8 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
             evaluated_meas_template = substitute_labels(meas_template,labels_dict)
             measures_list.extend(glob.glob(evaluated_meas_template))
     else:
-        measures_list.extend(glob.glob(measures_template))
+        evaluated_measures_template = substitute_labels(measures_template,labels_dict)
+        measures_list.extend(glob.glob(evaluated_measures_template))
         
     measures_list.sort()
 

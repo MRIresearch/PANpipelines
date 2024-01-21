@@ -17,6 +17,7 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
+    metadata_comments=""
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
     output_dir=cwd
@@ -103,6 +104,45 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     table_columns = [x.replace('\n','') for x in lines]
     df2 = pd.read_table(roi_raw_txt,sep=r"\s+",header=None)
     numrows = len(df2)
+
+    # check that we are not missing ROIS
+    if len(table_columns) > len(df2.columns):
+        IFLOGGER.warn(f"Size of data columns in {roi_raw_txt} is less than expected. {len(df2.columns)} instead of {len(table_columns)}.")
+        IFLOGGER.warn(f"It is possible that due to a transformation to lower resolution some smaller ROIs were lost.")
+        IFLOGGER.warn(f"checking {atlas_file} for missing ROIs.")
+
+        if metadata_comments:
+            metadata_comments = metadata_comments + f"Size of data columns in {roi_raw_txt} is less than expected. {len(df2.columns)} instead of {len(table_columns)}."
+        else:
+            metadata_comments = f"Size of data columns in {roi_raw_txt} is less than expected. {len(df2.columns)} instead of {len(table_columns)}."
+
+        atlasimg = nib.load(atlas_file)
+        atlasimg_data = atlasimg.get_fdata()
+        for roi_check in range(len(table_columns)):
+            roi_sum = np.sum(atlasimg_data  == (roi_check + 1))
+            if roi_sum == 0:
+                IFLOGGER.warn(f"ROI Index {roi_check + 1} is missing. This corresponds to ROI Label {table_columns[roi_check]}")
+
+                if metadata_comments:
+                    metadata_comments = metadata_comments + f"Missing ROI >>  [Index {roi_check + 1} : {table_columns[roi_check]} ], "
+                else:
+                    metadata_comments = f"Missing ROI >>  [Index {roi_check + 1} : {table_columns[roi_check]} ]  "
+
+                missing_data =  [pd.NA for x in range(numrows)]
+                if roi_check + 1 > len(df2.columns):
+                    # append to end of table
+                    df2[roi_check]=missing_data
+
+                else:
+                    # we can insert
+                    df2.insert(roi_check, f"{row_check}_a",missing_data)
+
+    elif len(table_columns) < len(df2.columns):
+        IFLOGGER.error(f"Size of data columns in {roi_raw_txt} is larger than expected. {len(df2.columns)} instead of {len(table_columns)}.")
+        IFLOGGER.error(f"This suggests that there may be a mismatch between the atlas index {atlas_index} uand the atlas {atlas_file}.")
+        raise ValueError(f"Size of data columns in {roi_raw_txt} is larger than expected. {len(df2.columns)} instead of {len(table_columns)}\nThis suggests that there may be a mismatch between the atlas index {atlas_index} uand the atlas {atlas_file}.")
+
+
     
     csv_basename = ""
 
@@ -169,6 +209,9 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     metadata = updateParams(metadata,"Atlas Labels",atlas_index)
     metadata = updateParams(metadata,"Input File",input_file)
     metadata = updateParams(metadata,"Command",evaluated_command)
+    if metadata_comments:
+        metadata = updateParams(metadata,"Comments",metadata_comments)
+
     export_labels(metadata,roi_json)
 
 
