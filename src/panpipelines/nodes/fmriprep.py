@@ -9,6 +9,9 @@ from nipype import logging as nlogging
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
+IS_PRESENT="^^^"
+IGNORE="###"
+
 def fmriprep_proc(labels_dict,bids_dir=""):
 
     cwd=os.getcwd()
@@ -31,38 +34,43 @@ def fmriprep_proc(labels_dict,bids_dir=""):
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
 
+    fmriprep_dict={}
+    fmriprep_dict = updateParams(fmriprep_dict,"--participant_label","<PARTICIPANT_LABEL>")
+    fmriprep_dict = updateParams(fmriprep_dict,"--output-spaces","MNI152NLin6Asym:res-1 MNI152NLin2009cAsym:res-1")
+    fmriprep_dict = updateParams(fmriprep_dict,"--skip-bids-validation",IS_PRESENT)
+    fmriprep_dict = updateParams(fmriprep_dict,"--mem_mb","<BIDSAPP_MEMORY>")
+    fmriprep_dict = updateParams(fmriprep_dict,"--nthreads","<BIDSAPP_THREADS>")
+    fmriprep_dict = updateParams(fmriprep_dict,"--fs-license-file","<FSLICENSE>")
+    fmriprep_dict = updateParams(fmriprep_dict,"--omp-nthreads","1")
+    fmriprep_dict = updateParams(fmriprep_dict,"-w","/work")
 
+    # Additional params
+    FMRIPREP_OVERRIDE_PARAMS = getParams(labels_dict,"FMRIPREP_OVERRIDE_PARAMS")
+    if FMRIPREP_OVERRIDE_PARAMS and isinstance(FMRIPREP_OVERRIDE_PARAMS,dict):
+        add_labels(FMRIPREP_OVERRIDE_PARAMS,fmriprep_dict)        
 
-    params="--participant_label <PARTICIPANT_LABEL>" \
-        " --output-spaces MNI152NLin6Asym:res-1 MNI152NLin2009cAsym:res-1 fsLR fsaverage anat func"\
-        " --skip-bids-validation"\
-        " --mem_mb <BIDSAPP_MEMORY>" \
-        " --cifti-output"\
-        " --nthreads <BIDSAPP_THREADS>"\
-        " --fs-license-file <FSLICENSE>"\
-        " --omp-nthreads <BIDSAPP_THREADS>"\
-        " -w /work"
+    params = ""
+    for fmriprep_tag, fmriprep_value in fmriprep_dict.items():
+        if "--" in fmriprep_tag and "---" not in fmriprep_tag:
+            if fmriprep_value == IS_PRESENT:
+                params=params + " " + fmriprep_tag
+            elif fmriprep_value == IGNORE:
+                IFLOGGER.info(f"Parameter {fmriprep_tag} is being skipped. This has been explicitly required in configuration.")
+            else:
+                # we dont need = sign for fmriprep just for basi;
+                params = params + " " + fmriprep_tag + " " + fmriprep_value
 
-    reset_params=getParams(labels_dict,"FMRIPREP_RESET_PARAMS")
-    if reset_params:
-        params="--participant_label <PARTICIPANT_LABEL>" \
-        " --skip-bids-validation"\
-        " --mem_mb <BIDSAPP_MEMORY>" \
-        " --nthreads <BIDSAPP_THREADS>"\
-        " --fs-license-file <FSLICENSE>"\
-        " --omp-nthreads <BIDSAPP_THREADS>"\
-        " -w /work"
-        " " + reset_params 
+        elif "-" in fmriprep_tag and "--" not in fmriprep_tag:
+            params = params + " " + fmriprep_tag + " " + fmriprep_value
 
-    extra_params=getParams(labels_dict,"FMRIPREP_EXTRA_PARAMS")
-    if not extra_params:
-        extra_params=""  
+        else:
+            print(f"fmriprep tag {fmriprep_tag} not valid.")
 
     command=f"{command_base}"\
             " "+ bids_dir +\
             " /out"\
             " participant"\
-            " "+ params + " " + extra_params
+            " "+ params 
 
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)

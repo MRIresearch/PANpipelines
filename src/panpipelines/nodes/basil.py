@@ -293,6 +293,11 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
         if len(m0) > 0:
             m0_file=m0[0]
             basil_dict = updateParams(basil_dict,CALIBRATION,m0_file)
+            m0_md = layout.get(**m0_entities)[0].get_metadata()
+            if "RepetitionTime" in m0_md.keys():
+                basil_dict = updateParams(basil_dict,TR,str(m0_md["RepetitionTime"]))
+            else:
+                IFLOGGER.warn("RepetitionTime not found for m0. Default of 5s will be used by BASIL.")
 
         # Additional params
         BASIL_OVERRIDE_PARAMS = getParams(labels_dict,"BASIL_OVERRIDE_PARAMS")
@@ -301,7 +306,7 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
         params = ""
         for basil_tag, basil_value in basil_dict.items():
-            if "--" in basil_tag:
+            if "--" in basil_tag and "---" not in basil_tag:
                 if basil_value == IS_PRESENT:
                     params=params + " " + basil_tag
                 elif basil_value == IGNORE:
