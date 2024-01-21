@@ -27,6 +27,7 @@ def parse_params():
     parser.add_argument("--participants_file", type=PathExists, help="list of participants")
     parser.add_argument("--sessions_file", type=PathExists, help="Comprehensive list of participants and sessions")
     parser.add_argument("--pipelines", nargs="+")
+    parser.add_argument("--projects", nargs="+")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
     parser.add_argument("--session_label", nargs="*", type=drop_ses, help="filter by session label (the ses- prefix can be removed).")
     parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=__version__))
@@ -118,12 +119,18 @@ def main():
     else:
         participants_file = getParams(panpipe_labels,"PARTICIPANTS_FILE")
 
+    projects=args.projects
+    if not projects:
+        projects=["001_HML","002_HML","003_HML","004_HML"]
+        LOGGER.info(f"--projects parameter not set. Using defaults {projects} to retrieve subjects and sessions from XNAT.")
+    else:
+        LOGGER.info(f"Retrieving subjects and sessions from XNAT project {projects}")
+
     # if participants file doesn't exist then lets download it
     if not os.path.exists(participants_file):
         LOGGER.info(f"Participants file not found at {participants_file} - retrieving from XNAT. Please wait.")
         xnat_host = getParams(panpipe_labels,"XNAT_HOST")
         targetdir = os.path.dirname(participants_file)
-        projects=["001_HML","002_HML","003_HML","004_HML"]
         if not os.path.exists(targetdir):
             os.makedirs(targetdir)
         getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",targetdir,demographics=False)
@@ -247,17 +254,17 @@ def main():
             if pipeline_class is None:
                 pipeline_class = pipeline 
 
-            use_pipeline_desc = getParams(panpipe_labels,"USE_PIPELINE_DESC")
-            if use_pipeline_desc is None:
-                use_pipeline_desc = "N"
+            #use_pipeline_desc = getParams(panpipe_labels,"USE_PIPELINE_DESC")
+            #if use_pipeline_desc is None:
+            #    use_pipeline_desc = "N"
 
-            pipeline_desc = getParams(panpipe_labels,"PIPELINE_DESC")
-            if pipeline_desc is None or use_pipeline_desc == "N":
-                pipeline_desc = pipeline
-            else:
-                pipeline_desc = "".join([x if x.isalnum() else "_" for x in pipeline_desc])  
+            #pipeline_desc = getParams(panpipe_labels,"PIPELINE_DESC")
+            #if pipeline_desc is None or use_pipeline_desc == "N":
+            #    pipeline_desc = pipeline
+            #else:
+            #    pipeline_desc = "".join([x if x.isalnum() else "_" for x in pipeline_desc])  
 
-            pipeline_outdir=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),pipeline_desc)
+            pipeline_outdir=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),pipeline)
             if not os.path.exists(pipeline_outdir):
                 os.makedirs(pipeline_outdir,exist_ok=True)
 

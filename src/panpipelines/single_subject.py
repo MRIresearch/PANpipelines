@@ -109,17 +109,17 @@ def main():
     if pipeline_class is None:
         pipeline_class = pipeline
 
-    use_pipeline_desc = getParams(panpipe_labels,"USE_PIPELINE_DESC")
-    if use_pipeline_desc is None:
-        use_pipeline_desc = ""
+    #use_pipeline_desc = getParams(panpipe_labels,"USE_PIPELINE_DESC")
+    #if use_pipeline_desc is None:
+    #    use_pipeline_desc = ""
 
-    pipeline_desc = getParams(panpipe_labels,"PIPELINE_DESC")
-    if pipeline_desc is None or use_pipeline_desc == "N":
-        pipeline_desc = pipeline 
-    else:
-        pipeline_desc = "".join([x if x.isalnum() else "_" for x in pipeline_desc]) 
+    #pipeline_desc = getParams(panpipe_labels,"PIPELINE_DESC")
+    #if pipeline_desc is None or use_pipeline_desc == "N":
+    #    pipeline_desc = pipeline 
+    #else:
+    #    pipeline_desc = "".join([x if x.isalnum() else "_" for x in pipeline_desc]) 
 
-    pipeline_outdir=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),pipeline_desc)
+    pipeline_outdir=os.path.join(getParams(panpipe_labels,"PIPELINE_DIR"),pipeline)
     if not os.path.exists(pipeline_outdir):
         os.makedirs(pipeline_outdir,exist_ok=True)
 
