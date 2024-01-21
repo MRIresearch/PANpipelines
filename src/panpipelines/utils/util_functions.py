@@ -784,7 +784,7 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
 
     if LOGGER:
         LOGGER.info(f"Runtime Config file created: {labels_file}")
-        LOGGER.info(f"Pipelne Script file created: {script_file}")
+        LOGGER.info(f"Pipeline Script file created: {script_file}")
     
     if analysis_level == "participant":
 
