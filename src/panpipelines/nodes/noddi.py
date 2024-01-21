@@ -9,6 +9,9 @@ from nipype import logging as nlogging
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
+IS_PRESENT="^^^"
+IGNORE="###"
+
 def noddi_proc(labels_dict,input_dir):
 
     cwd=os.getcwd()
@@ -26,17 +29,39 @@ def noddi_proc(labels_dict,input_dir):
 
     input_dir=substitute_labels(input_dir,labels_dict)
 
-    params="--participant_label <PARTICIPANT_LABEL>" \
-        " --recon_input "+input_dir+\
-        " --recon_spec <RECON_TYPE>"\
-        " --recon-only"\
-        " --mem_mb <BIDSAPP_MEMORY>"\
-        " --nthreads <BIDSAPP_THREADS>"\
-        " --fs-license-file <FSLICENSE>"\
-        " --skip-bids-validation"\
-        " --skip-odf-report"\
-        " -w <CWD>/noddi_work"\
-        " --output-resolution <OUTPUT_RES>" 
+    qsirecon_dict={}
+    qsirecon_dict = updateParams(qsirecon_dict,"--participant_label","<PARTICIPANT_LABEL>")
+    qsirecon_dict = updateParams(qsirecon_dict,"--recon_input",input_dir)
+    qsirecon_dict = updateParams(qsirecon_dict,"--recon_spec","<RECON_TYPE>")
+    qsirecon_dict = updateParams(qsirecon_dict,"--recon-only",IS_PRESENT)
+    qsirecon_dict = updateParams(qsirecon_dict,"--mem_mb","<BIDSAPP_MEMORY>")
+    qsirecon_dict = updateParams(qsirecon_dict,"--nthreads","<BIDSAPP_THREADS>")
+    qsirecon_dict = updateParams(qsirecon_dict,"--fs-license-file","<FSLICENSE>")
+    qsirecon_dict = updateParams(qsirecon_dict,"--skip-odf-report",IS_PRESENT)
+    qsirecon_dict = updateParams(qsirecon_dict,"--output-resolution","<OUTPUT_RES>")
+    qsirecon_dict = updateParams(qsirecon_dict,"-w","<CWD>/noddi_work")
+
+    # Additional params
+    QSIRECON_OVERRIDE_PARAMS = getParams(labels_dict,"QSIRECON_OVERRIDE_PARAMS")
+    if QSIRECON_OVERRIDE_PARAMS and isinstance(QSIRECON_OVERRIDE_PARAMS,dict):
+        add_labels(QSIRECON_OVERRIDE_PARAMS,qsirecon_dict)        
+
+    params = ""
+    for qsirecon_tag, qsirecon_value in qsirecon_dict.items():
+        if "--" in qsirecon_tag and "---" not in qsirecon_tag:
+            if qsirecon_value == IS_PRESENT:
+                params=params + " " + qsirecon_tag
+            elif qsirecon_value == IGNORE:
+                IFLOGGER.info(f"Parameter {qsirecon_tag} is being skipped. This has been explicitly required in configuration.")
+            else:
+                # we dont need = sign for qsirecon just for basi;
+                params = params + " " + qsirecon_tag + " " + qsirecon_value
+
+        elif "-" in qsirecon_tag and "--" not in qsirecon_tag:
+            params = params + " " + qsirecon_tag + " " + qsirecon_value
+
+        else:
+            print(f"qsirecon tag {qsirecon_tag} not valid.") 
 
     command=f"{command_base}"\
             " <BIDS_DIR>"\

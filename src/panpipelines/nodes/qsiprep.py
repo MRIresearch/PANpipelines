@@ -10,6 +10,9 @@ import json
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
+IS_PRESENT="^^^"
+IGNORE="###"
+
 def qsiprep_proc(labels_dict,bids_dir=""):
 
     cwd=os.getcwd()
@@ -35,40 +38,49 @@ def qsiprep_proc(labels_dict,bids_dir=""):
             IFLOGGER.info(f"eddy params provided in file {eddy_config} and contents are:")
             IFLOGGER.info(f"{eddy_json}")
 
-    params="--participant_label <PARTICIPANT_LABEL>" \
-        " --separate-all-dwis"\
-        " --hmc-model eddy"\
-        " --unringing-method rpg"\
-        " --eddy-config <EDDY_CONFIG>" \
-        " --mem_mb <BIDSAPP_MEMORY>" \
-        " --nthreads <BIDSAPP_THREADS>"\
-        " --fs-license-file <FSLICENSE>"\
-        " --skip-bids-validation"\
-        " -w <CWD>/qsiprep_work"\
-        " --write-graph"\
-        " --output-resolution <OUTPUT_RES>"
+    qsiprep_dict={}
+    qsiprep_dict = updateParams(qsiprep_dict,"--participant_label","<PARTICIPANT_LABEL>")
+    qsiprep_dict = updateParams(qsiprep_dict,"--separate-all-dwis",IS_PRESENT)
+    qsiprep_dict = updateParams(qsiprep_dict,"--skip-bids-validation",IS_PRESENT)
+    qsiprep_dict = updateParams(qsiprep_dict,"--hmc-model" ,"eddy")
+    qsiprep_dict = updateParams(qsiprep_dict,"--unringing-method" ,"rpg")
+    qsiprep_dict = updateParams(qsiprep_dict,"--eddy-config" ,"<EDDY_CONFIG>")
+    qsiprep_dict = updateParams(qsiprep_dict,"--mem_mb","<BIDSAPP_MEMORY>")
+    qsiprep_dict = updateParams(qsiprep_dict,"--nthreads","<BIDSAPP_THREADS>")
+    qsiprep_dict = updateParams(qsiprep_dict,"--fs-license-file","<FSLICENSE>")
+    qsiprep_dict = updateParams(qsiprep_dict,"--write-graph",IS_PRESENT)
+    qsiprep_dict = updateParams(qsiprep_dict,"--output-resolution","<OUTPUT_RES>")
+    qsiprep_dict = updateParams(qsiprep_dict,"-w","<CWD>/qsiprep_work")
 
-    reset_params=getParams(labels_dict,"QSIPREP_RESET_PARAMS")
-    if reset_params:
-        params="--participant_label <PARTICIPANT_LABEL>" \
-            " --separate-all-dwis"\
-            " --mem_mb <BIDSAPP_MEMORY>" \
-            " --nthreads <BIDSAPP_THREADS>"\
-            " --fs-license-file <FSLICENSE>"\
-            " --skip-bids-validation"\
-            " -w <CWD>/qsiprep_work"\
-            " --write-graph"\
-            " " + reset_params 
 
-    extra_params=getParams(labels_dict,"QSIPREP_EXTRA_PARAMS")
-    if not extra_params:
-        extra_params=""   
+    # Additional params
+    QSIPREP_OVERRIDE_PARAMS = getParams(labels_dict,"QSIPREP_OVERRIDE_PARAMS")
+    if QSIPREP_OVERRIDE_PARAMS and isinstance(QSIPREP_OVERRIDE_PARAMS,dict):
+        add_labels(QSIPREP_OVERRIDE_PARAMS,qsiprep_dict)        
+
+    params = ""
+    for qsiprep_tag, qsiprep_value in qsiprep_dict.items():
+        if "--" in qsiprep_tag and "---" not in qsiprep_tag:
+            if qsiprep_value == IS_PRESENT:
+                params=params + " " + qsiprep_tag
+            elif qsiprep_value == IGNORE:
+                IFLOGGER.info(f"Parameter {qsiprep_tag} is being skipped. This has been explicitly required in configuration.")
+            else:
+                # we dont need = sign for qsiprep just for basi;
+                params = params + " " + qsiprep_tag + " " + qsiprep_value
+
+        elif "-" in qsiprep_tag and "--" not in qsiprep_tag:
+            params = params + " " + qsiprep_tag + " " + qsiprep_value
+
+        else:
+            print(f"qsiprep tag {qsiprep_tag} not valid.") 
+
 
     command=f"{command_base}"\
             " "+bids_dir +\
             " <CWD>"\
             " participant"\
-            " "+params + " " + extra_params
+            " " + params
 
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)

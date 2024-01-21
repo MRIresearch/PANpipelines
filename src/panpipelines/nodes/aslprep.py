@@ -9,6 +9,9 @@ from nipype import logging as nlogging
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
+IS_PRESENT="^^^"
+IGNORE="###"
+
 def aslprep_proc(labels_dict,bids_dir=""):
 
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
@@ -29,38 +32,45 @@ def aslprep_proc(labels_dict,bids_dir=""):
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
 
-    params = "--participant_label <PARTICIPANT_LABEL>" \
-        " --low-mem"\
-        " --skip-bids-validation"\
-        " --stop-on-first-crash" \
-        " --mem_mb <BIDSAPP_MEMORY>" \
-        " --nthreads <BIDSAPP_THREADS>"\
-        " --fs-license-file <FSLICENSE>"\
-        " --ignore fieldmaps"\
-        " -w <CWD>/aslprep_work"
+    aslprep_dict={}
+    aslprep_dict = updateParams(aslprep_dict,"--participant_label","<PARTICIPANT_LABEL>")
+    aslprep_dict = updateParams(aslprep_dict,"--low-mem",IS_PRESENT)
+    aslprep_dict = updateParams(aslprep_dict,"--skip-bids-validation",IS_PRESENT)
+    aslprep_dict = updateParams(aslprep_dict,"--stop-on-first-crash",IS_PRESENT)
+    aslprep_dict = updateParams(aslprep_dict,"--mem_mb","<BIDSAPP_MEMORY>")
+    aslprep_dict = updateParams(aslprep_dict,"--nthreads","<BIDSAPP_THREADS>")
+    aslprep_dict = updateParams(aslprep_dict,"--fs-license-file","<FSLICENSE>")
+    aslprep_dict = updateParams(aslprep_dict,"--ignore fieldmaps",IS_PRESENT)
+    aslprep_dict = updateParams(aslprep_dict,"-w","<CWD>/aslprep_work")
 
-    reset_params=getParams(labels_dict,"ASLPREP_RESET_PARAMS")
-    if reset_params:
-        params = "--participant_label <PARTICIPANT_LABEL>" \
-            " --low-mem"\
-            " --skip-bids-validation"\
-            " --stop-on-first-crash" \
-            " --mem_mb <BIDSAPP_MEMORY>" \
-            " --nthreads <BIDSAPP_THREADS>"\
-            " --fs-license-file <FSLICENSE>"\
-            " -w <CWD>/aslprep_work"\
-            " " + reset_params 
+    # Additional params
+    ASLPREP_OVERRIDE_PARAMS = getParams(labels_dict,"ASLPREP_OVERRIDE_PARAMS")
+    if ASLPREP_OVERRIDE_PARAMS and isinstance(ASLPREP_OVERRIDE_PARAMS,dict):
+        add_labels(ASLPREP_OVERRIDE_PARAMS,aslprep_dict)        
 
-    extra_params=getParams(labels_dict,"ASLPREP_EXTRA_PARAMS")
-    if not extra_params:
-        extra_params=""   
+    params = ""
+    for aslprep_tag, aslprep_value in aslprep_dict.items():
+        if "--" in aslprep_tag and "---" not in aslprep_tag:
+            if aslprep_value == IS_PRESENT:
+                params=params + " " + aslprep_tag
+            elif aslprep_value == IGNORE:
+                IFLOGGER.info(f"Parameter {aslprep_tag} is being skipped. This has been explicitly required in configuration.")
+            else:
+                # we dont need = sign for fmriprep just for basi;
+                params = params + " " + aslprep_tag + " " + aslprep_value
+
+        elif "-" in aslprep_tag and "--" not in aslprep_tag:
+            params = params + " " + aslprep_tag + " " + aslprep_value
+
+        else:
+            print(f"aslprep tag {aslprep_tag} not valid.") 
 
     command = f"{command_base}"\
         " <BIDS_DIR>"\
         " <CWD>"\
         " participant"\
-        " "+params + " " + extra_params
-
+        " " + params
+        
     evaluated_command=substitute_labels(command,labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
 
