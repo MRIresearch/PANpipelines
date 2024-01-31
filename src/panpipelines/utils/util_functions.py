@@ -648,14 +648,14 @@ def create_array(participants, participants_file, projects_list = None, sessions
     array=[]
     if participants is not None and len(participants) > 0 and sessions_list and projects_list and sessions_file:
         for part_count in range(len(participants)):
-            array_index = df.loc[(df["xnat_subject_label"] == participants[part_count]) & (df["project"] == projects_list[part_count]) & (df["bids_session_id"].str.contains(sessions_list[part_count]))].index.values[0] + 1
+            array_index = df.loc[(df["bids_participant_id"] == "sub-" + drop_sub(participants[part_count])) & (df["project"] == projects_list[part_count]) & (df["bids_session_id"].str.contains(sessions_list[part_count]))].index.values[0] + 1
             array.append(str(array_index))
         array.sort()
         return  ",".join(array)
     elif participants is not None and len(participants) > 0:
         for participant in participants:
             try:
-                array.append(str(df[df["xnat_subject_label"]==participant].index.values[0] + 1))
+                array.append(str(df[df["bids_participant_id"]== "sub" + drop_sub(participant)].index.values[0] + 1))
             except Exception as exp:
                 UTLOGGER.debug(f"problem finding participant: {participant}")
 
@@ -671,8 +671,8 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
     else:
         df = pd.read_table(sessions_file)
 
-    if participants is None:
-        participants = df["xnat_subject_label"].tolist()
+    if len(participants) == 1 and participants[0]=="ALL_SUBJECTS":
+        participants = df["bids_participant_id"].tolist()
 
     # sessions are defined and so we will use this as priority
     project_list=[]
@@ -683,37 +683,37 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
         # participants and sessions are defined
         if participants is not None and len(participants) > 0:
             for participant in participants:
-                if session_labels[0]=="*":
-                    search_df = sessions_df[(sessions_df["xnat_subject_label"]==participant)]
+                if session_labels[0]=="ALL_SESSIONS":
+                    search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant))]
                     ses=[drop_ses(ses) for ses in list(search_df.bids_session_id.values)]
                     sessions_list.extend(ses)
-                    sub=[drop_sub(sub) for sub in list(search_df.xnat_subject_label.values)]
+                    sub=[drop_sub(sub) for sub in list(search_df.bids_participant_id.values)]
                     participant_list.extend(sub)
                     proj=[proj for proj in list(search_df.project.values)]
                     project_list.extend(proj)
                 else: 
                     for session_label in session_labels:
-                        search_df = sessions_df[(sessions_df["xnat_subject_label"]==participant) & (sessions_df["bids_session_id"].str.contains(session_label))]
+                        search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant)) & (sessions_df["bids_session_id"].str.contains(session_label))]
                         if search_df.empty:
                             UTLOGGER.info(f"No values found for {participant} and {session_label} in {sessions_file}")
                         else:
                             ses=[drop_ses(ses) for ses in list(search_df.bids_session_id.values)]
                             sessions_list.extend(ses)
-                            sub=[drop_sub(sub) for sub in list(search_df.xnat_subject_label.values)]
+                            sub=[drop_sub(sub) for sub in list(search_df.bids_participant_id.values)]
                             participant_list.extend(sub)
                             proj=[proj for proj in list(search_df.project.values)]
                             project_list.extend(proj)
-            return  [ participant_list, project_list,sessions_list ]
         else:
             UTLOGGER.info(f"Cannot process pipelines. No participants have been specified")
     else:
         if participants is not None and len(participants) > 0:
             for participant in participants:
-                project_list.append(str(df[df["xnat_subject_label"]==participant].project.values[0]))
+                project_list.append(str(df[df["bids_participant_id"]==participant].project.values[0]))
             sessions_list=[None for proj in project_list]
-            return  [ participants, project_list, sessions_list]
         else:
             UTLOGGER.info(f"Cannot process pipelines. No participants have been specified")
+
+    return  [ participant_list, project_list,sessions_list ]
 
 
 def create_script(header,template,panpipe_labels, script_file, LOGGER=UTLOGGER):
@@ -736,6 +736,12 @@ def create_script(header,template,panpipe_labels, script_file, LOGGER=UTLOGGER):
 
 
 def getDependencies(job_ids,panpipe_labels,LOGGER=UTLOGGER):
+
+    slurm_dependency = getParams(panpipe_labels,"SLURM_DEPENDENCY")
+    if not slurm_dependency:
+        slurm_dependency="afterany"
+
+
     dependency_string=""
     pipeline_dependency = getParams(panpipe_labels,"DEPENDENCY")
     if pipeline_dependency is not None:
@@ -748,14 +754,14 @@ def getDependencies(job_ids,panpipe_labels,LOGGER=UTLOGGER):
                         job_ids_string=job_ids_string + ":" + job_id
                     
             if not job_ids_string == "":
-                dependency_string = f"--dependency=afterany{job_ids_string}"               
+                dependency_string = f"--dependency={slurm_dependency}{job_ids_string}"               
 
 
         else:
             if pipeline_dependency in job_ids.keys():
                 job_id = job_ids[pipeline_dependency]
                 if job_id is not None:
-                    dependency_string = f"--dependency=afterany:{job_id}"
+                    dependency_string = f"--dependency={slurm_dependency}:{job_id}"
 
     return dependency_string
 
