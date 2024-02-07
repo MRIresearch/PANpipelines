@@ -1,0 +1,28 @@
+{
+    "BIDSVersion": "1.8.0",
+    "Description": "The 42-node XTRACT whole-brain White-Matter atlas.",
+    "Name": "XTRACT",
+    "ReferencesAndLinks": [
+        "tpl-MNI152NLin6Asym_res-01_atlas-XTRACT_dseg",
+        "https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/XTRACT",
+        "https://doi.org/10.1016/j.neuroimage.2020.116923"
+
+    ],
+    "Resolution": {
+        "01": {
+            "zooms": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        },
+        "02": {
+            "zooms": [
+                2.0,
+                2.0,
+                2.0
+            ]
+        }
+    },
+    "SpatialReference": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin6Asym_res-01_T1w.nii.gz"
+}
