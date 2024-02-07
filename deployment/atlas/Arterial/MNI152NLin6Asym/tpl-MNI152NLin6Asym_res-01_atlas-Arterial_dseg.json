@@ -1,0 +1,28 @@
+{
+    "BIDSVersion": "1.8.0",
+    "Description": "The 32-node Arterial whole-brain atlas.",
+    "Name": "Arterial",
+    "ReferencesAndLinks": [
+        "tpl-MNI152NLin6Asym_res-01_atlas-arterial_dseg",
+        "https://www.nitrc.org/frs/?group_id=1498",
+        "https://www.nature.com/articles/s41597-022-01923-0"
+
+    ],
+    "Resolution": {
+        "01": {
+            "zooms": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        },
+        "02": {
+            "zooms": [
+                2.0,
+                2.0,
+                2.0
+            ]
+        }
+    },
+    "SpatialReference": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin6Asym_res-01_T1w.nii.gz"
+}

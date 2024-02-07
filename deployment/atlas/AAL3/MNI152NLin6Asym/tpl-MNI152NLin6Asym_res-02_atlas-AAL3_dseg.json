@@ -1,0 +1,25 @@
+{
+    "BIDSVersion": "1.8.0",
+    "Description": "The 166-node AAL3 whole-brain atlas.",
+    "Name": "AAL3",
+    "ReferencesAndLinks": [
+        "tpl-MNI152NLin6Asym_res-02_atlas-AAL3_dseg"
+    ],
+    "Resolution": {
+        "01": {
+            "zooms": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        },
+        "02": {
+            "zooms": [
+                2.0,
+                2.0,
+                2.0
+            ]
+        }
+    },
+    "SpatialReference": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin6Asym_res-02_T1w.nii.gz"
+}
