@@ -109,6 +109,9 @@ def main():
             cred_dict = json.load(infile)
             cred_user = getParams(cred_dict,"user")
             cred_password = getParams(cred_dict,"password")
+    else:
+        cred_user = "dummy_user"
+        cred_password = "dummy_password"
 
     participants_file = args.participants_file
     if args.participants_file is not None:
@@ -191,6 +194,10 @@ def main():
         LOGGER.info(f"Processing pipeline : {pipeline}")
         panpipe_labels = updateParams(panpipe_labels, "PIPELINE", pipeline)
         panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels,pipeline)
+
+        # rather rigid - but we foreshadow the worfflow directory here and use a param so it is useable
+        wf_dir = f"<PIPELINE_DIR>/{pipeline}/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/{pipeline}_wf"
+        panpipe_labels = updateParams(panpipe_labels,f"WORKFLOW_DIR",wf_dir)
 
         # We handle the <DEPENDENCY> key specially as this is a list that we need to resolve into DEPENDENCY1, DEPENDENCY2, ...DEPENDENCYN
         dependency_list = getParams(panpipe_labels,"DEPENDENCY")
