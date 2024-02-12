@@ -6,6 +6,7 @@ __all__ = [
     "glm_randomize_group",
     "tensor",
     "roi_mean_single",
+    "roi_extract",
     "roi_mean_group",
     "parse_textdata",
     "collate_csv_single",

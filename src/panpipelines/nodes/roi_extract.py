@@ -12,6 +12,9 @@ from pathlib import Path
 import shlex
 import subprocess
 from nipype import logging as nlogging
+from nilearn.maskers import NiftiLabelsMasker
+from nilearn.maskers import NiftiMapsMasker
+from nilearn import image
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
@@ -23,13 +26,7 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     output_dir=cwd
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
-
-    command_base, container = getContainer(labels_dict,nodename="roi_mean_single", SPECIFIC="FSL_CONTAINER",LOGGER=IFLOGGER)
-    IFLOGGER.info("Checking the fsl version:")
-    command = f"{command_base} fslversion"
-    evaluated_command=substitute_labels(command, labels_dict)
-    results = runCommand(evaluated_command,IFLOGGER)
-
+    
     if not session_label:
         roi_output_dir = os.path.join(cwd,f"sub-{participant_label}_roi_output_dir")
     else:
@@ -65,36 +62,21 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
 
     atlas_type="3D"
-
     atlas_img  = nib.load(atlas_file)
-    image_shape = atlas_img.header.get_data_shape()
-    if len(image_shape) > 3:
-        atlas_type="4D"
-
-    if atlas_type == "4D":
-        params = " -i "+input_file+ \
-            " -d "+atlas_file + \
-            " -o "+roi_raw_txt
-
-        command=f"{command_base} fsl_glm"\
-                " "+params
-
-        evaluated_command=substitute_labels(command, labels_dict)
-        results = runCommand(evaluated_command,IFLOGGER)
-    else:
-        params = " -i "+input_file+ \
-            " -o "+roi_raw_txt+\
-            " --label="+atlas_file
-            
-        command=f"{command_base} fslmeants"\
-                " "+params
-
-        evaluated_command=substitute_labels(command, labels_dict)
-        results = runCommand(evaluated_command,IFLOGGER)
+    atlas_dim = 1
+    atlas_shape = atlas_img.header.get_data_shape()
+    if len(atlas_shape) > 3:
+        if atlas_shape[3]> 1:
+            atlas_type="4D"
+            atlas_dim = atlas_shape[3]
 
     atlas_index_mode = None
     if getParams(labels_dict,'NEWATLAS_INDEX_MODE'):
         atlas_index_mode = getParams(labels_dict,'NEWATLAS_INDEX_MODE')
+
+    check_unknown_rois = False
+    if getParams(labels_dict,'CHECK_UNKNOWN_ROIS'):
+        check_unknown_rois = isTrue(getParams(labels_dict,'CHECK_UNKNOWN_ROIS'))
 
     if atlas_index.split(":")[0] == "get_freesurfer_atlas_index":
         lutfile = substitute_labels(atlas_index.split(":")[1],labels_dict)
@@ -104,51 +86,138 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
         atlas_index=new_atlas_index
         export_labels(atlas_dict,atlas_index_json)
 
-    with open(atlas_index, 'r') as in_file:
-        lines = in_file.readlines()
 
-    table_columns = [x.replace('\n','') for x in lines]
-    df2 = pd.read_table(roi_raw_txt,sep=r"\s+",header=None)
-    numrows = len(df2)
+    # See if atlas index is in right format
+    labelfile_df=pd.read_csv(atlas_index,delim_whitespace=True)
+    if "index" in labelfile_df.columns and "label" in labelfile_df:
+        labels_index_list = labelfile_df["index"].tolist()
+        labels_name_list = labelfile_df["label"].tolist()
+    else:
+        with open(atlas_index, 'r') as in_file:
+            lines = in_file.readlines()
+        labels_name_list = [x.replace('\n','') for x in lines]
+        labels_index_list = range(1,len(labels_name_list)+1)
 
-    # check that we are not missing ROIS
-    if len(table_columns) > len(df2.columns):
-        IFLOGGER.warn(f"Size of data columns in {roi_raw_txt} is less than expected. {len(df2.columns)} instead of {len(table_columns)}.")
-        IFLOGGER.warn(f"It is possible that due to a transformation to lower resolution some smaller ROIs were lost.")
-        IFLOGGER.warn(f"checking {atlas_file} for missing ROIs.")
+    measure_type = "3D"
+    measure_img = nib.load(input_file)
+    measure_shape = measure_img.header.get_data_shape()
+    if len(measure_shape) > 3:
+        if measure_shape[3] > 1:
+            measure_type = "4D"
 
-        if metadata_comments:
-            metadata_comments = metadata_comments + f"Size of data columns in {roi_raw_txt} is less than expected. {len(df2.columns)} instead of {len(table_columns)}."
-        else:
-            metadata_comments = f"Size of data columns in {roi_raw_txt} is less than expected. {len(df2.columns)} instead of {len(table_columns)}."
+    if atlas_type == "4D":
+        NiftiMasker = NiftiMapsMasker(
+            atlas_img,
+            Labels = labels_name_list,
+            standardize=False
+        )
+    else:
+        NiftiMasker = NiftiLabelsMasker(
+            atlas_img,
+            Labels = labels_name_list,
+            standardize=False
+        )
 
-        atlasimg = nib.load(atlas_file)
-        atlasimg_data = atlasimg.get_fdata()
-        for roi_check in range(len(table_columns)):
-            roi_sum = np.sum(atlasimg_data  == (roi_check + 1))
-            if roi_sum == 0:
-                IFLOGGER.warn(f"ROI Index {roi_check + 1} is missing. This corresponds to ROI Label {table_columns[roi_check]}")
+    NiftiMasker.fit(input_file)
+    signals = NiftiMasker.transform(input_file)
+    num_rows = signals.shape[0]
 
-                if metadata_comments:
-                    metadata_comments = metadata_comments + f"Missing ROI >>  [Index {roi_check + 1} : {table_columns[roi_check]} ], "
+    # check that rois exist:
+    missing_rois = []
+    unknown_rois=[]
+    reconciled_labels = labels_name_list.copy()
+    reconciled_signals = signals.copy()
+    if atlas_type == "3D":
+        atlas_data = atlas_img.get_fdata()
+ 
+        for index in labels_index_list:
+            lbl_index = labels_index_list.index(index)
+            roi_sum = np.sum(atlas_data == int(index))
+            if roi_sum == 0:               
+                UTLOGGER.warn(f"WARNING: Roi Number {index} is missing from atlas {atlas_file}. Have you provided the correct labels in {atlas_index} ?")
+                UTLOGGER.warn(f"WARNING: Roi Number {index} corresponds with ROI name : {labels_name_list[lbl_index]}")               
+                if lbl_index not in missing_rois:
+                    missing_rois.append(lbl_index)
+                    if num_rows > 1:
+                        insarr = np.array([np.nan for x in range(0,num_rows)])
+                        reconciled_signals= np.insert(reconciled_signals, lbl_index,[insarr],axis=1)
+                    else:
+                        reconciled_signals = np.insert(reconciled_signals,lbl_index,np.nan)
+
+                        
+        measure_data = measure_img.get_fdata()
+        for index in labels_index_list:
+            lbl_index = labels_index_list.index(index)
+            if measure_type == "3D":
+                check = measure_data[atlas_data == int(index)]
+            else:
+                check = measure_data[atlas_data == int(index),:]
+            if len(check) < 1:
+                UTLOGGER.warn(f"WARNING: Roi Number {index} does not have any values in the measures file  {input_file}.")
+                UTLOGGER.warn(f"WARNING: Roi Number {index} corresponds with ROI name : {labels_name_list[lbl_index]}")
+                if lbl_index not in missing_rois:
+                    missing_rois.append(lbl_index)
+                    if num_rows > 1:
+                        insarr = np.array([np.nan for x in range(0,num_rows)])
+                        reconciled_signals= np.insert(reconciled_signals, lbl_index,[insarr],axis=1)
+                    else:
+                        reconciled_signals = np.insert(reconciled_signals,lbl_index,np.nan)
+
+        # check for unknown rois, assume rous start from 1 and indexing starts from zero
+        if check_unknown_rois:
+            max_roi = int(np.max(atlas_data))
+            for roi_avail in range(1,max_roi+1):
+                if roi_avail not in labels_index_list:
+                    UTLOGGER.warn(f"WARNING: The roi label; {roi_avail} is present in the atlas but missing in the the index {atlas_index}. Have you provided the correct atlas {atlas_file}")
+                    if f"{roi_avail}_unknown" not in unknown_rois:
+                        unknown_rois.append(f"{roi_avail}_unknown")
+                        reconciled_labels.insert(roi_avail - 1,f"{roi_avail}_unknown")
+                        if num_rows > 1:
+                            insarr = np.array([np.nan for x in range(0,num_rows)])
+                            reconciled_signals= np.insert(reconciled_signals, roi_avail - 1,[insarr],axis=1)
+                        else:
+                            reconciled_signals = np.insert(reconciled_signals,roi_avail - 1,np.nan)
+
+    else:
+        labels_len = len(labels_name_list)
+        if not labels_len == atlas_dim:
+            UTLOGGER.warn(f"WARNING: Mismatch between number of labels {len(labels_name_list)} and the size of 4D atlas {atlas_dim}. Please correct this.")
+            if labels_len  < atlas_dim:
+                if check_unknown_rois:
+                    UTLOGGER.warn(f"WARNING: There is/are {atlas_dim - labels_len} unknown roi/s.")
+                    for unk in range(1,atlas_dim - labels_len + 1):
+                        unknown_rois.append(f"unknown{unk}")
+                        reconciled_labels.append(f"unknown{unk}")
+            else:
+                UTLOGGER.warn(f"WARNING: There is/are {labels_len - atlas_dim} missing roi/s.")
+                for miss in range(atlas_dim,labels_len):
+                    missing_rois.append(miss)
+                    if num_rows > 1:
+                        insarr = np.array([np.nan for x in range(0,num_rows)])
+                        reconciled_signals= np.insert(reconciled_signals, len(reconciled_signals),[insarr],axis=1)
+                    else:
+                        reconciled_signals = np.insert(reconciled_signals,len(reconciled_signals[0]),np.nan)
+
+        atlas_index=0
+        for img in image.iter_img(atlas_img):
+            atlas_data = img.get_fdata()
+            if measure_type == "3D":
+                check = measure_data[atlas_data > 0]               
+            else:
+                check = measure_data[atlas_data > 0,:]
+            if len(check) < 1:
+                print(f"WARNING: Atlas Roi Volume {atlas_index} does not have any values in the measures file {input_file}.")
+                missing_rois.insert(atlas_index,atlas_index+1)
+                if num_rows > 1:
+                    insarr = np.array([np.nan for x in range(0,num_rows)])
+                    reconciled_signals= np.insert(reconciled_signals, atlas_index,[insarr],axis=1)
                 else:
-                    metadata_comments = f"Missing ROI >>  [Index {roi_check + 1} : {table_columns[roi_check]} ]  "
-
-                missing_data =  [pd.NA for x in range(numrows)]
-                if roi_check + 1 > len(df2.columns):
-                    # append to end of table
-                    df2[roi_check]=missing_data
-
-                else:
-                    # we can insert
-                    df2.insert(roi_check, f"{roi_check}_a",missing_data)
-
-    elif len(table_columns) < len(df2.columns):
-        IFLOGGER.error(f"Size of data columns in {roi_raw_txt} is larger than expected. {len(df2.columns)} instead of {len(table_columns)}.")
-        IFLOGGER.error(f"This suggests that there may be a mismatch between the atlas index {atlas_index} uand the atlas {atlas_file}.")
-        raise ValueError(f"Size of data columns in {roi_raw_txt} is larger than expected. {len(df2.columns)} instead of {len(table_columns)}\nThis suggests that there may be a mismatch between the atlas index {atlas_index} uand the atlas {atlas_file}.")
+                    reconciled_signals = np.insert(reconciled_signals,atlas_index,np.nan)
+    
+            atlas_index = atlas_index + 1       
 
 
+    df2=pd.DataFrame([reconciled_signals],columns=reconciled_labels)
     
     csv_basename = ""
 
@@ -165,7 +234,7 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
         modality = os.path.basename(input_file).split('.')[0].split('_')[-1].split('-')[-1]
         csv_basename = csv_basename + "_" + modality
 
-    table_columns = [f"{atlas_name}.{x}.{modality}" for x in table_columns]
+    table_columns = [f"{atlas_name}.{x}.{modality}" for x in reconciled_labels]
 
     if not session_label:
         csv_basename  = f"sub-{participant_label}" + "_" + csv_basename
@@ -174,7 +243,7 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
     roi_csv = os.path.join(roi_output_dir,'{}.csv'.format(csv_basename))
 
-    if numrows < 2:
+    if num_rows < 2:
         if session_label:
             df2.insert(0,"session_id",["ses-"+session_label])
             table_columns.insert(0,"session_id")
@@ -190,7 +259,7 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     else:
         flat_vals=[]
         flat_tablecolumns=[]
-        for count in range(numrows):
+        for count in range(num_rows):
             flat_vals.extend(df2.iloc[count].to_list())
             flat_tablecolumns.extend([x + f".{count}" for x in table_columns])
         newdf=pd.DataFrame([flat_vals])
@@ -214,7 +283,7 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     metadata = updateParams(metadata,"Atlas File",atlas_file)
     metadata = updateParams(metadata,"Atlas Labels",atlas_index)
     metadata = updateParams(metadata,"Input File",input_file)
-    metadata = updateParams(metadata,"Command",evaluated_command)
+    metadata = updateParams(metadata,"Command","Nilearn NifiMasker")
     if metadata_comments:
         metadata = updateParams(metadata,"Comments",metadata_comments)
 

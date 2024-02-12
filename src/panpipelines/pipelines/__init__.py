@@ -9,6 +9,7 @@ __all__ = [
     "panpipeline",
     "dummy_panpipeline",
     "volmeasures_panpipeline",
+    "roiextract_panpipeline",
     "textmeasures_panpipeline",
     "collatecsv_panpipeline",
     "collatecsvgroup_panpipeline",

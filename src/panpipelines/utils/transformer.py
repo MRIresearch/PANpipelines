@@ -250,31 +250,36 @@ def apply_transform_ants(input_file,ref_file, out_file, trans_mat, COMMANDBASE, 
     results = ut.runCommand(command)
 
 
-def resampleimage_ants_ori(input_file, out_file, newdims, COMMANDBASE, target_ori=None,interpolation_type=None,output_type=None):
+def resampleimage_ants_ori(input_file, out_file, newdims, COMMANDBASE, dim_type="0",target_ori=None,interpolation_type=None,output_type=None):
 
     input_file = os.path.abspath(input_file)
     out_file=os.path.abspath(out_file)
+
+    if not dim_type:
+        # use default = spacing
+        dim_type="0"
     
     img = nib.load(input_file)
     dimz=1
+    image_dim = "3"
     if len(img.header.get_data_shape()) > 3:
         dimz = img.header.get_data_shape()[3]
-
-    image_dim = "3"
-    if dimz > 3:
         image_dim = "4"
         newdims = newdims + f"x{dimz}"
 
-    if interpolation_type is None:
-        interpolation_type="0"
+    if not interpolation_type:
+        # use default = linear
+        interpolation_type=""
 
-    if output_type is None:
+    if not output_type:
+        # use detault = float
         output_type = ""
 
     params=f"{image_dim}" \
         f" {input_file}"\
         f" {out_file}"\
         f" {newdims}"\
+        f" {dim_type}"\
         f" {interpolation_type}"\
         f" {output_type}"
 

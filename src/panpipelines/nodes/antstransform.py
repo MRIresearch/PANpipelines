@@ -180,7 +180,12 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
 
     if len(ref_parts) == 5:
-        newdims = ref_parts[1]
+        newdims_parts = ref_parts[1].split("|")
+        newdims = newdims_parts[0]
+        if len(newdims_parts) > 1:
+            dim_type = newdims_parts[1]
+        else:
+            dim_type = ""
         ref_ori = ref_parts[2]
         interpolation_type = ref_parts[3]
         output_type = ref_parts[4]
@@ -188,40 +193,59 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         IFLOGGER.info(f"input_file: {ref_file}")
         IFLOGGER.info(f"out_file: {new_ref_file}")
         IFLOGGER.info(f"newdims: {newdims}")
+        IFLOGGER.info(f"dim_type: {dim_type}")
         IFLOGGER.info(f"ref_ori: {ref_ori}")
         IFLOGGER.info(f"interpolation_type: {interpolation_type}")
         IFLOGGER.info(f"output_type: {output_type:}")
-        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base,target_ori=ref_ori,interpolation_type=interpolation_type,output_type=output_type)
+        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base,dim_type=dim_type, target_ori=ref_ori,interpolation_type=interpolation_type,output_type=output_type)
 
     elif len(ref_parts) == 4:
-        newdims = ref_parts[1]
+        newdims_parts = ref_parts[1].split("|")
+        newdims = newdims_parts[0]
+        if len(newdims_parts) > 1:
+            dim_type = newdims_parts[1]
+        else:
+            dim_type = ""
         ref_ori = ref_parts[2]
         interpolation_type = ref_parts[3]
         IFLOGGER.info("Calling function resampleimage_ants_ori with parameters:")
         IFLOGGER.info(f"input_file: {ref_file}")
         IFLOGGER.info(f"out_file: {new_ref_file}")
         IFLOGGER.info(f"newdims: {newdims}")
+        IFLOGGER.info(f"dim_type: {dim_type}")
         IFLOGGER.info(f"ref_ori: {ref_ori}")
         IFLOGGER.info(f"interpolation_type: {interpolation_type}")
-        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base,target_ori=ref_ori,interpolation_type=interpolation_type)
+        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base,dim_type=dim_type,target_ori=ref_ori,interpolation_type=interpolation_type)
     
     elif len(ref_parts) == 3:
-        newdims = ref_parts[1]
+        newdims_parts = ref_parts[1].split("|")
+        newdims = newdims_parts[0]
+        if len(newdims_parts) > 1:
+            dim_type = newdims_parts[1]
+        else:
+            dim_type = ""
         ref_ori = ref_parts[2]
         IFLOGGER.info("Calling function resampleimage_ants_ori with parameters:")
         IFLOGGER.info(f"input_file: {ref_file}")
         IFLOGGER.info(f"out_file: {new_ref_file}")
         IFLOGGER.info(f"newdims: {newdims}")
+        IFLOGGER.info(f"dim_type: {dim_type}")
         IFLOGGER.info(f"ref_ori: {ref_ori}")
-        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base,target_ori=ref_ori)
+        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base,dim_type=dim_type,target_ori=ref_ori)
 
     elif len(ref_parts) == 2:
-        newdims = ref_parts[1]
+        newdims_parts = ref_parts[1].split("|")
+        newdims = newdims_parts[0]
+        if len(newdims_parts) > 1:
+            dim_type = newdims_parts[1]
+        else:
+            dim_type = ""
         IFLOGGER.info("Calling function resampleimage_ants_ori with parameters:")
         IFLOGGER.info(f"input_file: {ref_file}")
         IFLOGGER.info(f"out_file: {new_ref_file}")
         IFLOGGER.info(f"newdims: {newdims}")
-        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base)
+        IFLOGGER.info(f"dim_type: {dim_type}")
+        new_ref_file = resampleimage_ants_ori(ref_file,new_ref_file,newdims,command_base,dim_type=dim_type,)
 
     if os.path.exists(new_ref_file):
         ref_file = new_ref_file
