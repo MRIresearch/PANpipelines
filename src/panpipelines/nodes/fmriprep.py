@@ -28,7 +28,7 @@ def fmriprep_proc(labels_dict,bids_dir=""):
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
 
-    command_base, container = getContainer(labels_dict,nodename="qsiprep", SPECIFIC="FMRIPREP_CONTAINER",LOGGER=IFLOGGER)
+    command_base, container = getContainer(labels_dict,nodename="fmriprep", SPECIFIC="FMRIPREP_CONTAINER",LOGGER=IFLOGGER)
     IFLOGGER.info("Checking the fmriprep version:")
     command = f"{command_base} --version"
     evaluated_command=substitute_labels(command, labels_dict)

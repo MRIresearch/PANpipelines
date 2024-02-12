@@ -19,6 +19,7 @@ import sys
 from nipype import logging as nlogging
 import fcntl
 import time
+from bids import BIDSLayout
 
 UTLOGGER=nlogging.getLogger('nipype.utils')
 
@@ -82,7 +83,7 @@ def drop_ses(value):
     return re.sub(r"^ses-", "", str(value))
 
 def isTrue(arg):
-    return arg is not None and (arg == 'Y' or arg == '1' or arg == 'True' or arg == 'true')
+    return arg is not None and (arg == 'Y' or arg == 'y' or arg == '1' or arg == 'True' or arg == 'true')
 
 def getParams(pardict, key, update=True):
     if key is not None and pardict is not None:
@@ -462,14 +463,26 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
         if count >= TIMEOUT:
             break
 
+    IN_XNAT =  getParams(labels_dict,"IN_XNAT")
+    if IN_XNAT:
+        IN_XNAT = isTrue(IN_XNAT)
+    else:
+        IN_XNAT = True
+
     try:
         if not os.path.isdir(os.path.join(bids_dir,"sub-"+participant_label)):
-            command_base, container = getContainer(labels_dict,nodename="process_fsl_glm",SPECIFIC="XNATDOWNLOAD_CONTAINER")
+            UTLOGGER.info(f"BIDS folder for {participant_label} not present.")
+            if IN_XNAT:
+                command_base, container = getContainer(labels_dict,nodename="process_fsl_glm",SPECIFIC="XNATDOWNLOAD_CONTAINER")
 
-            UTLOGGER.info("BIDS folder for {} not present. Downloading started from XNAT.".format(participant_label))
-            getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password)    
+                UTLOGGER.info("Downloading started from XNAT.")
+                getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password)
+            else:
+                UTLOGGER.info(f"IN_XNAT set to {IN_XNAT}. Do not have a means of obtaining data for {participant_label}. Please add this subject's data to {bids_dir}")
+
         else:
-            print("BIDS folder for {} already present. No need to download".format(participant_label))
+            print(f"BIDS folder for {participant_label} already present. No need to retrieve")
+
     finally:
         release_lock(lock_file)
         try:
@@ -641,9 +654,9 @@ def get_value_bytype(vartype,varstring):
 
 def create_array(participants, participants_file, projects_list = None, sessions_list=None, sessions_file = None, LOGGER=UTLOGGER):
     if sessions_file is not None:
-        df = pd.read_table(sessions_file)
+        df = pd.read_table(sessions_file,sep="\s+")
     else:
-        df = pd.read_table(participants_file)
+        df = pd.read_table(participants_file,sep="\s+")
 
     array=[]
     if participants is not None and len(participants) > 0 and sessions_list and projects_list and sessions_file:
@@ -667,9 +680,9 @@ def create_array(participants, participants_file, projects_list = None, sessions
 def get_projectmap(participants, participants_file,session_labels=[],sessions_file = None):
 
     if participants_file is not None:
-        df = pd.read_table(participants_file)
+        df = pd.read_table(participants_file,sep="\s+")
     else:
-        df = pd.read_table(sessions_file)
+        df = pd.read_table(sessions_file,sep="\s+")
 
     if len(participants) == 1 and participants[0]=="ALL_SUBJECTS":
         participants = df["bids_participant_id"].tolist()
@@ -679,7 +692,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
     participant_list=[]
     sessions_list=[]
     if sessions_file is not None and session_labels:
-        sessions_df = pd.read_table(sessions_file)
+        sessions_df = pd.read_table(sessions_file,sep="\s+")
         # participants and sessions are defined
         if participants is not None and len(participants) > 0:
             for participant in participants:
@@ -1225,15 +1238,33 @@ def get_avail_labels(atlas_file):
     
     return atlas_dict,atlas_index_list
 
-def get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False):
+
+def get_freesurferatlas_index_mode(atlas_file,lutfile,atlas_index,atlas_index_mode=None):
+    if atlas_index_mode == "freesurf_tsv_general":
+        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=True,use_atlas_max=True,atlas_index_type="tsv")
+    elif atlas_index_mode == "freesurf_general":
+        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=True,use_atlas_max=True)
+    elif atlas_index_mode == "hcpmmp1aseg_tsv":
+        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False,use_atlas_max=False,atlas_index_type="tsv")
+    elif atlas_index_mode == "hcpmmp1aseg":
+        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False,use_atlas_max=False)
+    else:
+        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index)
+
+    return atlas_dict,atlas_index_out
+
+
+def get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False,use_atlas_max=True, atlas_index_type=None):
     with open(lutfile,'r') as infile:
         lutlines=infile.readlines()
 
     lut_dict={}
+    lut_max = 0
     for lut_line in lutlines:
         lut_list = lut_line.split()
         if lut_list and lut_list[0].isdigit():           
             lut_roinum = int(lut_list[0])
+            lut_max=max(lut_max,lut_roinum)
             lut_roiname = lut_list[1]
             lut_rgba = ",".join(lut_list[2:])
             lut_dict[lut_roinum] = {}
@@ -1243,10 +1274,13 @@ def get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False):
     atlas_dict={}
     atlas_img = nib.load(atlas_file)
     atlas_data = atlas_img.get_fdata()
-    max_roi_num = int(np.max(atlas_data))
+    if use_atlas_max:
+        max_roi_num = int(np.max(atlas_data))
+    else:
+        max_roi_num = lut_max 
     for roi_num in range(1,max_roi_num+1):
+        num_voxels=np.count_nonzero(atlas_data == roi_num)
         if avail_only:
-            num_voxels=np.count_nonzero(atlas_data == roi_num)
             if num_voxels:
                 atlas_dict[roi_num]=lut_dict[roi_num]
                 atlas_dict[roi_num]["Voxels"]=num_voxels
@@ -1257,15 +1291,20 @@ def get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False):
                 atlas_dict[roi_num]={}
                 atlas_dict[roi_num]["LabelName"]=f"UNK_{roi_num}"
                 atlas_dict[roi_num]["RGBA"]="0,0,0,0"
-
-
+            atlas_dict[roi_num]["Voxels"]=num_voxels
 
     atlas_index_list=[]
     atlas_key_list=list(atlas_dict.keys())
     atlas_key_list.sort()
-    for atlas_key in atlas_key_list:
-        atlas_index_list.append(atlas_dict[atlas_key]["LabelName"])
-    
+
+    if atlas_index_type == "tsv":
+        atlas_index_list.append("index\tlabel")
+        for atlas_key in atlas_key_list:
+            atlas_index_list.append(str(atlas_key) + "\t" + atlas_dict[atlas_key]["LabelName"])
+    else:
+        for atlas_key in atlas_key_list:
+            atlas_index_list.append(atlas_dict[atlas_key]["LabelName"])
+        
     atlas_index_out = "\n".join(atlas_index_list)
     if atlas_index:
         with open(atlas_index,"w") as outfile:
@@ -1460,10 +1499,14 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                                         bids_participant_id = file.path.split('/')[0]
                                         bids_session_id = file.path.split('/')[1]
                                         break
-                                    if fnmatch.fnmatch(file.path,'sub-*/*'):
-                                        bids_participant_id = file.path.split('/')[0]
-                                        bids_session_id = ''
-                                        break
+
+                                if not bids_participant_id:
+                                    for fileid in range(numfiles):
+                                        file=files[fileid]
+                                        if fnmatch.fnmatch(file.path,'sub-*/*'):
+                                            bids_participant_id = file.path.split('/')[0]
+                                            bids_session_id = ''
+                                            break
 
                             if demographics:
                                 scans = experiment.scans
@@ -1671,3 +1714,24 @@ def runCommand(command,LOGGER=UTLOGGER,suppress="",interactive=False):
             return results.stdout
         else:
             results = subprocess.run(evaluated_command_args)
+
+# this is a specific function here for sdcflows fieldmaps - should move and make more general
+def getAcquisition(bids_dir,participant_label,participant_session=None,suffix="asl",extension="nii.gz"):
+    acq=""    
+    layout = BIDSLayout(bids_dir)
+    bidslist=layout.get(subject=participant_label,session=participant_session,suffix=suffix, extension=extension)
+    if len(bidslist) > 0:
+        bidsfile =bidslist[0]
+        entities = bidsfile.get_entities()
+        if "acquisition" in entities.keys():
+            acq = "acq-" + entities["acquisition"]
+        else:
+            acq = get_bidstag("acq",bidsfile.filename)
+
+    return acq
+
+def getPhaseDiffSources(bids_dir,participant_label,participant_session=None,datatype="fmap",suffix=['phase1','phase2','magnitude1','magnitude2','phasediff','magnitude'],extension="nii.gz"):   
+    layout = BIDSLayout(bids_dir)
+    bidslist = layout.get(return_type='file',subject=participant_label,session=participant_session,datatype=datatype,suffix=suffix,extension=extension)
+
+    return bidslist
