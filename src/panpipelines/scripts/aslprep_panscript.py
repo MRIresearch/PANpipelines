@@ -6,13 +6,6 @@ from bids import BIDSLayout
 import json
 import nibabel
 import pandas as pd
-# TEST
-#from panpipelines.scripts import *
-#SCRIPT="fmriprep_panscript"
-#panscript=eval("{}.{}".format(SCRIPT,SCRIPT))
-#labels_dict={"COMM": "ls"}
-#pancomm = panscript(labels_dict)
-#pancomm.run()
 
 class aslprep_panscript(panscript):
 

@@ -38,8 +38,66 @@ PEDIR="--pedir"
 IS_PRESENT="^^^"
 IGNORE="###"
 
-def process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir):
-    IFLOGGER.info("Preparing fieldmap from fmriprep for use in SDC.")
+def splitASL(asl_input,command_base,work_dir,labels_dict,m0_index="0",m0_size="1",asl_index="1",asl_size="-1"):
+    new_asl_input = newfile(outputdir=work_dir, assocfile=asl_input, suffix=f"desc-asl")
+    params = f"{asl_input}"\
+        f" {new_asl_input}" \
+        f" {asl_index}" \
+        f" {asl_size}" 
+
+    command=f"{command_base} fslroi"\
+        " "+params
+
+    evaluated_command=substitute_labels(command, labels_dict)
+    runCommand(evaluated_command,IFLOGGER)
+
+    new_m0_input = newfile(outputdir=work_dir, assocfile=asl_input, suffix=f"desc-m0")
+    params = f"{asl_input}"\
+        f" {new_m0_input}" \
+        f" {m0_index}" \
+        f" {m0_size}" 
+
+    command=f"{command_base} fslroi"\
+        " "+params
+
+    evaluated_command=substitute_labels(command, labels_dict)
+    runCommand(evaluated_command,IFLOGGER)
+
+    return new_asl_input, new_m0_input
+
+
+def scaleASL(asl_input, command_base, scale_factor,work_dir, basil_dict,labels_dict):
+
+    new_asl_input = newfile(outputdir=work_dir, assocfile=asl_input, suffix=f"scale-{scale_factor}")
+    params = f"{asl_input}"\
+        f" -mul {scale_factor}" \
+        f" {new_asl_input}" \
+        " -odt float"
+
+    command=f"{command_base} fslmaths"\
+        " "+params
+
+    evaluated_command=substitute_labels(command, labels_dict)
+    runCommand(evaluated_command,IFLOGGER)
+    basil_dict = updateParams(basil_dict,ASL_INPUT,new_asl_input)
+    
+    return basil_dict
+
+def process_sdcflows_fieldmap(fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir,bids_dir,subject,session,fmap_mode="phasediff"):
+    fmapjson = getGlob(os.path.join(fieldmap_dir,"*desc-preproc_fieldmap.json"))
+    if not fmapjson:
+        fmapjson = os.path.join(fieldmap_dir,f"sub-{subject}_ses-{session}_desc-preproc_fieldmap.json")
+        fmapdict={}
+        if fmap_mode == "phasediff":
+            fmapdict["RawSources"] = getPhaseDiffSources(bids_dir,subject,session)
+            fmapdict["Units"] = "Hz"
+            export_labels(fmapdict,fmapjson)
+
+    return process_fmriprep_fieldmap(fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir,fmap_mode=fmap_mode)
+
+
+def process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir,fmap_mode="fmriprep"):
+    IFLOGGER.info(f"Preparing fieldmap from {fmap_mode} for use in SDC.")
     fmap = getGlob(os.path.join(fmriprep_fieldmap_dir,"*desc-preproc_fieldmap.nii.gz"))
     fmaprads = newfile(work_dir,assocfile=fmap,intwix="desc-rads")
     fmapjson = getGlob(os.path.join(fmriprep_fieldmap_dir,"*desc-preproc_fieldmap.json"))
@@ -50,41 +108,41 @@ def process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, b
         with open(fmapjson,"r") as infile:
             fmapdict=json.load(infile)
 
-        if "Units" in fmapdict.keys():
-            if fmapdict["Units"] == "Hz":
-                IFLOGGER.info(f"Convert {fmap} in Hz to {fmaprads} in rad/s")
-                if "RawSources" in fmapdict.keys():
-                    sources = fmapdict["RawSources"]
-                    phase1 = [x for x in sources if "phase1" in x]
-                    echo1=None
-                    if phase1:
-                        phase1_entities = layout.parse_file_entities(phase1[0])
-                        phase1_md = layout.get(**phase1_entities)[0].get_metadata()
-                        if phase1_md:
-                            echo1=phase1_md["EchoTime"]
-                    phase2 = [x for x in sources if "phase2" in x]
-                    echo2=None
-                    if phase2:
-                        phase2_entities = layout.parse_file_entities(phase2[0])
-                        phase2_md = layout.get(**phase2_entities)[0].get_metadata()
-                        if phase2_md:
-                            echo2=phase2_md["EchoTime"]
+    if "Units" in fmapdict.keys():
+        if fmapdict["Units"] == "Hz":
+            IFLOGGER.info(f"Convert {fmap} in Hz to {fmaprads} in rad/s")
+            if "RawSources" in fmapdict.keys():
+                sources = fmapdict["RawSources"]
+                phase1 = [x for x in sources if "phase1" in x]
+                echo1=None
+                if phase1:
+                    phase1_entities = layout.parse_file_entities(phase1[0])
+                    phase1_md = layout.get(**phase1_entities)[0].get_metadata()
+                    if phase1_md:
+                        echo1=phase1_md["EchoTime"]
+                phase2 = [x for x in sources if "phase2" in x]
+                echo2=None
+                if phase2:
+                    phase2_entities = layout.parse_file_entities(phase2[0])
+                    phase2_md = layout.get(**phase2_entities)[0].get_metadata()
+                    if phase2_md:
+                        echo2=phase2_md["EchoTime"]
 
-                    if echo1 and echo2:
-                        echodiff = echo2 - echo1
-                        mult = 2 * np.pi * np.abs(echodiff)
+                if echo1 and echo2:
+                    echodiff = echo2 - echo1
+                    mult = 2 * np.pi * np.abs(echodiff)
 
-                        params = f"{fmap}"\
-                            f" -mul {mult}" \
-                            f" {fmaprads}" \
-                            " -odt float"
+                    params = f"{fmap}"\
+                        f" -mul {mult}" \
+                        f" {fmaprads}" \
+                        " -odt float"
 
-                        command=f"{command_base} fslmaths"\
-                            " "+params
+                    command=f"{command_base} fslmaths"\
+                        " "+params
 
-                        evaluated_command=substitute_labels(command, labels_dict)
-                        runCommand(evaluated_command,IFLOGGER)
-                        basil_dict = updateParams(basil_dict,FMAP,fmaprads)
+                    evaluated_command=substitute_labels(command, labels_dict)
+                    runCommand(evaluated_command,IFLOGGER)
+                    basil_dict = updateParams(basil_dict,FMAP,fmaprads)
             
             elif fmapdict["Units"] == "rad/s":
                 IFLOGGER.info(f"{fmap} ialready in rad/s. Rename to {fmaprads}.")
@@ -194,13 +252,15 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
         os.makedirs(work_dir)
 
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
+    
     layout = BIDSLayout(bids_dir)
     asl=layout.get(subject=participant_label,suffix='asl', extension='nii.gz')
 
     if len(asl) > 0:
         asl_bidsfile=asl[0]
         asl_file=asl_bidsfile.path
-        basil_dict = updateParams(basil_dict,ASL_INPUT,asl_file)
+
         asljson=asl_bidsfile.get_metadata()
         asl_entities = asl_bidsfile.get_entities()
         if "acquisition" in asl_entities.keys():
@@ -211,14 +271,41 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
         if not asl_acq:
             asl_acq = "default"
 
+        asl_type="PCASL"
+        if "ArterialSpinLabelingType" in asljson.keys():
+            asl_type = asljson["ArterialSpinLabelingType"]
+
+        m0_type="Separate"
+        if "M0Type" in asljson.keys():
+            m0_type = asljson["M0Type"]
+
+        basil_dict = updateParams(basil_dict,IAF,"tc")
+        ASLCONTEXT = getParams(labels_dict,"ASLCONTEXT")
+        if ASLCONTEXT and isinstance(ASLCONTEXT,dict):
+            if asl_acq in ASLCONTEXT.keys():
+                if ASLCONTEXT[asl_acq] == "control:label":
+                    basil_dict = updateParams(basil_dict,IAF,"ct")
+                elif ASLCONTEXT[asl_acq] == "label:control":
+                    basil_dict = updateParams(basil_dict,IAF,"tc")
+                elif ASLCONTEXT[asl_acq] == "m0scan:control:label":
+                    basil_dict = updateParams(basil_dict,IAF,"ct")
+                    asl_file,m0_file = splitASL(asl_file,command_base,work_dir,labels_dict)
+
+        asl_scaling = None
+        ASL_SCALING_DICT = getParams(labels_dict,'ASL_SCALING')
+        if ASL_SCALING_DICT  and isinstance(ASL_SCALING_DICT,dict):
+            if asl_acq in ASL_SCALING_DICT.keys():
+                asl_scaling = substitute_labels(ASL_SCALING_DICT[asl_acq],labels_dict)
+
+        if asl_scaling:
+            basil_dict = scaleASL(asl_file, command_base,asl_scaling, work_dir, basil_dict,labels_dict)
+        else:
+            basil_dict = updateParams(basil_dict,ASL_INPUT,asl_file)
+
         asl_img = nb.load(asl_file)
         rpts=int(asl_img.header["dim"][4]/2)
         basil_dict = updateParams(basil_dict,IBF,'rpt')
         basil_dict = updateParams(basil_dict,RPTS,str(rpts))
-
-        asl_type="PCASL"
-        if "ArterialSpinLabelingType" in asljson.keys():
-            asl_type = asljson["ArterialSpinLabelingType"]
 
         fix_bolus=None
         if "BolusCutOffTechnique" in asljson.keys():
@@ -248,7 +335,6 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 tis = pld
                 basil_dict = updateParams(basil_dict,TIS,str(tis))
 
-
         # process field map if it exists
         fieldmap_type=None
         FIELDMAP_TYPE_DICT = getParams(labels_dict,'FIELDMAP_TYPE')
@@ -267,37 +353,58 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
                 if fmriprep_fieldmap_dir and os.path.exists(fmriprep_fieldmap_dir):
                     basil_dict = process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir)
+            elif fieldmap_type == "sdcflows_preproc":
+                fieldmap_dir = None
+                SDCFLOWS_FIELDMAP_DIR_DICT  = getParams(labels_dict,'SDCFLOWS_FIELDMAP_DIR')
+                if SDCFLOWS_FIELDMAP_DIR_DICT is not None and isinstance(SDCFLOWS_FIELDMAP_DIR_DICT ,dict):
+                    if asl_acq in SDCFLOWS_FIELDMAP_DIR_DICT.keys():
+                        fieldmap_dir = substitute_labels(SDCFLOWS_FIELDMAP_DIR_DICT[asl_acq],labels_dict)
+
+                SDCFLOWS_FMAP_MODE = getParams(labels_dict,"SDCFLOWS_FIELDMAP_MODE") 
+                if SDCFLOWS_FMAP_MODE:
+                    sdcflows_fmap_mode = SDCFLOWS_FMAP_MODE
+                else:
+                    sdcflows_fmap_mode="phasediff"
+                    labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_MODE",sdcflows_fmap_mode)
+
+                if fieldmap_dir and os.path.exists(fieldmap_dir):
+                    basil_dict = process_sdcflows_fieldmap(fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir,bids_dir=bids_dir,subject=participant_label,session=participant_session, fmap_mode=sdcflows_fmap_mode)
             elif fieldmap_type == "fsl_prepare_fieldmap":
                 basil_dict = process_fsl_prepare_fieldmap(layout, asljson,basil_dict,labels_dict, asljson, asl_acq, command_base, work_dir)
 
         fslanat_dir=os.path.abspath(fslanat_dir)
         basil_dict = updateParams(basil_dict,FSLANAT,fslanat_dir)
 
-        basil_dict = updateParams(basil_dict,IAF,"tc")
-        ASLCONTEXT = getParams(labels_dict,"ASLCONTEXT")
-        if ASLCONTEXT and isinstance(ASLCONTEXT,dict):
-            if asl_acq in ASLCONTEXT.keys():
-                if ASLCONTEXT[asl_acq] == "control:label":
-                    basil_dict = updateParams(basil_dict,IAF,"ct")
-                elif ASLCONTEXT[asl_acq] == "label:control":
-                    basil_dict = updateParams(basil_dict,IAF,"tc")
 
         CMETHOD_OPTS = getParams(labels_dict,"CMETHOD_OPTS")
         if CMETHOD_OPTS is not None and isinstance(CMETHOD_OPTS,dict):
             if asl_acq in CMETHOD_OPTS.keys():
                 basil_dict = updateParams(basil_dict,CMETHOD,CMETHOD_OPTS[asl_acq])
 
-        m0_entities = asl_entities.copy()
-        m0_entities["suffix"]="m0scan"
-        m0  = layout.get(return_type='file', invalid_filters='allow', **m0_entities)
-        if len(m0) > 0:
-            m0_file=m0[0]
+        if m0_type == "Separate":
+            m0_entities = asl_entities.copy()
+            m0_entities["suffix"]="m0scan"
+            m0  = layout.get(return_type='file', invalid_filters='allow', **m0_entities)
+            if len(m0) > 0:
+                m0_file=m0[0]
+                basil_dict = updateParams(basil_dict,CALIBRATION,m0_file)
+                m0_md = layout.get(**m0_entities)[0].get_metadata()
+                if "RepetitionTime" in m0_md.keys():
+                    basil_dict = updateParams(basil_dict,TR,str(m0_md["RepetitionTime"]))
+                else:
+                    IFLOGGER.warn("RepetitionTime not found for m0. Default of 5s will be used by BASIL.")
+        elif m0_type == "Included" and m0_file:
+            IFLOGGER.info(f"M0 defined as included and defined at {m0_file}.")
             basil_dict = updateParams(basil_dict,CALIBRATION,m0_file)
-            m0_md = layout.get(**m0_entities)[0].get_metadata()
-            if "RepetitionTime" in m0_md.keys():
-                basil_dict = updateParams(basil_dict,TR,str(m0_md["RepetitionTime"]))
+            if "RepetitionTime" in asljson.keys():
+                basil_dict = updateParams(basil_dict,TR,str(asljson["RepetitionTime"]))
             else:
                 IFLOGGER.warn("RepetitionTime not found for m0. Default of 5s will be used by BASIL.")
+
+        
+        else:
+            IFLOGGER.info(f"M0 Type {m0_type} not recognized. Expecting Separate or Included. Check spelling and case.")
+
 
         # Additional params
         BASIL_OVERRIDE_PARAMS = getParams(labels_dict,"BASIL_OVERRIDE_PARAMS")

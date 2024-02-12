@@ -1,15 +1,9 @@
 from panpipelines.utils.util_functions import *
 from subprocess import run
 import os
-import glob
+from nipype import logging as nlogging
 
-# TEST
-#from panpipelines.scripts.panscript import *
-#command="<COMM>"
-#labels_dict={"COMM": "ls"}
-#params="./"
-#pancomm = panscript(labels_dict, params=params,command=command)
-#pancomm.run()
+IFLOGGER=nlogging.getLogger('nipype.interface')
 
 class panscript:
 
@@ -29,14 +23,15 @@ class panscript:
 
         self.pre_run()
 
-        print("Running PAN script")
-        script_command=self.command + " " + self.params
-        print(f"{script_command}")
-        evaluated_command=substitute_labels(script_command, self.labels_dict)
-        print(f"{evaluated_command}")
+        IFLOGGER.info(f"Running PAN script - {self.name}")
+        command=self.command + " " + self.params
 
-        process = run(evaluated_command.split(), capture_output=True)
-        print(process.stdout.decode())
+        pkgdir = os.path.abspath(os.path.dirname(__file__))
+        IFLOGGER.info(f"Changing to panscript directory {pkgdir} to execute.")
+        os.chdir(pkgdir)
+        
+        evaluated_command=substitute_labels(command, self.labels_dict)
+        runCommand(evaluated_command,IFLOGGER)
 
         self.post_run()
         return self.get_results()
