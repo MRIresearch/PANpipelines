@@ -35,7 +35,7 @@ dependencies = [
   "nitransforms==23.0.1",
   "pybids==0.16.4",
   "scipy==1.11.4",
-  "sdcflows=2.8.0"
+  "sdcflows==2.8.0"
 ]
 
 [project.urls]
