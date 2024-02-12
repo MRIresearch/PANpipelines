@@ -8,6 +8,7 @@ __all__ = [
     "aslprep_workflow",
     "dummy_workflow",
     "volmeasures_workflow",
+    "roiextract_workflow",
     "textmeasures_workflow",
     "collatecsv_workflow",
     "collatecsvgroup_workflow",
