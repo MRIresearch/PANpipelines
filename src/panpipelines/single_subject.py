@@ -139,6 +139,9 @@ def main():
             cred_dict = json.load(infile)
             cred_user = getParams(cred_dict,"user")
             cred_password = getParams(cred_dict,"password")
+    else:
+        cred_user = "dummy_user"
+        cred_password = "dummy_password"
 
     execution_json=getParams(panpipe_labels,"NIPYPE_CONFIG")
     if execution_json is None:
@@ -155,9 +158,9 @@ def main():
         participant_index = int(os.environ[ARRAY_INDEX])
         panpipe_labels = updateParams(panpipe_labels, "PARTICIPANT_INDEX",str(participant_index))
         if not sessions_file:
-            df = pd.read_table(participants_file)
+            df = pd.read_table(participants_file,sep="\s+")
         else:
-            df = pd.read_table(sessions_file)
+            df = pd.read_table(sessions_file,sep="\s+")
         if participant_index <= len(df):
             participant_label = drop_sub(df['bids_participant_id'].iloc[participant_index - 1])
             xnat_project = df['project'].iloc[participant_index - 1]
