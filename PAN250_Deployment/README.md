@@ -2,6 +2,15 @@
 These notes provide guidelines for reproducing the PANpipelines for the PAN 250 Release in a SLURM-based HPC envrionment. Specific notes are provided in the section **U of A HPC Deployment** for deploying these pipelines in the University of Arizona's Puma HPC environment. General notes for deployment are provided in **General HPC Deployment** section in the `README.md` in the `PANPippelines/deployment` folder.
 
 # University of Arizona HPC Deployment
+
+## Create personal deployment directory
+Clone the PANpipelines repository and copy the deployment folder to your own workspace as follows:
+```
+cd /xdisk/ryant/$USER
+git clone https://github.com/MRIresearch/PANpipelines.git
+cp -R /xdisk/ryant/$USER/PANpipelines/PAN250_Deployment /xdisk/ryant/$USER/PAN250_Deployment
+```
+
 ## Load Python Environment and Prepare Virtual Environment
 The most convenient approach to deploying these pipelines in the U of A's HPC Cluster is to use the preinstalled python module and we will use `virtualenv` to manage our python dependenices.
 
@@ -14,23 +23,16 @@ pip install --user virtualenv
 Create a virtual environment called `pan250_env`
 
 ```
-mkdir /xdisk/ryant/$USER/venvs
-virtualenv -p python3 /xdisk/ryant/[USERNAME]/venvs/pan250_env
+mkdir /xdisk/ryant/$USER/PAN250_Deployment/venvs
+module load python/3.11/3.11.4
+virtualenv -p python3 /xdisk/ryant/$USER/PAN250_Deployment/venvs/pan250_env
 ```
 
 Activate environment and Install the latest version of PAN pipelines using `pip`
 ```
 module load python/3.11/3.11.4
-source /xdisk/ryant/$USER/venvs/pan250_env/bin/activate
+source /xdisk/ryant/$USER/PAN250_Deployment/venvs/pan250_env/bin/activate
 pip install -U panpipelines
-```
-
-## Create personal deployment directory
-Clone the PANpipelines repsoitory and copy the deployment folder to your own workspace as follows:
-```
-cd /xdisk/ryant/$USER
-git clone https://github.com/MRIresearch/PANpipelines.git
-cp -R /xdisk/ryant/$USER/PANpipelines/PAN250_Deployment /xdisk/ryant/$USER/PAN250_Deployment
 ```
 
 ## Edit pan250.config
