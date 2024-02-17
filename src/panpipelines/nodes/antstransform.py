@@ -42,7 +42,10 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     if not os.path.isdir(work_dir):
         os.makedirs(work_dir)
 
-    trans_parts = substitute_labels(trans_mat[-1],labels_dict).split(":")
+    if isinstance(trans_mat[0],list):
+        trans_parts = substitute_labels(trans_mat[0][-1],labels_dict).split(":")
+    else:
+        trans_parts = substitute_labels(trans_mat[-1],labels_dict).split(":")
     if len(trans_parts)>3:
         trans_mat_last = trans_parts[3]
     else:
@@ -87,6 +90,9 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     trans_ori = "RAS"
 
     for trans in trans_mat:
+        # check if list passed within list then force to be single string item
+        if isinstance(trans,list):
+            trans = trans[0]
         trans_parts = trans.split(":")
         transform = getGlob(substitute_labels(trans_parts[0],labels_dict))
         trans_type =""
@@ -124,16 +130,20 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         else:
             reverse_list.append(False)
 
-        TRANSLIT="from-MNI152NLin6Asym_to-MNI152NLin2009cAsym_res-"
+        TRANSLIT="from-MNI152NLin6Asym_to-MNI152NLin2009cAsym"
         if TRANSLIT in str(transform):
-            resolution=int(transform.split(TRANSLIT)[1])
-            # we dont use resolution for transforms from template flow 
+            # if ref file not defined then assume that user implies this as reference
+            if not ref_file:
+                ref_file = TRANSLIT.split("_to-")[1]
+
             transform = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
 
-        TRANSLIT="from-MNI152NLin2009cAsym_to-MNI152NLin6Asym_res-"
+        TRANSLIT="from-MNI152NLin2009cAsym_to-MNI152NLin6Asym"
         if TRANSLIT in str(transform):
-            resolution=int(transform.split(TRANSLIT)[1])
-            # we dont use resolution for transforms from templateflow
+            # if ref file not defined then assume that user implies this as reference
+            if not ref_file:
+                ref_file = TRANSLIT.split("_to-")[1]
+
             transform = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",suffix="xfm",extension=[".h5"])
 
         if transform == "tkregister2_fslout":
@@ -256,7 +266,6 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     IFLOGGER.info(f"out_file: {out_file}")
     IFLOGGER.info(f"transform_list: {transform_list}")
     IFLOGGER.info(f"target_ori: {trans_ori}")
-    IFLOGGER.info(f"costfunction: {costfunction}")
     IFLOGGER.info(f"costfunction: {costfunction}")
     IFLOGGER.info(f"output_type: {output_type}")
     IFLOGGER.info(f"reverse_list: {reverse_list}")

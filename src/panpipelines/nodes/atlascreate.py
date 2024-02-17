@@ -34,9 +34,16 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
     atlas_type = "3D"
     atlas_type = getParams(labels_dict,'NEWATLAS_TYPE')
 
+    atlas_index_mode = None
+    if getParams(labels_dict,'NEWATLAS_INDEX_MODE'):
+        atlas_index_mode = getParams(labels_dict,'NEWATLAS_INDEX_MODE')
+    elif getParams(labels_dict,'ATLAS_INDEX_MODE'):
+        atlas_index_mode = getParams(labels_dict,'ATLAS_INDEX_MODE')
+
     if special_atlas_type == "hcpmmp1aseg":
         roilabels_list=create_3d_hcpmmp1_aseg(atlas_file,roi_list,labels_dict)
-        atlas_index_mode = "hcpmmp1aseg_tsv"
+        if not atlas_index_mode:
+            atlas_index_mode = "hcpmmp1aseg_tsv"
         roi_list = [atlas_file]
     elif atlas_type == "3D":
         create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict)
@@ -47,35 +54,37 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
     else:
         create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict)
 
-    if getParams(labels_dict,'NEWATLAS_INDEX_MODE'):
-        atlas_index_mode = getParams(labels_dict,'NEWATLAS_INDEX_MODE')
+    if not atlas_index_mode:
+        atlas_index_mode = "tsv"
 
     if "tsv" in atlas_index_mode:
-        atlas_index = newfile(cwd, atlas_name, prefix=f"sub-{participant_label}", suffix="dseg",extension="txt")
+        atlas_index = newfile(cwd, atlas_name, prefix=f"sub-{participant_label}", suffix="dseg",extension="tsv")
     else:
         atlas_index = newfile(cwd, atlas_name, prefix=f"sub-{participant_label}",suffix="dseg", extension="txt")
     atlas_index_json = newfile(cwd,atlas_index,extension="json")
     IFLOGGER.info(f"Creating new atlas index {atlas_index}")
+    atlas_index_out=""
+    atlas_dict={}
+    atlas_dict["Generator"]=roilabels_list
     with open(atlas_index,"w") as outfile:
         for roi_num in range(len(roilabels_list)):
             roiname=roilabels_list[roi_num]
             if roiname.split(":")[0] == "get_freesurfer_atlas_index":
-                roi_atlas_file= roi_list[roi_num]
                 lutfile = substitute_labels(roiname.split(":")[1],labels_dict)
 
-                atlas_dict,atlas_index_out=get_freesurferatlas_index_mode(roi_atlas_file,lutfile,None,atlas_index_mode)
-
-                outfile.write(atlas_index_out)
-                export_labels(atlas_dict,atlas_index_json)
+                atlas_dict,atlas_index_out=get_freesurferatlas_index_mode(roi_list[roi_num],lutfile,None,atlas_index_mode)
+                atlas_dict["Generator"]=roilabels_list
                 break
             else:
                 if roi_num== 0 and "tsv" in atlas_index_mode:
-                    outfile.write("index\tlabel\n")
-                
+                    atlas_index_out = atlas_index_out + "index\tlabel\n"
+
                 if "tsv" in atlas_index_mode:
-                    outfile.write(rf"{roi_num}\t{roiname}\n")
+                    atlas_index_out = atlas_index_out + f"{roi_num + 1}\t{roiname}\n"
                 else:
-                    outfile.write(roiname + "\n")
+                    atlas_index_out = atlas_index_out  + roiname + "\n"
+        outfile.write(atlas_index_out)
+        export_labels(atlas_dict,atlas_index_json)
 
     out_files=[]
     out_files.insert(0,atlas_file)

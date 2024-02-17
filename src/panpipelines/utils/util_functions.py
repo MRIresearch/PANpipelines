@@ -508,10 +508,16 @@ def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,us
                 tmpzip = os.path.join(tmpdir,subject_label + ".zip")
                 resource.download(tmpzip)
                 shutil.unpack_archive(tmpzip,tmpdir)
-                bidspath = glob.glob(os.path.join(tmpdir,"*MR*/resources/*/*"))
+                bidspath = glob.glob(os.path.join(tmpdir,f"*/resources/{resource_label}/files/sub*"))
+                dataset_desc = glob.glob(os.path.join(tmpdir,f"*/resources/{resource_label}/files/dataset_description.json"))
                 if bidspath:
                     bidspath = bidspath[0]
-                    shutil.copytree(bidspath,bids_dir, dirs_exist_ok=True)
+                    bidssubject = bidspath.split("/")[-1]
+                    shutil.copytree(bidspath,os.path.join(bids_dir,bidssubject), dirs_exist_ok=True)
+                    if dataset_desc:
+                        target_dataset_desc =os.path.join(bids_dir,"dataset_description.json")
+                        if not os.path.exists(target_dataset_desc):
+                            shutil.copy(dataset_desc[0],target_dataset_desc)
                     shutil.rmtree(tmpdir)
                 else:
                     UTLOGGER.info(f"Problem dowbloading data for {subject_label} using {resource_label} in {experiment.label}")
@@ -654,9 +660,9 @@ def get_value_bytype(vartype,varstring):
 
 def create_array(participants, participants_file, projects_list = None, sessions_list=None, sessions_file = None, LOGGER=UTLOGGER):
     if sessions_file is not None:
-        df = pd.read_table(sessions_file,sep="\s+")
+        df = pd.read_table(sessions_file,sep="\t")
     else:
-        df = pd.read_table(participants_file,sep="\s+")
+        df = pd.read_table(participants_file,sep="\t")
 
     array=[]
     if participants is not None and len(participants) > 0 and sessions_list and projects_list and sessions_file:
@@ -680,9 +686,9 @@ def create_array(participants, participants_file, projects_list = None, sessions
 def get_projectmap(participants, participants_file,session_labels=[],sessions_file = None):
 
     if participants_file is not None:
-        df = pd.read_table(participants_file,sep="\s+")
+        df = pd.read_table(participants_file,sep="\t")
     else:
-        df = pd.read_table(sessions_file,sep="\s+")
+        df = pd.read_table(sessions_file,sep="\t")
 
     if len(participants) == 1 and participants[0]=="ALL_SUBJECTS":
         participants = df["bids_participant_id"].tolist()
@@ -692,7 +698,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
     participant_list=[]
     sessions_list=[]
     if sessions_file is not None and session_labels:
-        sessions_df = pd.read_table(sessions_file,sep="\s+")
+        sessions_df = pd.read_table(sessions_file,sep="\t")
         # participants and sessions are defined
         if participants is not None and len(participants) > 0:
             for participant in participants:
@@ -993,7 +999,7 @@ def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, high_thresh=Non
         PROBTHRESH +\
         " -bin "\
         f" -mul {roi_value}" \
-        f" {new_roi}"
+        f" {new_roi}" 
     
     evaluated_command=substitute_labels(command,panpipe_labels)
     results = runCommand(evaluated_command)
@@ -1011,6 +1017,13 @@ def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, high_thresh=Non
         new_roi_transformed = newfile(trans_workdir, new_roi)
         shutil.move(new_roi, new_roi_transformed)
 
+    # make output file into int. This was initially don in ANTS above but had issues with rois that had value of 1
+    command = f"{command_base} fslmaths"\
+            f"  {new_roi_transformed}"\
+            f" {new_roi_transformed}" \
+             " -odt int"
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
 
     if os.path.exists(atlas_file):
         command = f"{command_base} fslmaths"\
@@ -1100,11 +1113,18 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
             os.chdir(trans_workdir)
             results = antstransform_proc(panpipe_labels, roi_file,roi_transform, roi_transform_ref)
             os.chdir(CURRDIR)
-            roi_files_transformed.append(results['out_file'])
+            new_roi_transform_file=results['out_file']
         else:
             new_roi_transform_file= newfile(trans_workdir, new_roi)
             shutil.move(roi_files[roi_num], new_roi_transform_file)
-            roi_files_transformed.append(new_roi_transform_file)
+        # make output file into int. This was initially don in ANTS above but had issues with rois that had value of 1
+        command = f"{command_base} fslmaths"\
+                f"  {new_roi_transform_file}"\
+                f" {new_roi_transform_file}" \
+                " -odt int"
+        evaluated_command=substitute_labels(command,panpipe_labels)
+        results = runCommand(evaluated_command)
+        roi_files_transformed.append(new_roi_transform_file)
         
     if roi_files_transformed:
         roi_string=" ".join(roi_files_transformed)
@@ -1240,16 +1260,25 @@ def get_avail_labels(atlas_file):
 
 
 def get_freesurferatlas_index_mode(atlas_file,lutfile,atlas_index,atlas_index_mode=None):
-    if atlas_index_mode == "freesurf_tsv_general":
-        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=True,use_atlas_max=True,atlas_index_type="tsv")
-    elif atlas_index_mode == "freesurf_general":
+    
+    if atlas_index_mode and "freesurf_tsv_general" in atlas_index_mode:
+        atlas_index_type="tsv"
+        if "contig" in atlas_index_mode:
+            atlas_index_type = "tsv_contig"
+        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=True,use_atlas_max=True,atlas_index_type=atlas_index_type)
+    elif atlas_index_mode and "freesurf_general" in atlas_index_mode:
+        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False,use_atlas_max=True)
+    elif atlas_index_mode and "freesurf_contig_general" in atlas_index_mode:
         atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=True,use_atlas_max=True)
-    elif atlas_index_mode == "hcpmmp1aseg_tsv":
-        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False,use_atlas_max=False,atlas_index_type="tsv")
-    elif atlas_index_mode == "hcpmmp1aseg":
+    elif atlas_index_mode and "hcpmmp1aseg_tsv" in atlas_index_mode:
+        atlas_index_type="tsv"
+        if "contig" in atlas_index_mode:
+            atlas_index_type = "tsv_contig"
+        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False,use_atlas_max=False,atlas_index_type=atlas_index_type)
+    elif atlas_index_mode and "hcpmmp1aseg" in atlas_index_mode:
         atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False,use_atlas_max=False)
     else:
-        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index)
+        atlas_dict,atlas_index_out=get_freesurferatlas_index(atlas_file,lutfile,atlas_index,atlas_index_mode=atlas_index_mode)
 
     return atlas_dict,atlas_index_out
 
@@ -1297,10 +1326,15 @@ def get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False,us
     atlas_key_list=list(atlas_dict.keys())
     atlas_key_list.sort()
 
-    if atlas_index_type == "tsv":
+    if atlas_index_type and "tsv" in atlas_index_type:
         atlas_index_list.append("index\tlabel")
+        contignum=1
         for atlas_key in atlas_key_list:
-            atlas_index_list.append(str(atlas_key) + "\t" + atlas_dict[atlas_key]["LabelName"])
+            if "contig" in atlas_index_type:
+                atlas_index_list.append(str(contignum) + "\t" + atlas_dict[atlas_key]["LabelName"])
+            else:
+                atlas_index_list.append(str(atlas_key) + "\t" + atlas_dict[atlas_key]["LabelName"])
+            contignum=contignum+1
     else:
         for atlas_key in atlas_key_list:
             atlas_index_list.append(atlas_dict[atlas_key]["LabelName"])
@@ -1401,9 +1435,16 @@ def create_3d_hcpmmp1_aseg(atlas_file,roi_list,panpipe_labels):
     from panpipelines.nodes.antstransform import antstransform_proc
 
     panpipe_labels= updateParams(panpipe_labels,"COST_FUNCTION","NearestNeighbor")
-    panppe_labels = updateParams(panpipe_labels,"OUTPUT_TYPE","int")
+
     atlas_transform_mat = getParams(panpipe_labels,"NEWATLAS_TRANSFORM_MAT")
+    
+    if not atlas_transform_mat:
+        atlas_transform_mat = getParams(panpipe_labels,"ATLAS_TRANSFORM_MAT")
+
     atlas_transform_ref = getParams(panpipe_labels,"NEWATLAS_TRANSFORM_REF")
+    if not atlas_transform_ref:
+        atlas_transform_ref = getParams(panpipe_labels,"ATLAS_TRANSFORM_REF")
+
     if atlas_transform_mat:
         CURRDIR=os.getcwd()
         os.chdir(workdir)
@@ -1415,6 +1456,15 @@ def create_3d_hcpmmp1_aseg(atlas_file,roi_list,panpipe_labels):
 
     hcpmmp_original = os.path.join(atlas_dir, "hcpmmp1_original.txt")
     hcpmmp_ordered = os.path.join(atlas_dir, "hcpmmp1_ordered.txt")
+
+    # enforce int data type at this point
+    command = f"{command_base} fslmaths"\
+            f"  {atlas_space_transform}"\
+            f" {atlas_space_transform}" \
+            " -odt int"
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
+
 
     command = f"{command_base} labelconvert"\
         f"  {atlas_space_transform}" \
@@ -1447,10 +1497,10 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
     participantsTSV=os.path.join(outputdir,'participants.tsv')
     sessionsTSV=os.path.join(outputdir,'sessions.tsv')
 
-    participant_columns=['xnat_subject_id','xnat_subject_label','bids_participant_id','gender', 'age','project','scan_date','comments']
+    participant_columns=['xnat_subject_id','xnat_subject_label','bids_participant_id','project','gender', 'age','scan_date','comments']
     participant_data=[]
 
-    session_columns=['xnat_session_id','xnat_session_label','xnat_subject_id','xnat_subject_label','bids_participant_id','bids_session_id', 'gender', 'age','project','scan_date','comments']
+    session_columns=['xnat_session_id','xnat_session_label','xnat_subject_id','xnat_subject_label','bids_participant_id','bids_session_id', 'project','gender', 'age','scan_date','comments']
     session_data=[]
 
     scantest = os.path.join(outputdir,'scantest.dcm')
@@ -1533,7 +1583,7 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                             print(message)
                             print(str(e))
 
-                        session_data.append([xnat_session_id,xnat_session_label,xnat_subject_id,xnat_subject_label,bids_participant_id,bids_session_id, gender, age,project.id,scan_date,comments])
+                        session_data.append([xnat_session_id,xnat_session_label,xnat_subject_id,xnat_subject_label,bids_participant_id,bids_session_id, project.id, gender, age,scan_date,comments])
 
             except Exception as e:
                 message = 'problem parsing project :  %s.' % PROJ

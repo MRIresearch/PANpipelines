@@ -18,7 +18,7 @@ from nilearn import image
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
-def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
+def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index):
 
     metadata_comments=""
     cwd=os.getcwd()
@@ -55,11 +55,6 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
         convMGZ2NII(input_file, input_file_nii, fs_command_base)
         input_file = input_file_nii
 
-    if not session_label:
-        roi_raw_txt = os.path.join(roi_output_dir,f"{participant_label}_roi_raw.txt")
-    else:
-        roi_raw_txt = os.path.join(roi_output_dir,f"{participant_label}_{session_label}_roi_raw.txt")
-
 
     atlas_type="3D"
     atlas_img  = nib.load(atlas_file)
@@ -71,21 +66,28 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
             atlas_dim = atlas_shape[3]
 
     atlas_index_mode = None
-    if getParams(labels_dict,'NEWATLAS_INDEX_MODE'):
+    if getParams(labels_dict,'ATLAS_INDEX_MODE'):
+        atlas_index_mode = getParams(labels_dict,'ATLAS_INDEX_MODE')
+    elif getParams(labels_dict,'NEWATLAS_INDEX_MODE'):
         atlas_index_mode = getParams(labels_dict,'NEWATLAS_INDEX_MODE')
 
+    if not atlas_index_mode:
+        atlas_index_mode = "tsv"
+    
     check_unknown_rois = False
     if getParams(labels_dict,'CHECK_UNKNOWN_ROIS'):
         check_unknown_rois = isTrue(getParams(labels_dict,'CHECK_UNKNOWN_ROIS'))
 
     if atlas_index.split(":")[0] == "get_freesurfer_atlas_index":
         lutfile = substitute_labels(atlas_index.split(":")[1],labels_dict)
-        new_atlas_index=newfile(roi_output_dir,atlas_file,suffix="desc-index",extension=".txt")
+        if "tsv" in atlas_index_mode:
+            new_atlas_index=newfile(roi_output_dir,atlas_file,suffix="desc-index",extension=".tsv")
+        else:
+            new_atlas_index=newfile(roi_output_dir,atlas_file,suffix="desc-index",extension=".txt")
         atlas_index_json = newfile(roi_output_dir,new_atlas_index,extension="json")
         atlas_dict,atlas_index_out=get_freesurferatlas_index_mode(atlas_file,lutfile,new_atlas_index,atlas_index_mode=atlas_index_mode)
         atlas_index=new_atlas_index
         export_labels(atlas_dict,atlas_index_json)
-
 
     # See if atlas index is in right format
     labelfile_df=pd.read_csv(atlas_index,delim_whitespace=True)
@@ -100,6 +102,7 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
     measure_type = "3D"
     measure_img = nib.load(input_file)
+    measure_data = measure_img.get_fdata()
     measure_shape = measure_img.header.get_data_shape()
     if len(measure_shape) > 3:
         if measure_shape[3] > 1:
@@ -145,7 +148,6 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
                         reconciled_signals = np.insert(reconciled_signals,lbl_index,np.nan)
 
                         
-        measure_data = measure_img.get_fdata()
         for index in labels_index_list:
             lbl_index = labels_index_list.index(index)
             if measure_type == "3D":
@@ -216,8 +218,10 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     
             atlas_index = atlas_index + 1       
 
-
-    df2=pd.DataFrame([reconciled_signals],columns=reconciled_labels)
+    if len(reconciled_signals.shape) > 1:
+        df2=pd.DataFrame(reconciled_signals,columns=reconciled_labels)
+    else:
+        df2=pd.DataFrame([reconciled_signals],columns=reconciled_labels)
     
     csv_basename = ""
 
@@ -277,7 +281,7 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
     metadata = {}
     roi_json = os.path.join(roi_output_dir,'{}.json'.format(csv_basename))
-    metadata = updateParams(metadata,"Title","roi_mean_single")
+    metadata = updateParams(metadata,"Title","roi_extract")
     metadata = updateParams(metadata,"Description","Extract Measures from Image file using provided atlas.")
     metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
     metadata = updateParams(metadata,"Atlas File",atlas_file)
@@ -302,26 +306,26 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
 
 
 
-class roi_mean_singleInputSpec(BaseInterfaceInputSpec):
+class roi_extractInputSpec(BaseInterfaceInputSpec):
     labels_dict = traits.Dict({},mandatory=False,desc='labels', usedefault=True)
     input_file = File(desc="input file")
     atlas_file = File(desc='atlas file')
     atlas_index = File(desc='atlas index file')
 
-class roi_mean_singleOutputSpec(TraitedSpec):
+class roi_extractOutputSpec(TraitedSpec):
     roi_csv = File(desc='CSV file of results')
     roi_output_dir = traits.String(desc='roi output dir')
     output_dir = traits.String(desc='output dir')
     out_files = traits.List(desc='list of files')
     
-class roi_mean_single_pan(BaseInterface):
-    input_spec = roi_mean_singleInputSpec
-    output_spec = roi_mean_singleOutputSpec
+class roi_extract_pan(BaseInterface):
+    input_spec = roi_extractInputSpec
+    output_spec = roi_extractOutputSpec
 
     def _run_interface(self, runtime):
 
         # Call our python code here:
-        outputs = roi_mean_single_proc(
+        outputs = roi_extract_proc(
             self.inputs.labels_dict,
             self.inputs.input_file,
             self.inputs.atlas_file,
@@ -336,9 +340,9 @@ class roi_mean_single_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="roi_mean_single_node",input_file="",atlas_file="",atlas_index="", LOGGER=IFLOGGER):
+def create(labels_dict,name="roi_extract_node",input_file="",atlas_file="",atlas_index="", LOGGER=IFLOGGER):
     # Create Node
-    pan_node = Node(roi_mean_single_pan(), name=name)
+    pan_node = Node(roi_extract_pan(), name=name)
 
     if LOGGER:
         LOGGER.info(f"Created Node {pan_node!r}")

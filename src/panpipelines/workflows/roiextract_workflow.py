@@ -37,7 +37,6 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
             newatlas_list.extend(glob.glob(newatlas_templates))
             
         labels_dict = updateParams(labels_dict,"COST_FUNCTION","NearestNeighbor")
-        labels_dict = updateParams(labels_dict,"OUTPUT_TYPE","int")
         atlascreate_node = atlascreate.create(labels_dict,name=f"atlascreate_{atlas_name}_node",roi_list=newatlas_list,roilabels_list=newatlas_index,LOGGER=LOGGER)
 
     roimean_node = roiextract.create(labels_dict,name="subject_metrics",LOGGER=LOGGER)
@@ -54,7 +53,6 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
     # should we transform atlas?
     if atlas_transform_mat is not None:
         labels_dict = updateParams(labels_dict,"COST_FUNCTION","NearestNeighbor")
-        labels_dict = updateParams(labels_dict,"OUTPUT_TYPE","int")
         if atlascreate_node:
             atlas_transform_node = antstransform.create(labels_dict,name="atlas_transform", trans_mat=atlas_transform_mat,ref_file=atlas_transform_ref, LOGGER=LOGGER)
             pan_workflow.connect(atlascreate_node,'atlas_file',atlas_transform_node,'input_file')    
