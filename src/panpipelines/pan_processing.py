@@ -27,6 +27,7 @@ def parse_params():
     parser.add_argument("--participants_file", type=PathExists, help="list of participants")
     parser.add_argument("--sessions_file", type=PathExists, help="Comprehensive list of participants and sessions")
     parser.add_argument("--pipelines", nargs="+")
+    parser.add_argument("--pipeline_match", nargs="+")
     parser.add_argument("--projects", nargs="+")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
     parser.add_argument("--session_label", nargs="*", type=drop_ses, help="filter by session label (the ses- prefix can be removed).")
@@ -155,9 +156,22 @@ def main():
     else:
         pipelines = getParams(panpipe_labels,"PIPELINES")
 
+    pipeline_match=args.pipeline_match
+
     if not pipelines:
-        LOGGER.info("No pipelines specified at command line. All pipelines in configuration file will be run.")
+        LOGGER.info("No pipelines specified at command line.")
         pipelines = [p for p in panpipeconfig_json.keys() if p != "all_pipelines"]
+        if pipeline_match:
+            LOGGER.info(f"All pipelines matching {str(pipeline_match)} in configuration file will be run.")
+            pipeline_select=[]
+            for pipe_match in pipeline_match:
+                pipeline_select.extend([p for p in pipelines if pipe_match in p])
+            pipelines = pipeline_select
+        else:
+            LOGGER.info("All pipelines in configuration file will be run.")
+
+    # Remove duplicates in pipeline list
+    pipelines = list(set(pipelines))
 
     LOGGER.info(f"About to arrange pipelines by dependency. Pipeline list is {pipelines}")    
     pipelines = arrangePipelines(panpipeconfig_json,pipelines=pipelines)
