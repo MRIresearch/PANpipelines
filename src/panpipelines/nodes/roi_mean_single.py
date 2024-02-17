@@ -93,7 +93,9 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
         results = runCommand(evaluated_command,IFLOGGER)
 
     atlas_index_mode = None
-    if getParams(labels_dict,'NEWATLAS_INDEX_MODE'):
+    if getParams(labels_dict,'ATLAS_INDEX_MODE'):
+        atlas_index_mode = getParams(labels_dict,'ATLAS_INDEX_MODE')
+    elif getParams(labels_dict,'NEWATLAS_INDEX_MODE'):
         atlas_index_mode = getParams(labels_dict,'NEWATLAS_INDEX_MODE')
 
     if atlas_index.split(":")[0] == "get_freesurfer_atlas_index":
@@ -134,14 +136,6 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
                 else:
                     metadata_comments = f"Missing ROI >>  [Index {roi_check + 1} : {table_columns[roi_check]} ]  "
 
-                missing_data =  [pd.NA for x in range(numrows)]
-                if roi_check + 1 > len(df2.columns):
-                    # append to end of table
-                    df2[roi_check]=missing_data
-
-                else:
-                    # we can insert
-                    df2.insert(roi_check, f"{roi_check}_a",missing_data)
 
     elif len(table_columns) < len(df2.columns):
         IFLOGGER.error(f"Size of data columns in {roi_raw_txt} is larger than expected. {len(df2.columns)} instead of {len(table_columns)}.")
