@@ -36,7 +36,7 @@ def fmriprep_proc(labels_dict,bids_dir=""):
 
     fmriprep_dict={}
     fmriprep_dict = updateParams(fmriprep_dict,"--participant_label","<PARTICIPANT_LABEL>")
-    fmriprep_dict = updateParams(fmriprep_dict,"--output-spaces","MNI152NLin6Asym:res-1 MNI152NLin2009cAsym:res-1")
+    fmriprep_dict = updateParams(fmriprep_dict,"--output-spaces","MNI152NLin6Asym:res-2 MNI152NLin2009cAsym:res-2")
     fmriprep_dict = updateParams(fmriprep_dict,"--skip-bids-validation",IS_PRESENT)
     fmriprep_dict = updateParams(fmriprep_dict,"--mem_mb","<BIDSAPP_MEMORY>")
     fmriprep_dict = updateParams(fmriprep_dict,"--nthreads","<BIDSAPP_THREADS>")

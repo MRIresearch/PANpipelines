@@ -44,6 +44,7 @@ def qsiprep_proc(labels_dict,bids_dir=""):
     qsiprep_dict = updateParams(qsiprep_dict,"--skip-bids-validation",IS_PRESENT)
     qsiprep_dict = updateParams(qsiprep_dict,"--hmc-model" ,"eddy")
     qsiprep_dict = updateParams(qsiprep_dict,"--unringing-method" ,"rpg")
+    qsiprep_dict = updateParams(qsiprep_dict,"--b1-biascorrect-stage","none")
     qsiprep_dict = updateParams(qsiprep_dict,"--eddy-config" ,"<EDDY_CONFIG>")
     qsiprep_dict = updateParams(qsiprep_dict,"--mem_mb","<BIDSAPP_MEMORY>")
     qsiprep_dict = updateParams(qsiprep_dict,"--nthreads","<BIDSAPP_THREADS>")
