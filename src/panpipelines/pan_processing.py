@@ -130,6 +130,11 @@ def main():
     else:
         LOGGER.info(f"Retrieving subjects and sessions from XNAT project {projects}")
 
+    TEMPLATEFLOW_HOME=getParams(panpipe_labels,"TEMPLATEFLOW_HOME")
+    if TEMPLATEFLOW_HOME:
+        LOGGER.info(f"Downloading an initial set of TemplateFlow templates for spaces MNI152NLin2009cAsym and MNI152NLin6Asym to {TEMPLATEFLOW_HOME}.")
+        initTemplateFlow(TEMPLATEFLOW_HOME) 
+
     # if participants file doesn't exist then lets download it
     if not os.path.exists(participants_file):
         LOGGER.info(f"Participants file not found at {participants_file} - retrieving from XNAT. Please wait.")

@@ -1486,6 +1486,13 @@ def getAge(birthdate,refdate=None):
     age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
     return age
 
+def initTemplateFlow(TEMPLATEFLOW_HOME):
+    ref1=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",resolution=2,suffix="T1w",extension=[".nii.gz"])
+    ref2=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",resolution=2,suffix="T1w",extension=[".nii.gz"])
+    transform1 = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
+    transform2 = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",suffix="xfm",extension=[".h5"])
+    return [[ref1,transform1],[ref2,transform2]]
+
 def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=True):
     import xnat
     from pydicom import dcmread
