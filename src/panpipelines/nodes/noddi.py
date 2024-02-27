@@ -29,11 +29,23 @@ def noddi_proc(labels_dict,input_dir):
 
     input_dir=substitute_labels(input_dir,labels_dict)
 
+    # set up dwi to process just the specific dwi session
+    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
+
+    bids_filter_dict={}
+    bids_filter_dict["dwi"] = {}
+    bids_filter_dict["dwi"]["session"] =  participant_session
+    bids_filter_file = os.path.join(cwd,f"{participant_label}_{participant_session}_bids_filter_file.json")
+    export_labels(bids_filter_dict,bids_filter_file)
+    IFLOGGER.info(f"Specifying session filter: exporting {bids_filter_dict} to {bids_filter_file}")
+
     qsirecon_dict={}
     qsirecon_dict = updateParams(qsirecon_dict,"--participant_label","<PARTICIPANT_LABEL>")
     qsirecon_dict = updateParams(qsirecon_dict,"--recon_input",input_dir)
     qsirecon_dict = updateParams(qsirecon_dict,"--recon_spec","<RECON_TYPE>")
     qsirecon_dict = updateParams(qsirecon_dict,"--recon-only",IS_PRESENT)
+    qsirecon_dict = updateParams(qsirecon_dict,"--bids-filter-file",bids_filter_file)
     qsirecon_dict = updateParams(qsirecon_dict,"--mem_mb","<BIDSAPP_MEMORY>")
     qsirecon_dict = updateParams(qsirecon_dict,"--nthreads","<BIDSAPP_THREADS>")
     qsirecon_dict = updateParams(qsirecon_dict,"--fs-license-file","<FSLICENSE>")

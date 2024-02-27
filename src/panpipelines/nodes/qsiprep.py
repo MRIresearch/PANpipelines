@@ -7,6 +7,7 @@ import shlex
 import subprocess
 from nipype import logging as nlogging
 import json
+import sys
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
@@ -38,9 +39,30 @@ def qsiprep_proc(labels_dict,bids_dir=""):
             IFLOGGER.info(f"eddy params provided in file {eddy_config} and contents are:")
             IFLOGGER.info(f"{eddy_json}")
 
+
+    # set up dwi to process just the specific dwi session
+    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
+
+    # This is for 1 specific scenario - we will terminate early if field map is missing
+    layout = BIDSLayout(bids_dir)
+    epi = layout.get(subject=participant_label, session=participant_session, suffix="epi",extension=".nii.gz") 
+    if not epi:
+        IFLOGGER.warn(f"Fieldmap not found for subject {participant_label} and session {participant_session}. terminating script early.")
+        sys.exit(1)
+
+
+    bids_filter_dict={}
+    bids_filter_dict["dwi"] = {}
+    bids_filter_dict["dwi"]["session"] =  participant_session
+    bids_filter_file = os.path.join(cwd,f"{participant_label}_{participant_session}_bids_filter_file.json")
+    export_labels(bids_filter_dict,bids_filter_file)
+    IFLOGGER.info(f"Specifying session filter: exporting {bids_filter_dict} to {bids_filter_file}")
+
     qsiprep_dict={}
     qsiprep_dict = updateParams(qsiprep_dict,"--participant_label","<PARTICIPANT_LABEL>")
     qsiprep_dict = updateParams(qsiprep_dict,"--separate-all-dwis",IS_PRESENT)
+    qsiprep_dict = updateParams(qsiprep_dict,"--bids-filter-file",bids_filter_file)
     qsiprep_dict = updateParams(qsiprep_dict,"--skip-bids-validation",IS_PRESENT)
     qsiprep_dict = updateParams(qsiprep_dict,"--hmc-model" ,"eddy")
     qsiprep_dict = updateParams(qsiprep_dict,"--unringing-method" ,"rpg")
@@ -86,7 +108,6 @@ def qsiprep_proc(labels_dict,bids_dir=""):
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
 
-    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     dwi_preprocess = getGlob(os.path.join(cwd,'qsiprep','sub-{}'.format(participant_label),'ses-*','dwi','*preproc_dwi.nii.gz'))
     mat_t12mni = getGlob(os.path.join(cwd,'qsiprep','sub-{}'.format(participant_label),'anat','*from-T1w*mode-image_xfm.h5'))
     mat_mni2t1 = getGlob(os.path.join(cwd,'qsiprep','sub-{}'.format(participant_label),'anat','*from-MNI*mode-image_xfm.h5'))
