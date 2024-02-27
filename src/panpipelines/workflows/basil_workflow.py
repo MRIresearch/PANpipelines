@@ -69,7 +69,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
             if not os.path.exists(sdcflows_fmap_parentdir):
                 os.makedirs(sdcflows_fmap_parentdir)
 
-            
+            sources=[]
             if sdcflows_fmap_mode == "phasediff":               
                 sources = getPhaseDiffSources(bids_dir,participant_label,participant_session)
                 sources_String = " ".join(sources)
@@ -79,12 +79,17 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
                     f" --fieldmap_dir {SDCFLOWS_FMAP_DIR }" \
                     f" --workdir {sdcflows_workdir}"
 
-            SDCFLOWS_CONTAINER_TO_USE = getParams(labels_dict,"SDCFLOWS_CONTAINER_TO_USE")
-            if SDCFLOWS_CONTAINER_TO_USE:
-                panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,command=f"python {sdcflows_fieldmap.__file__}",container_img=SDCFLOWS_CONTAINER_TO_USE)
-            else: 
-                panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,command=f"python {sdcflows_fieldmap.__file__}")
-            panscript.run()
+            if sources:
+                SDCFLOWS_CONTAINER_TO_USE = getParams(labels_dict,"SDCFLOWS_CONTAINER_TO_USE")
+                if SDCFLOWS_CONTAINER_TO_USE:
+                    panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,command=f"python {sdcflows_fieldmap.__file__}",container_img=SDCFLOWS_CONTAINER_TO_USE)
+                else: 
+                    panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,command=f"python {sdcflows_fieldmap.__file__}")
+                panscript.run()
+            else:
+                if LOGGER:
+                    LOGGER.warn("Attempting to create fieldmap but sources not found. Exiting")
+                sys.exit(1)
 
             
     if createGraph:

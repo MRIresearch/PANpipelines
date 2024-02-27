@@ -255,7 +255,7 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
     participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
     
     layout = BIDSLayout(bids_dir)
-    asl=layout.get(subject=participant_label,suffix='asl', extension='nii.gz')
+    asl=layout.get(subject=participant_label,session=participant_session,suffix='asl', extension='nii.gz')
 
     if len(asl) > 0:
         asl_bidsfile=asl[0]
@@ -353,6 +353,9 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
                 if fmriprep_fieldmap_dir and os.path.exists(fmriprep_fieldmap_dir):
                     basil_dict = process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir)
+                else:
+                    IFLOGGER.warn(f"Attempting to create fieldmap using {fieldmap_type} but sources not found. Exiting")
+                    sys.exit(1)
             elif fieldmap_type == "sdcflows_preproc":
                 fieldmap_dir = None
                 SDCFLOWS_FIELDMAP_DIR_DICT  = getParams(labels_dict,'SDCFLOWS_FIELDMAP_DIR')
@@ -369,8 +372,13 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
                 if fieldmap_dir and os.path.exists(fieldmap_dir):
                     basil_dict = process_sdcflows_fieldmap(fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir,bids_dir=bids_dir,subject=participant_label,session=participant_session, fmap_mode=sdcflows_fmap_mode)
+                else:
+                    IFLOGGER.warn(f"Attempting to create fieldmap using {fieldmap_type} but sources not found. Exiting")
+                    sys.exit(1)
             elif fieldmap_type == "fsl_prepare_fieldmap":
-                basil_dict = process_fsl_prepare_fieldmap(layout, asljson,basil_dict,labels_dict, asljson, asl_acq, command_base, work_dir)
+                IFLOGGER.warn(f"{fieldmap_type} not yet implemented. Exiting")
+                sys.exit(1)              
+                #basil_dict = process_fsl_prepare_fieldmap(layout, asljson,basil_dict,labels_dict, asljson, asl_acq, command_base, work_dir)
 
         fslanat_dir=os.path.abspath(fslanat_dir)
         basil_dict = updateParams(basil_dict,FSLANAT,fslanat_dir)
@@ -433,6 +441,8 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
         evaluated_command=substitute_labels(command, labels_dict)
         runCommand(evaluated_command,IFLOGGER)
+    else:
+        IFLOGGER.warn(f"ASL acquisition not found for subject {participant_label} and session {participant_session}")
 
 
     cbf_native = getGlob(os.path.join(output_dir,"native_space","perfusion_calib.nii.gz"))
