@@ -30,6 +30,7 @@ def parse_params():
     parser.add_argument("--pipeline_match", nargs="+")
     parser.add_argument("--projects", nargs="+")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
+    parser.add_argument("--participant_exclusions", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
     parser.add_argument("--session_label", nargs="*", type=drop_ses, help="filter by session label (the ses- prefix can be removed).")
     parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=__version__))
     return parser
@@ -190,6 +191,10 @@ def main():
     else:
         participant_label = getParams(panpipe_labels,"PARTICIPANTS")
 
+    participant_exclusions = args.participant_exclusions
+    if not participant_exclusions:
+        participant_exclusions = []
+
     session_label = args.session_label
     if args.session_label is not None:
         label_key="SESSION_LABEL"
@@ -201,7 +206,7 @@ def main():
 
     LOGGER.info(f"Pipelines to be processed : {pipelines}")
 
-    projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file)
+    projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=participant_exclusions)
     participant_list = projectmap[0]
     project_list  = projectmap[1]
     session_list = projectmap[2]

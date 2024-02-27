@@ -683,7 +683,7 @@ def create_array(participants, participants_file, projects_list = None, sessions
     else:
         return "1:" + str(len(df))
 
-def get_projectmap(participants, participants_file,session_labels=[],sessions_file = None):
+def get_projectmap(participants, participants_file,session_labels=[],sessions_file = None, subject_exclusions=[]):
 
     if participants_file is not None:
         df = pd.read_table(participants_file,sep="\t")
@@ -692,6 +692,9 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
 
     if len(participants) == 1 and participants[0]=="ALL_SUBJECTS":
         participants = df["bids_participant_id"].tolist()
+
+    # process exclusions
+    participants = list(set(participants).difference(set(subject_exclusions)))
 
     # sessions are defined and so we will use this as priority
     project_list=[]
@@ -1672,7 +1675,13 @@ def arrangePipelines(jsondict,pipelines=[]):
                 dependency = jsondict[pipeline]["DEPENDENCY"]
                 if not isinstance(dependency,list):
                     dependency = [dependency]
-                pipeline_dict[pipeline]=dependency
+                dep_list=[]
+                for dep in dependency:
+                    if dep in pipelines:
+                        dep_list.append(dep)
+
+                if dep_list:
+                    pipeline_dict[pipeline]=dep_list
         else:
             UTLOGGER.info(f"{pipeline} not defined in configuration file. Please check spelling. Removing from list of pipelines")
             drop_pipelines.append(pipeline)
