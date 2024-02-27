@@ -9,7 +9,7 @@ PYTHON=python
 
 # Export python path in case 'panpipelines' python package not accessible. This should not be necessary if
 # panpipelines has been installed in yout python environment.Just uncomment 2 lines below.
-$ PKG_DIR=<PKG_DIR>
+# export PKG_DIR=<PKG_DIR>
 # export PYTHONPATH=${PKG_DIR}:$PYTHONPATH
 
 ##### ----- Do not edit below this line ----- #######
