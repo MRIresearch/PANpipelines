@@ -470,7 +470,13 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
         IN_XNAT = True
 
     try:
-        if not os.path.isdir(os.path.join(bids_dir,"sub-"+participant_label)):
+
+        FORCEDOWNLOAD=False
+        force_download = getParams(labels_dict,"FORCE_BIDS_DOWNLOAD")
+        if force_download and isTrue(force_download):
+            FORCEDOWNLOAD=True
+
+        if not os.path.isdir(os.path.join(bids_dir,"sub-"+participant_label)) or FORCEDOWNLOAD:
             UTLOGGER.info(f"BIDS folder for {participant_label} not present.")
             if IN_XNAT:
                 command_base, container = getContainer(labels_dict,nodename="process_fsl_glm",SPECIFIC="XNATDOWNLOAD_CONTAINER")
