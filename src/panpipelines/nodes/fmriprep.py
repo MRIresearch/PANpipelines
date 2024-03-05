@@ -6,6 +6,7 @@ import glob
 import shlex
 import subprocess
 from nipype import logging as nlogging
+from bids import BIDSLayout
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
@@ -34,10 +35,44 @@ def fmriprep_proc(labels_dict,bids_dir=""):
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
 
+
+    # handle field maps - use dwirpe as standard if valid, otherwise use megre 
+    layout = BIDSLayout(bids_dir)
+    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
+
+    fmri_fmap_entity ={}
+    fmri_fmap_entity["extension"] = "nii.gz"
+    fmri_fmap_entity["datatype"]="fmap"
+    fmri_fmap_entity["acquisition"]="fmri"
+    fmri_fmap_entity["session"]=participant_session
+    fmri_fmap = layout.get(return_type='file', invalid_filters="allow", **fmri_fmap_entity)
+
+    bids_filter_dict={}
+    bids_filter_dict["bold"] = {}
+    bids_filter_dict["bold"]["session"] =  participant_session
+    bids_filter_dict["fmap"] = {}
+    bids_filter_dict["fmap"]["session"] =  participant_session
+
+    use_megre_fmap = getParams(labels_dict,'USE_MEGRE_FMAP')
+    if use_megre_fmap and participant_label in use_megre_fmap:
+        bids_filter_dict["fmap"]["suffix"] =  ["phase1","phase2","magnitude1","magnitude2"]
+    elif use_megre_fmap and f"{participant_label}_{participant_session}" in use_megre_fmap:
+        bids_filter_dict["fmap"]["suffix"] =  ["phase1","phase2","magnitude1","magnitude2"]
+    elif fmri_fmap:
+        bids_filter_dict["fmap"]["acquisition"] =  "fmri"
+    else:
+        bids_filter_dict["fmap"]["suffix"] =  ["phase1","phase2","magnitude1","magnitude2"]
+
+    bids_filter_file = os.path.join(cwd,f"{participant_label}_{participant_session}_bids_filter_file.json")
+    export_labels(bids_filter_dict,bids_filter_file)
+    IFLOGGER.info(f"Specifying session filter: exporting {bids_filter_dict} to {bids_filter_file}")
+
     fmriprep_dict={}
     fmriprep_dict = updateParams(fmriprep_dict,"--participant_label","<PARTICIPANT_LABEL>")
     fmriprep_dict = updateParams(fmriprep_dict,"--output-spaces","MNI152NLin6Asym:res-2 MNI152NLin2009cAsym:res-2")
     fmriprep_dict = updateParams(fmriprep_dict,"--skip-bids-validation",IS_PRESENT)
+    fmriprep_dict = updateParams(fmriprep_dict,"--bids-filter-file",bids_filter_file)
     fmriprep_dict = updateParams(fmriprep_dict,"--mem_mb","<BIDSAPP_MEMORY>")
     fmriprep_dict = updateParams(fmriprep_dict,"--nthreads","<BIDSAPP_THREADS>")
     fmriprep_dict = updateParams(fmriprep_dict,"--fs-license-file","<FSLICENSE>")
