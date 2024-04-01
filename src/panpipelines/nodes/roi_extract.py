@@ -18,7 +18,7 @@ from nilearn import image
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
-def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index):
+def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, lesion_file):
 
     metadata_comments=""
     cwd=os.getcwd()
@@ -26,6 +26,15 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index):
     output_dir=cwd
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
+
+    lesion_inverse_img = None
+    if lesion_file and not lesion_file == ".": 
+        lesion_img = nib.load(lesion_file)
+        lesion_data = lesion_img.get_fdata()
+        inverse_data = np.zeros(lesion_data.shape)
+        inverse_data[lesion_data < 1] = 1 
+        lesion_inverse_img=nib.Nifti1Image(inverse_data, lesion_img.affine)
+
     
     if not session_label:
         roi_output_dir = os.path.join(cwd,f"sub-{participant_label}_roi_output_dir")
@@ -55,6 +64,15 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index):
         convMGZ2NII(input_file, input_file_nii, fs_command_base)
         input_file = input_file_nii
 
+    if Path(lesion_file).suffix == ".mgz":
+        mgzdir = os.path.join(cwd,'mgz_nii')
+        if not os.path.isdir(mgzdir):
+            os.makedirs(mgzdir)
+
+        fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
+        lesion_file_nii = newfile(mgzdir,lesion_file,extension=".nii.gz")
+        convMGZ2NII(lesion_file, lesion_file_nii, fs_command_base)
+        lesion_file = lesion_file_nii
 
     atlas_type="3D"
     atlas_img  = nib.load(atlas_file)
@@ -109,17 +127,33 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index):
             measure_type = "4D"
 
     if atlas_type == "4D":
-        NiftiMasker = NiftiMapsMasker(
-            atlas_img,
-            Labels = labels_name_list,
-            standardize=False
-        )
+        if lesion_inverse_img:
+            NiftiMasker = NiftiMapsMasker(
+                atlas_img,
+                mask_img = lesion_inverse_img,
+                Labels = labels_name_list,
+                standardize=False
+            )
+        else:
+            NiftiMasker = NiftiMapsMasker(
+                atlas_img,
+                Labels = labels_name_list,
+                standardize=False
+            )
     else:
-        NiftiMasker = NiftiLabelsMasker(
-            atlas_img,
-            Labels = labels_name_list,
-            standardize=False
-        )
+        if lesion_inverse_img:
+            NiftiMasker = NiftiLabelsMasker(
+                atlas_img,
+                mask_img = lesion_inverse_img,
+                Labels = labels_name_list,
+                standardize=False
+            )
+        else:
+            NiftiMasker = NiftiLabelsMasker(
+                atlas_img,
+                Labels = labels_name_list,
+                standardize=False
+            )
 
     NiftiMasker.fit(input_file)
     signals = NiftiMasker.transform(input_file)
@@ -311,6 +345,7 @@ class roi_extractInputSpec(BaseInterfaceInputSpec):
     input_file = File(desc="input file")
     atlas_file = File(desc='atlas file')
     atlas_index = File(desc='atlas index file')
+    lesion_file = File(desc='lesion file')
 
 class roi_extractOutputSpec(TraitedSpec):
     roi_csv = File(desc='CSV file of results')
@@ -330,6 +365,7 @@ class roi_extract_pan(BaseInterface):
             self.inputs.input_file,
             self.inputs.atlas_file,
             self.inputs.atlas_index,
+            self.inputs.lesion_file,
         )
 
         setattr(self, "_results", outputs)
@@ -340,7 +376,7 @@ class roi_extract_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="roi_extract_node",input_file="",atlas_file="",atlas_index="", LOGGER=IFLOGGER):
+def create(labels_dict,name="roi_extract_node",input_file="",atlas_file="",atlas_index="", lesion_file="", LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(roi_extract_pan(), name=name)
 
@@ -352,6 +388,7 @@ def create(labels_dict,name="roi_extract_node",input_file="",atlas_file="",atlas
     pan_node.inputs.input_file = input_file
     pan_node.inputs.atlas_file =  atlas_file
     pan_node.inputs.atlas_index =  atlas_index
+    pan_node.inputs.lesion_file =  lesion_file
 
     return pan_node
 
