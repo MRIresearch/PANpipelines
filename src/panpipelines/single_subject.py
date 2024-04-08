@@ -16,15 +16,20 @@ logger_addstdout(LOGGER, logging.INFO)
 
 panFactory = Factory.getPANFactory()
 
-def runSingleSubject(participant_label, xnat_project, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="participant",panlabel=None):
+def runSingleSubject(participant_label, xnat_project, xnat_shared_project, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="participant",panlabel=None):
 
     pipeline_start = datetime.datetime.now()
     LOGGER.info("---------------------------------------------------------------------------------")
-    LOGGER.info(f"Single Subject Processing for {participant_label} started at: {str(pipeline_start)}")
+    LOGGER.info(f"Single Subject Processing for sub-{participant_label},ses-{session_label} started at: {str(pipeline_start)}")
+    LOGGER.info(f"Participant Label: {participant_label}")
+    LOGGER.info(f"Participant Session: {session_label}")
+    LOGGER.info(f"Participant Project: {xnat_project}")
+    LOGGER.info(f"Participant Shared Project: {xnat_shared_project}")
     LOGGER.info("---------------------------------------------------------------------------------")
 
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_PROJECT",xnat_project)
+    panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_SHARED_PROJECT",xnat_shared_project)
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_SESSION",session_label)
 
     if not panlabel:
@@ -164,11 +169,15 @@ def main():
         if participant_index <= len(df):
             participant_label = drop_sub(df['bids_participant_id'].iloc[participant_index - 1])
             xnat_project = df['project'].iloc[participant_index - 1]
+            if 'shared_projects' in df.columns:
+                xnat_shared_project = df['shared_projects'].iloc[participant_index - 1]
+            else:
+                xnat_shared_project =""
             if sessions_file:
                 session_label = drop_ses(df['bids_session_id'].iloc[participant_index - 1])
             else:
                 session_label=None
-            runSingleSubject(participant_label,xnat_project,session_label, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level="participant")
+            runSingleSubject(participant_label,xnat_project,xnat_shared_project,session_label, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level="participant")
 
 
         else:

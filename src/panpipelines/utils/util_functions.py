@@ -83,7 +83,7 @@ def drop_ses(value):
     return re.sub(r"^ses-", "", str(value))
 
 def isTrue(arg):
-    return arg is not None and (arg == 'Y' or arg == 'y' or arg == '1' or arg == 'True' or arg == 'true')
+    return arg is not None and (arg == 'Y' or arg == 'y' or arg == '1' or arg == 'True' or arg == 'true' or arg == True)
 
 def getParams(pardict, key, update=True):
     if key is not None and pardict is not None:
@@ -704,6 +704,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
 
     # sessions are defined and so we will use this as priority
     project_list=[]
+    shared_project_list=[]
     participant_list=[]
     sessions_list=[]
     if sessions_file is not None and session_labels:
@@ -719,6 +720,9 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
                     participant_list.extend(sub)
                     proj=[proj for proj in list(search_df.project.values)]
                     project_list.extend(proj)
+                    if 'shared_projects' in df.columns:
+                        shared_proj=[shared_proj for shared_proj in list(search_df.shared_projects.values)]
+                        shared_project_list.extend(shared_proj)
                 else: 
                     for session_label in session_labels:
                         search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant)) & (sessions_df["bids_session_id"].str.contains(session_label))]
@@ -731,17 +735,23 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
                             participant_list.extend(sub)
                             proj=[proj for proj in list(search_df.project.values)]
                             project_list.extend(proj)
+                            if 'shared_projects' in df.columns:
+                                shared_proj=[shared_proj for shared_proj in list(search_df.shared_projects.values)]
+                                shared_project_list.extend(shared_proj)
         else:
             UTLOGGER.info(f"Cannot process pipelines. No participants have been specified")
     else:
         if participants is not None and len(participants) > 0:
             for participant in participants:
                 project_list.append(str(df[df["bids_participant_id"]==participant].project.values[0]))
+                if 'shared_projects' in df.columns:
+                    shared_project_list.append(str(df[df["bids_participant_id"]==participant].shared_projects.values[0]))
+                                
             sessions_list=[None for proj in project_list]
         else:
             UTLOGGER.info(f"Cannot process pipelines. No participants have been specified")
 
-    return  [ participant_list, project_list,sessions_list ]
+    return  [ participant_list, project_list, sessions_list, shared_project_list ]
 
 
 def create_script(header,template,panpipe_labels, script_file, LOGGER=UTLOGGER):
@@ -1502,7 +1512,45 @@ def initTemplateFlow(TEMPLATEFLOW_HOME):
     transform2 = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",suffix="xfm",extension=[".h5"])
     return [[ref1,transform1],[ref2,transform2]]
 
-def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=True):
+def getSharedProjects(connection, subjectLabel,origProjectID,sharedProjectIDs):
+    sharedProjects=[]
+    REVERSE=False
+
+    try:
+        apistring = f"/data/projects/{origProjectID}/subjects/{subjectLabel}/projects"
+        response = connection.get(apistring,query={"format":"json"})
+        responseJson = response.json()
+        if responseJson:
+            results = responseJson["ResultSet"]["Result"]
+            for result in results:
+                if "ID" in result.keys():
+                    for sharedProjectID in sharedProjectIDs:
+                        if result["ID"] == sharedProjectID:
+                            sharedProjects.append(sharedProjectID)
+
+    except Exception as e:
+        REVERSE=True
+
+    if REVERSE:
+            for sharedProjectID in sharedProjectIDs:
+                apistring = f"/data/projects/{sharedProjectID}/subjects/{subjectLabel}/projects"
+                try:
+                    response = connection.get(apistring,query={"format":"json"})
+                    responseJson = response.json()
+                    if responseJson:
+                        results = responseJson["ResultSet"]["Result"]
+                        for result in results:
+                            if "ID" in result.keys():
+                                    if result["ID"] == origProjectID:
+                                        sharedProjects.append(sharedProjectID)
+                except Exception as e:
+                    pass
+
+    sharedProjectString = ",".join(sharedProjects)
+    return sharedProjectString
+
+
+def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=True,shared_project_list=["001_HML","002_HML","003_HML","004_HML"]):
     import xnat
     from pydicom import dcmread
     import fnmatch
@@ -1513,10 +1561,10 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
     participantsTSV=os.path.join(outputdir,'participants.tsv')
     sessionsTSV=os.path.join(outputdir,'sessions.tsv')
 
-    participant_columns=['xnat_subject_id','xnat_subject_label','bids_participant_id','project','gender', 'age','scan_date','comments']
+    participant_columns=['xnat_subject_id','xnat_subject_label','bids_participant_id','project','shared_projects','gender', 'age','scan_date','comments']
     participant_data=[]
 
-    session_columns=['xnat_session_id','xnat_session_label','xnat_subject_id','xnat_subject_label','bids_participant_id','bids_session_id', 'project','gender', 'age','scan_date','comments']
+    session_columns=['xnat_session_id','xnat_session_label','xnat_subject_id','xnat_subject_label','bids_participant_id','bids_session_id', 'project', 'shared_projects','gender', 'age','scan_date','comments']
     session_data=[]
 
     scantest = os.path.join(outputdir,'scantest.dcm')
@@ -1547,6 +1595,7 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                     age = ""
                     comments=""
                     scan_date=""
+                    shared_projects=""
 
 
                     # _MR_ hack - some reason 003_HML MR session not storing modality 
@@ -1593,13 +1642,15 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                                             age=getAge(agedate,scandate)
                                         break
 
+                            shared_projects = getSharedProjects(connection, xnat_subject_label,project.id,shared_project_list)
+
                         except Exception as e:
                             message = 'problem parsing resource : %s.' % targetfolder
                             comments="missing bids files; " + comments
                             print(message)
                             print(str(e))
 
-                        session_data.append([xnat_session_id,xnat_session_label,xnat_subject_id,xnat_subject_label,bids_participant_id,bids_session_id, project.id, gender, age,scan_date,comments])
+                        session_data.append([xnat_session_id,xnat_session_label,xnat_subject_id,xnat_subject_label,bids_participant_id,bids_session_id, project.id, shared_projects,gender, age,scan_date,comments])
 
             except Exception as e:
                 message = 'problem parsing project :  %s.' % PROJ
@@ -1738,12 +1789,12 @@ def getContainer(labels_dict,nodename="",SPECIFIC=None,CONTAINERALT="PAN_CONTAIN
         container_prerun = None
         container = None
 
-    if not container_run_options:
+    if container and not container_run_options:
         container_run_options = getParams(labels_dict,'CONTAINER_RUN_OPTIONS')
         if not container_run_options:
             container_run_options = ""
 
-    if not container_prerun:
+    if container and not container_prerun:
         container_prerun = getParams(labels_dict,'CONTAINER_PRERUN')
         if not container_prerun:
             container_prerun = ""

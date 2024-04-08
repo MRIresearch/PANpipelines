@@ -210,6 +210,7 @@ def main():
     participant_list = projectmap[0]
     project_list  = projectmap[1]
     session_list = projectmap[2]
+    shared_project_list  = projectmap[3]
 
     # take snapshot of the runtime labels for all pipelines
     runtime_labels = panpipe_labels.copy()
@@ -259,10 +260,12 @@ def main():
                 if participant_label:
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_label)
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT",project_list)
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT",shared_project_list)
                     updateParams(panpipe_labels,"GROUP_SESSION_LABEL",session_list)
                 else:
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL","*")
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT","*")
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT","*")
                     updateParams(panpipe_labels,"GROUP_SESSION_LABEL","*")
 
             else:
@@ -321,7 +324,7 @@ def main():
                 if analysis_level == "participant":
                     # run serially if procs < 2
                     if procs > 1:
-                        multiproc_zip = zip(participant_list,project_list,session_list)
+                        multiproc_zip = zip(participant_list,project_list,shared_project_list,session_list)
                         parrunSingleSubject=partial(runSingleSubject, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
                         with mp.Pool(procs) as pool:
                             completedlist = pool.starmap(parrunSingleSubject,multiproc_zip)
@@ -333,12 +336,13 @@ def main():
                                 session_label= session_list[part_count]
                             else:
                                 session_label=None
-                            runSingleSubject(participant_list[part_count], project_list[part_count],session_label,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
+                            runSingleSubject(participant_list[part_count], project_list[part_count], shared_project_list[part_count],session_label,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
                 else:
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_list)
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT",project_list)
                     updateParams(panpipe_labels,"GROUP_SESSION_LABEL",session_list)
-                    runGroupSubjects(participant_list, project_list,session_list,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT",shared_project_list)
+                    runGroupSubjects(participant_list, project_list,shared_project_list,session_list,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
 
 
             except Exception as ex:
