@@ -101,6 +101,8 @@ def process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, b
     fmap = getGlob(os.path.join(fmriprep_fieldmap_dir,"*desc-preproc_fieldmap.nii.gz"))
     fmaprads = newfile(work_dir,assocfile=fmap,intwix="desc-rads")
     fmapjson = getGlob(os.path.join(fmriprep_fieldmap_dir,"*desc-preproc_fieldmap.json"))
+    xnat_project = getParams(labels_dict,"PARTICIPANT_XNAT_PROJECT")
+    xnat_shared_project = getParams(labels_dict,"PARTICIPANT_XNAT_SHARED_PROJECT")
 
     IFLOGGER.info(f"Fieldmap located at {fmap}")
     fmapdict={}
@@ -173,17 +175,39 @@ def process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, b
 
     if os.path.exists(fmapmag_brain):
         echospacing = None
-        ECHOSPACING_DICT= getParams(labels_dict,"ASL_ECHOSPACING")
-        if ECHOSPACING_DICT is not None and isinstance(ECHOSPACING_DICT, dict):
-            if asl_acq in ECHOSPACING_DICT.keys():
-                echospacing = ECHOSPACING_DICT[asl_acq]
 
-        basil_dict = updateParams(basil_dict,ECHOSPACING,echospacing)
-        if echospacing:
-            IFLOGGER.info(f"Echospacing {echospacing} obtained from config file.")   
-        else:
-            IFLOGGER.error(f"Echospacing not defined. Fieldmap correction will not work.") 
-            raise ValueError("<ASL_ECHOSPACING> not defined in config file for fieldmap processing.") 
+        if "EffectiveEchoSpacing" in asljson.keys():
+            echospacing = asljson["EffectiveEchoSpacing"]
+            IFLOGGER.info(f"Echospacing {echospacing} obtained from BIDS metadata") 
+        
+        if not echospacing:
+            IFLOGGER.info(f"Echospacing not found in BIDS metadata. Attempting to retrieve from config file.") 
+            ECHOSPACING_DICT= getParams(labels_dict,"ASL_ECHOSPACING")
+            if ECHOSPACING_DICT is not None and isinstance(ECHOSPACING_DICT, dict):
+                if asl_acq in ECHOSPACING_DICT.keys():
+                    if ECHOSPACING_DICT[asl_acq] is not None and isinstance(ECHOSPACING_DICT[asl_acq], dict):
+                        if xnat_project in ECHOSPACING_DICT[asl_acq].keys():
+                            echospacing = ECHOSPACING_DICT[asl_acq][xnat_project]
+
+                        elif xnat_shared_project in ECHOSPACING_DICT[asl_acq].keys():
+                            echospacing = ECHOSPACING_DICT[asl_acq][xnat_shared_project]
+                        
+                        elif "default" in ECHOSPACING_DICT[asl_acq].keys():
+                            echospacing = ECHOSPACING_DICT[asl_acq]["default"]
+
+                        else:
+                            IFLOGGER.info(f"ASL_ECHOSPACING Dictionary keys {ECHOSPACING_DICT[asl_acq].keys()} not valid") 
+
+                    else:
+                        echospacing = ECHOSPACING_DICT[asl_acq]
+     
+            if echospacing:
+                IFLOGGER.info(f"Echospacing {echospacing} obtained from config file.")   
+            else:
+                IFLOGGER.error(f"Echospacing not defined. Fieldmap correction will not work.") 
+                raise ValueError("<ASL_ECHOSPACING> not defined in config file for fieldmap processing.")
+
+        basil_dict = updateParams(basil_dict,ECHOSPACING,echospacing) 
         pedir_ijk = asljson["PhaseEncodingDirection"]
         IFLOGGER.info(f"PE Direction of ASL is {pedir_ijk}")   
         pedir_fsl = pedir_ijk.replace('j-','-y').replace('j','y').replace('i-','-x').replace('i','x').replace('k-','-z').replace('k','z')
