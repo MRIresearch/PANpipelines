@@ -16,7 +16,7 @@ logger_addstdout(LOGGER, logging.INFO)
 
 panFactory = Factory.getPANFactory()
 
-def runGroupSubjects(participant_label, xnat_projects, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="group",panlabel=None):
+def runGroupSubjects(participant_label, xnat_projects, xnat_shared_projects, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="group",panlabel=None):
 
     # get parent directory
     if not panlabel:
@@ -107,8 +107,9 @@ def main():
     participant_labels = getParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL")
     xnat_projects = getParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT")
     session_labels = getParams(panpipe_labels,"GROUP_SESSION_LABEL")
+    xnat_shared_projects = getParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT")
     
-    runGroupSubjects(participant_labels,xnat_projects, session_labels, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level="group")
+    runGroupSubjects(participant_labels,xnat_projects, xnat_shared_projects, session_labels, pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level="group")
 
 
 
