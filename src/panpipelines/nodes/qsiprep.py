@@ -29,6 +29,10 @@ def qsiprep_proc(labels_dict,bids_dir=""):
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
 
+    # set up dwi to process just the specific dwi session
+    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
+
     eddy_config = getParams(labels_dict,'EDDY_CONFIG')
     eddy_json=""
     if eddy_config:
@@ -39,10 +43,13 @@ def qsiprep_proc(labels_dict,bids_dir=""):
             IFLOGGER.info(f"eddy params provided in file {eddy_config} and contents are:")
             IFLOGGER.info(f"{eddy_json}")
 
+    eddy_update = getParams(labels_dict,'EDDY_CONFIG_UPDATE')
 
-    # set up dwi to process just the specific dwi session
-    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
-    participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
+    if eddy_json and eddy_update and isinstance(eddy_update,dict):
+        for itemkey,itemvalue in eddy_update.items():
+            eddy_json[itemkey] = substitute_labels(itemvalue,labels_dict)
+        eddy_config = newfile(cwd,eddy_config,prefix=f"sub-{participant_label}_ses-{participant_session}")
+        export_labels(eddy_json, eddy_config)
 
     # This is for 1 specific scenario - we will terminate early if field map is missing
     layout = BIDSLayout(bids_dir)
@@ -67,7 +74,7 @@ def qsiprep_proc(labels_dict,bids_dir=""):
     qsiprep_dict = updateParams(qsiprep_dict,"--hmc-model" ,"eddy")
     qsiprep_dict = updateParams(qsiprep_dict,"--unringing-method" ,"rpg")
     qsiprep_dict = updateParams(qsiprep_dict,"--b1-biascorrect-stage","none")
-    qsiprep_dict = updateParams(qsiprep_dict,"--eddy-config" ,"<EDDY_CONFIG>")
+    qsiprep_dict = updateParams(qsiprep_dict,"--eddy-config" ,eddy_config)
     qsiprep_dict = updateParams(qsiprep_dict,"--mem_mb","<BIDSAPP_MEMORY>")
     qsiprep_dict = updateParams(qsiprep_dict,"--nthreads","<BIDSAPP_THREADS>")
     qsiprep_dict = updateParams(qsiprep_dict,"--fs-license-file","<FSLICENSE>")
