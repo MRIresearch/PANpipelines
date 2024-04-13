@@ -1815,7 +1815,19 @@ def getContainer(labels_dict,nodename="",SPECIFIC=None,CONTAINERALT="PAN_CONTAIN
                     if container_prerun:
                         LOGGER.info(f"Note that '{container_prerun}' set as pre-run options for non-existing container. This may cause the pipeline to fail.")
 
-    command_base = f"{container_run_options} {container} {container_prerun}"
+
+    # replace None by empty string
+    if container is None:
+        container=""
+    
+    if container_run_options is None:
+        container_run_options=""
+
+    if container_prerun is None:
+        container_prerun=""
+
+    command_base = f"{container_run_options} {container} {container_prerun} "
+    command_base = command_base.lstrip()
     LOGGER.info("Container base run command is:")
     LOGGER.info(f"{command_base}")
 
@@ -1853,8 +1865,15 @@ def getAcquisition(bids_dir,participant_label,participant_session=None,suffix="a
 
     return acq
 
-def getPhaseDiffSources(bids_dir,participant_label,participant_session=None,datatype="fmap",suffix=['phase1','phase2','magnitude1','magnitude2','phasediff','magnitude'],extension="nii.gz"):   
+def getPhaseDiffSources(bids_dir,participant_label,participant_session=None,acquisition=None,datatype="fmap",suffix=['phase1','phase2','magnitude1','magnitude2','phasediff','magnitude'],extension="nii.gz"):   
     layout = BIDSLayout(bids_dir)
-    bidslist = layout.get(return_type='file',subject=participant_label,session=participant_session,datatype=datatype,suffix=suffix,extension=extension)
+    bidslist = layout.get(return_type='file',subject=participant_label,session=participant_session,acquisition=acquisition,datatype=datatype,suffix=suffix,extension=extension)
+
+    return bidslist
+
+
+def getPepolarSources(bids_dir,participant_label,participant_session=None,acquisition="fmri",datatype="fmap",suffix=['epi'],extension="nii.gz"):   
+    layout = BIDSLayout(bids_dir)
+    bidslist = layout.get(return_type='file',subject=participant_label,session=participant_session,acquisition=acquisition,datatype=datatype,suffix=suffix,extension=extension)
 
     return bidslist
