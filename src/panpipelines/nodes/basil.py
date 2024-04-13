@@ -92,6 +92,10 @@ def process_sdcflows_fieldmap(fieldmap_dir,layout, asljson , asl_acq, basil_dict
             fmapdict["RawSources"] = getPhaseDiffSources(bids_dir,subject,session)
             fmapdict["Units"] = "Hz"
             export_labels(fmapdict,fmapjson)
+        elif fmap_mode == "pepolar":
+            fmapdict["RawSources"] = getPepolarSources(bids_dir,subject,session)
+            fmapdict["Units"] = "Hz"
+            export_labels(fmapdict,fmapjson)
 
     return process_fmriprep_fieldmap(fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir,fmap_mode=fmap_mode)
 
@@ -451,10 +455,10 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 elif basil_value == IGNORE:
                     IFLOGGER.info(f"Parameter {basil_tag} is being skipped. This has been explicitly required in configuration.")
                 else:
-                    params = params + " " + basil_tag+"="+basil_value
+                    params = params + " " + basil_tag+"=" + str(basil_value)
 
             elif "-" in basil_tag and "--" not in basil_tag:
-                params = params + " " + basil_tag + " " + basil_value
+                params = params + " " + basil_tag + " " + str(basil_value)
 
             else:
                 print(f"Basil tag {basil_tag} not valid.")

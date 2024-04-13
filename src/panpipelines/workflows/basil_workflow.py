@@ -58,8 +58,20 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
             if SDCFLOWS_FMAP_MODE:
                 sdcflows_fmap_mode = SDCFLOWS_FMAP_MODE
             else:
+                sdcflows_fmap_mode="phasediff"          
+
+            use_pepolar_fmap = getParams(labels_dict,'USE_PEPOLAR_FMAP')
+            if use_pepolar_fmap and participant_label in use_pepolar_fmap:
+                sdcflows_fmap_mode="pepolar"
+            elif use_pepolar_fmap and f"{participant_label}_{participant_session}" in use_pepolar_fmap:
+                sdcflows_fmap_mode="pepolar"
+
+            use_phasediff_fmap = getParams(labels_dict,'USE_PHASEDIFF_FMAP')
+            if use_phasediff_fmap and participant_label in use_phasediff_fmap:
                 sdcflows_fmap_mode="phasediff"
-                labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_MODE",sdcflows_fmap_mode)
+            elif use_phasediff_fmap and f"{participant_label}_{participant_session}" in use_phasediff_fmap:
+                sdcflows_fmap_mode="phasediff"
+            labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_MODE",sdcflows_fmap_mode)
             
             sdcflows_workdir = os.path.dirname(SDCFLOWS_FMAP_DIR)
             if not os.path.exists(sdcflows_workdir):
@@ -78,6 +90,17 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
                     f" --session {participant_session}" \
                     f" --fieldmap_dir {SDCFLOWS_FMAP_DIR }" \
                     f" --workdir {sdcflows_workdir}"
+            elif sdcflows_fmap_mode == "pepolar":               
+                sources = getPepolarSources(bids_dir,participant_label,participant_session)
+                sources_String = " ".join(sources)
+                params = f"--fmap_sources {sources_String}" \
+                    f" --subject {participant_label}" \
+                    f" --session {participant_session}" \
+                    f" --fieldmap_dir {SDCFLOWS_FMAP_DIR }" \
+                    f" --workdir {sdcflows_workdir}" \
+                    f" --fmap_mode {sdcflows_fmap_mode}"
+            elif LOGGER:
+                    LOGGER.warn(f"{sdcflows_fmap_mode} not recognized as a field map option.")                
 
             if sources:
                 SDCFLOWS_CONTAINER_TO_USE = getParams(labels_dict,"SDCFLOWS_CONTAINER_TO_USE")
