@@ -19,6 +19,7 @@ import panpipelines.scripts.pancontainer_panscript as pancontainer_script
 import panpipelines.scripts.mne_make_surfaces as mne_make_surfaces
 import mne
 from panpipelines.nodes.antstransform import antstransform_proc
+import itertools
 
 # simulate strel('disk',5);
 disc5 = np.zeros((9,9,9))
@@ -47,6 +48,19 @@ streldict={
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
+def returnCandidatesConservative(p0,p1,p2):
+    arrayList=[]
+    max_x = np.max(np.array([p0[0],p1[0],p2[0]]))
+    max_y = np.max(np.array([p0[1],p1[1],p2[1]]))
+    max_z = np.max(np.array([p0[2],p1[2],p2[2]]))
+    min_x = np.min(np.array([p0[0],p1[0],p2[0]]))
+    min_y = np.min(np.array([p0[1],p1[1],p2[1]]))
+    min_z = np.min(np.array([p0[2],p1[2],p2[2]]))
+
+    arrayList.extend([np.array(tup) for tup in itertools.product(range(min_x,max_x+1),range(min_y,max_y+1),range(min_z,max_z+1))])
+
+    return arrayList
+
 def returnCandidates(p0,p1,p2):
     arrayList=[]
     max_x = np.max(np.array([p0[0],p1[0],p2[0]]))
@@ -72,8 +86,36 @@ def validCandidate(p0,p1,p2,p,tol):
     else:
         return False
 
-def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,participant_session,artefact_outputdir,PHASESHIFT=12,PHASEAXIS=1,ALLOWOVERLAP=False,CLOSE_DISC=1,DILATE_DISC=2):
+def create_circular_mask(h, w, center=None, radius=None):
+    import numpy as np
     
+    if center is None: # use the middle of the image
+        center = (int(w/2), int(h/2))
+    if radius is None: # use the smallest distance between the center and image walls
+        radius = min(center[0], center[1], w-center[0], h-center[1])
+
+    Y, X = np.ogrid[:h, :w]
+    dist_from_center = np.sqrt((X - center[0])**2 + (Y-center[1])**2)
+
+    mask = dist_from_center <= radius
+    return mask
+
+def getDisc(dimx,dimy):
+    disc2d = np.zeros((dimx,dimy))
+    disc2d[create_circular_mask(dimx,dimy)]=1
+    return disc2d
+
+def get3Disc(dimN):
+    npzero3d = np.zeros((dimN,dimN,dimN))
+    disc2d = getDisc(dimN,dimN)
+    for dimz in range(dimN):
+        npzero3d[:,:,dimz] = np.multiply(np.multiply(np.ones((dimN,dimN)),disc2d[dimz,:]),disc2d[dimz,:].reshape(-1,1))
+
+    return npzero3d
+
+def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,participant_session,artefact_outputdir,PHASESHIFT=12,PHASEAXIS=1,ALLOWOVERLAP=False,CLOSE_DISC_STR="",DILATE_DISC_STR="disc-1",ERODE_DISC_STR="",T1_DILATE_DISC_STR="",COMBINED_ERODE_DISC_STR="",FILL_HOLES_STR="2",expand_ring=["1","1"],DO_T1_SHIFT=True, DO_CONSERVATIVE=True):
+
+
     transform_list =  getParams(labels_dict,'TRANSFORM_MAT')
     transform_ref =  getParams(labels_dict,'TRANSFORM_REF')
     PHASESHIFT_lookup = getParams(labels_dict,'PHASESHIFT')
@@ -85,12 +127,26 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
             PHASESHIFT = int(PHASESHIFT_lookup)
     if getParams(labels_dict,'PHASEAXIS'):
         PHASEAXIS = int(getParams(labels_dict,'PHASEAXIS'))
-    if getParams(labels_dict,'CLOSE_DISC'):
-        CLOSE_DISC = int(getParams(labels_dict,'CLOSE_DISC'))
-    if getParams(labels_dict,'DILATE_DISC'):
-        DILATE_DISC = int(getParams(labels_dict,'DILATE_DISC'))
+    if getParams(labels_dict,'CLOSE_DISC_STR'):
+        CLOSE_DISC_STR = getParams(labels_dict,'CLOSE_DISC_STR')
+    if getParams(labels_dict,'ERODE_DISC_STR'):
+        ERODE_DISC_STR = getParams(labels_dict,'ERODE_DISC_STR')
+    if getParams(labels_dict,'DILATE_DISC_STR'):
+        DILATE_DISC_STR = getParams(labels_dict,'DILATE_DISC_STR')
+    if getParams(labels_dict,'T1_DILATE_DISC_STR'):
+        T1_DILATE_DISC_STR = getParams(labels_dict,'T1_DILATE_DISC_STR')
+    if getParams(labels_dict,'FILL_HOLES_STR'):
+        FILL_HOLES_STR = getParams(labels_dict,'FILL_HOLES_STR')
+    if getParams(labels_dict,'COMBINED_ERODE_DISC_STR'):
+        COMBINED_ERODE_DISC_STR = getParams(labels_dict,'COMBINED_ERODE_DISC_STR')
+    if getParams(labels_dict,'DO_T1_SHIFT'):
+        DO_T1_SHIFT= isTrue(getParams(labels_dict,'DO_T1_SHIFT'))
     if getParams(labels_dict,'ALLOWOVERLAP'):
         ALLOWOVERLAP = isTrue(getParams(labels_dict,'ALLOWOVERLAP'))
+    if getParams(labels_dict,'DO_CONSERVATIVE'):
+        DO_CONSERVATIVE = isTrue(getParams(labels_dict,'DO_CONSERVATIVE'))
+    if getParams(labels_dict,'EXPANDRING'):
+        expand_ring = getParams(labels_dict,'EXPANDRING')
 
     cwd = os.getcwd()
     output_dir=cwd
@@ -149,13 +205,73 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
         p0 = np.round(apply_affine(inv_Torig,rr_mm_outer_skull[tri[0]])).astype(int)
         p1 = np.round(apply_affine(inv_Torig,rr_mm_outer_skull[tri[1]])).astype(int)
         p2 = np.round(apply_affine(inv_Torig,rr_mm_outer_skull[tri[2]])).astype(int)
-        valid_vox = returnCandidates(p0,p1,p2)
+        if DO_CONSERVATIVE:
+            valid_vox = returnCandidatesConservative(p0,p1,p2)
+        else:
+            valid_vox = returnCandidates(p0,p1,p2)
         for vox in valid_vox:
             vox_ind = tuple(vox.astype(int))
             outer_skull_vol[vox_ind] = 255
     outer_skull_img = nibabel.Nifti1Image(outer_skull_vol,origimg.affine,origimg.header)
     outer_skull_img_file=os.path.join(work_dir,f"{subject}_{session}_outer_skull.nii.gz")
     nibabel.save(outer_skull_img,outer_skull_img_file) 
+
+    if T1_DILATE_DISC_STR:
+        T1_DILATE_DISC=int(T1_DILATE_DISC_STR.split("-")[1])
+        STREL_TYPE=T1_DILATE_DISC_STR.split("-")[0]
+
+        if T1_DILATE_DISC > 0:
+            if STREL_TYPE.upper() == "DISC":
+                disc = get3Disc(T1_DILATE_DISC)
+            else:
+                disc = np.ones((T1_DILATE_DISC,T1_DILATE_DISC,T1_DILATE_DISC))
+
+            outer_skull_vol_dilation = ndimage.binary_dilation(outer_skull_vol, structure=disc).astype(np.int16)
+            outer_skull_vol_dilation[outer_skull_vol_dilation > 0] = 255
+            outer_skull_vol_dilation_file=newfile(work_dir, outer_skull_img_file,suffix=f"t1dilation-{T1_DILATE_DISC}")
+            outer_skull_vol_dilation_img = nibabel.Nifti1Image(outer_skull_vol_dilation,outer_skull_img.affine,outer_skull_img.header)
+            nibabel.save(outer_skull_vol_dilation_img,outer_skull_vol_dilation_file)
+            outer_skull_img_file = outer_skull_vol_dilation_file
+            outer_skull_vol = outer_skull_vol_dilation
+
+    t1_out_dims = outer_skull_vol.shape
+    if DO_T1_SHIFT:
+        asl_ref = getParams(labels_dict,'TRANSFORM_REF')
+        asl_img = nibabel.load(getGlob(asl_ref))
+        t1_ori = get_orientation_from_file(outer_skull_img_file,"image")[0]
+        T1_PHASEAXIS  = t1_ori.index("A")
+
+        asl_dim = asl_img.header["pixdim"][PHASEAXIS]
+        t1_dim = outer_skull_img.header["pixdim"][T1_PHASEAXIS]
+
+        T1_PHASESHIFTFACTOR=int(np.round(asl_dim/t1_dim))
+        T1_PHASESHIFT = PHASESHIFT * T1_PHASESHIFTFACTOR
+
+        if T1_PHASESHIFT < 0:
+            T1_PHASESHIFT_CALC = t1_out_dims[T1_PHASEAXIS] + T1_PHASESHIFT
+            T1_OVSTART=T1_PHASESHIFT_CALC
+            T1_OVEND=-1
+        else:
+            T1_PHASESHIFT_CALC = T1_PHASESHIFT
+            T1_OVSTART=0
+            T1_OVEND=T1_PHASESHIFT
+
+        outer_skull_t1_shift=newfile(work_dir,outer_skull_img_file,suffix=f"t1shift_{T1_PHASESHIFT}")
+        T1_data_shifted = np.roll(outer_skull_vol,T1_PHASESHIFT_CALC,T1_PHASEAXIS)
+        if not ALLOWOVERLAP:
+            if T1_PHASEAXIS==0:
+                T1_data_shifted[T1_OVSTART:T1_OVEND,:,:]=0
+            elif T1_PHASEAXIS==1:
+                T1_data_shifted[:,T1_OVSTART:T1_OVEND,:]=0
+            elif T1_PHASEAXIS==2:
+                T1_data_shifted[:,:,T1_OVSTART:T1_OVEND]=0
+            else:
+                print(f"phase axis {PHASEAXIS} not valid. Allowing overlap of mask")     
+        t1_shifted_img = nibabel.Nifti1Image(T1_data_shifted,outer_skull_img.affine, outer_skull_img.header)
+
+        nibabel.save(t1_shifted_img,outer_skull_t1_shift)
+        outer_skull_img_file = outer_skull_t1_shift
+        outer_skull_vol = T1_data_shifted
 
     outer_skull_aslspace_file = None
     if transform_list and transform_ref:
@@ -169,54 +285,158 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
 
     outskull_aslspace_img=nibabel.load(outer_skull_aslspace_bin)
     outskull_aslspace_data = outskull_aslspace_img.get_fdata()
+    out_dims = outskull_aslspace_data.shape
     outskull_aslspace_file  = outer_skull_aslspace_bin
 
-    if DILATE_DISC > 0:
-        disc = np.ones((DILATE_DISC,DILATE_DISC,DILATE_DISC))
-        outskull_aslspace_data_dilation = ndimage.binary_dilation(outskull_aslspace_data, structure=disc).astype(np.int16)
-        outskull_aslspace_data_dilation_file=newfile(work_dir,outskull_aslspace_file,suffix=f"dilation-disc-{DILATE_DISC}")
-        outskull_aslspace_data_dilation_img = nibabel.Nifti1Image(outskull_aslspace_data_dilation,outskull_aslspace_img.affine,outskull_aslspace_img.header)
-        nibabel.save(outskull_aslspace_data_dilation_img,outskull_aslspace_data_dilation_file)
-        outskull_aslspace_file = outskull_aslspace_data_dilation_file
-        outskull_aslspace_data = outskull_aslspace_data_dilation
+    if DILATE_DISC_STR:
+        DILATE_DISC=int(DILATE_DISC_STR.split("-")[1])
+        STREL_TYPE=DILATE_DISC_STR.split("-")[0]
+        if DILATE_DISC > 0:
+            if STREL_TYPE.upper() == "DISC":
+                disc = get3Disc(DILATE_DISC)
+            else:
+                disc = np.ones((DILATE_DISC,DILATE_DISC,DILATE_DISC))    
+            outskull_aslspace_data_dilation = ndimage.binary_dilation(outskull_aslspace_data, structure=disc).astype(np.int16)
+            outskull_aslspace_data_dilation_file=newfile(work_dir,outskull_aslspace_file,suffix=f"dilation-{DILATE_DISC}")
+            outskull_aslspace_data_dilation_img = nibabel.Nifti1Image(outskull_aslspace_data_dilation,outskull_aslspace_img.affine,outskull_aslspace_img.header)
+            nibabel.save(outskull_aslspace_data_dilation_img,outskull_aslspace_data_dilation_file)
+            outskull_aslspace_file = outskull_aslspace_data_dilation_file
+            outskull_aslspace_data = outskull_aslspace_data_dilation
+
+    if FILL_HOLES_STR:
+        FILL_HOLES=int(FILL_HOLES_STR)
+        # Assume LAS or RAS!
+        ori = get_orientation_from_file(outer_skull_aslspace_file,"image")[0]
+        if ori == "LAS" or ori == "RAS":
+            holes_filled=0
+            for outdim in range(out_dims[1]):
+                if holes_filled == FILL_HOLES:
+                    break
+                if np.sum(outskull_aslspace_data[:,outdim,:]> 0) > 3:
+                    outskull_aslspace_data[:,outdim,:] = ndimage.binary_fill_holes(outskull_aslspace_data[:,outdim,:])
+                    holes_filled = holes_filled + 1
+  
+        outskull_aslspace_data_filled_file=newfile(work_dir,outskull_aslspace_file,suffix=f"filled-{FILL_HOLES}")
+        outskull_aslspace_data_filled_img = nibabel.Nifti1Image(outskull_aslspace_data,outskull_aslspace_img.affine,outskull_aslspace_img.header)
+        nibabel.save(outskull_aslspace_data_filled_img,outskull_aslspace_data_filled_file)
+        outskull_aslspace_file = outskull_aslspace_data_filled_file
+
+    if ERODE_DISC_STR:
+        ERODE_DISC=int(ERODE_DISC_STR.split("-")[1])
+        STREL_TYPE=ERODE_DISC_STR.split("-")[0]
+
+        if ERODE_DISC > 0:
+            if STREL_TYPE.upper() == "DISC":
+                disc = get3Disc(ERODE_DISC)
+            else:
+                disc = np.ones((ERODE_DISC,ERODE_DISC,ERODE_DISC))
+
+            outskull_aslspace_data_erosion = ndimage.binary_erosion(outskull_aslspace_data, structure=disc).astype(np.int16)
+            outskull_aslspace_data_erosion_file=newfile(work_dir,outskull_aslspace_file,suffix=f"erosion-{ERODE_DISC}")
+            outskull_aslspace_data_erosion_img = nibabel.Nifti1Image(outskull_aslspace_data_erosion,outskull_aslspace_img.affine,outskull_aslspace_img.header)
+            nibabel.save(outskull_aslspace_data_erosion_img,outskull_aslspace_data_erosion_file)
+            outskull_aslspace_file = outskull_aslspace_data_erosion_file
+            outskull_aslspace_data = outskull_aslspace_data_erosion
     
-    if CLOSE_DISC > 0:
-        disc = np.ones((CLOSE_DISC,CLOSE_DISC,CLOSE_DISC))
-        outskull_aslspace_data_close = ndimage.binary_closing(outskull_aslspace_data, structure=disc).astype(np.int16)
-        outskull_aslspace_data_close_file=newfile(work_dir,outskull_aslspace_file,suffix=f"close-disc-{CLOSE_DISC}")
-        outskull_aslspace_data_close_img = nibabel.Nifti1Image(outskull_aslspace_data_close,outskull_aslspace_img.affine,outskull_aslspace_img.header)
-        nibabel.save(outskull_aslspace_data_close_img,outskull_aslspace_data_close_file)
-        outskull_aslspace_file = outskull_aslspace_data_close_file
-        outskull_aslspace_data = outskull_aslspace_data_close
+    if CLOSE_DISC_STR:
+        CLOSE_DISC=int(CLOSE_DISC_STR.split("-")[1])
+        STREL_TYPE=CLOSE_DISC_STR.split("-")[0]
 
-    out_dims = outskull_aslspace_data.shape
-    if PHASESHIFT < 0:
-        PHASESHIFT_CALC = out_dims[PHASEAXIS] + PHASESHIFT
-        OVSTART=PHASESHIFT_CALC
-        OVEND=-1
+        if CLOSE_DISC > 0:
+            if STREL_TYPE.upper() == "DISC":
+                disc = get3Disc(CLOSE_DISC)
+            else:
+                disc = np.ones((CLOSE_DISC,CLOSE_DISC,CLOSE_DISC))
+
+            outskull_aslspace_data_close = ndimage.binary_closing(outskull_aslspace_data, structure=disc).astype(np.int16)
+            outskull_aslspace_data_close_file=newfile(work_dir,outskull_aslspace_file,suffix=f"close-{CLOSE_DISC}")
+            outskull_aslspace_data_close_img = nibabel.Nifti1Image(outskull_aslspace_data_close,outskull_aslspace_img.affine,outskull_aslspace_img.header)
+            nibabel.save(outskull_aslspace_data_close_img,outskull_aslspace_data_close_file)
+            outskull_aslspace_file = outskull_aslspace_data_close_file
+            outskull_aslspace_data = outskull_aslspace_data_close
+
+    if len(expand_ring) == 1:
+        prering=int(expand_ring[0])
+        phase_range=range(PHASESHIFT - prering,PHASESHIFT + 1)
+        if DO_T1_SHIFT:
+            phase_range=range(-prering,1)
+    elif len(expand_ring)> 1:
+        prering=int(expand_ring[0])
+        postring=int(expand_ring[1])
+        phase_range=range(PHASESHIFT - prering,PHASESHIFT + 1 + postring)
+        if DO_T1_SHIFT:
+            phase_range=range(-prering,1 + postring)
     else:
-        PHASESHIFT_CALC = PHASESHIFT
-        OVSTART=0
-        OVEND=PHASESHIFT
+        phase_range=range(PHASESHIFT,PHASESHIFT + 1)
+        if DO_T1_SHIFT:
+            phase_range=range(0,1)
 
-    outer_skull_shift=newfile(work_dir,outskull_aslspace_file,suffix="shift")
-    data_shifted = np.roll(outskull_aslspace_data,PHASESHIFT_CALC,PHASEAXIS)
-    if not ALLOWOVERLAP:
-        if PHASEAXIS==0:
-            data_shifted[OVSTART:OVEND,:,:]=0
-        elif PHASEAXIS==1:
-            data_shifted[:,OVSTART:OVEND,:]=0
-        elif PHASEAXIS==2:
-            data_shifted[:,:,OVSTART:OVEND]=0
+    outer_skull_shifted_images = []
+
+    COMBINED=False
+    if len(phase_range) > 1:
+        COMBINED=True 
+
+    for phaseshift in phase_range:
+        if phaseshift < 0:
+            PHASESHIFT_CALC = out_dims[PHASEAXIS] + phaseshift
+            OVSTART=PHASESHIFT_CALC
+            OVEND=-1
         else:
-            print(f"phase axis {PHASEAXIS} not valid. Allowing overlap of mask")     
-    shifted_img = nibabel.Nifti1Image(data_shifted,outskull_aslspace_img.affine,outskull_aslspace_img.header)
-    nibabel.save(shifted_img,outer_skull_shift)
-    outskull_aslspace_file = outer_skull_shift
-    outskull_aslspace_data = data_shifted
+            PHASESHIFT_CALC = phaseshift
+            OVSTART=0
+            OVEND=phaseshift
+
+        outer_skull_shift=newfile(work_dir,outskull_aslspace_file,suffix=f"shift_{phaseshift}")
+        data_shifted = np.roll(outskull_aslspace_data,PHASESHIFT_CALC,PHASEAXIS)
+        if not ALLOWOVERLAP:
+            if PHASEAXIS==0:
+                data_shifted[OVSTART:OVEND,:,:]=0
+            elif PHASEAXIS==1:
+                data_shifted[:,OVSTART:OVEND,:]=0
+            elif PHASEAXIS==2:
+                data_shifted[:,:,OVSTART:OVEND]=0
+            else:
+                print(f"phase axis {PHASEAXIS} not valid. Allowing overlap of mask")     
+        shifted_img = nibabel.Nifti1Image(data_shifted,outskull_aslspace_img.affine,outskull_aslspace_img.header)
+        nibabel.save(shifted_img,outer_skull_shift)
+        outer_skull_shifted_images.append(outer_skull_shift)
+
+    if len(outer_skull_shifted_images) > 1:
+        command = f"fslmaths {outer_skull_shifted_images[0]} "
+        for shifted_image in outer_skull_shifted_images[1:]:
+            command = command + f"-add {shifted_image} "
+
+        outer_skull_shift_combined=newfile(work_dir,outer_skull_shift,suffix=f"combined")
+        command = command + f"-bin {outer_skull_shift_combined} "
+        evaluated_command=substitute_labels(command, labels_dict)
+        results = runCommand(evaluated_command,IFLOGGER)
+
+    else:
+        outer_skull_shift_combined =  outer_skull_shift
+
+    if COMBINED_ERODE_DISC_STR and COMBINED:
+        COMBINED_ERODE_DISC=int(COMBINED_ERODE_DISC_STR.split("-")[1])
+        STREL_TYPE=COMBINED_ERODE_DISC_STR.split("-")[0]
+
+        if CLOSE_DISC > 0:
+            if STREL_TYPE.upper() == "DISC":
+                disc = get3Disc(COMBINED_ERODE_DISC)
+            else:
+                disc = np.ones((COMBINED_ERODE_DISC,COMBINED_ERODE_DISC,COMBINED_ERODE_DISC))
+
+            outer_skull_shift_combined_img=nibabel.load(outer_skull_shift_combined)
+            outer_skull_shift_combined_data = outer_skull_shift_combined_img.get_fdata()
+            
+             
+            outer_skull_shift_combined_erosion_data = ndimage.binary_erosion(outer_skull_shift_combined_data, structure=disc).astype(np.int16)
+            outer_skull_shift_combined_erosion_file=newfile(work_dir,outer_skull_shift_combined,suffix=f"comb-erosion-{COMBINED_ERODE_DISC}")
+            outer_skull_shift_combined_erosion_img = nibabel.Nifti1Image(outer_skull_shift_combined_erosion_data,outer_skull_shift_combined_img.affine,outer_skull_shift_combined_img.header)
+            nibabel.save(outer_skull_shift_combined_erosion_img,outer_skull_shift_combined_erosion_file)
+            outer_skull_shift_combined = outer_skull_shift_combined_erosion_file
 
     outer_skull_shift_final = newfile(artefact_outputdir,assocfile=f"{subject}_{session}_asl_chemical_shift_artefact.nii.gz")
-    shutil.copyfile(outer_skull_shift,outer_skull_shift_final)  
+    shutil.copyfile(outer_skull_shift_combined,outer_skull_shift_final)  
 
 
 def derive_asl_artefact_v1(asl_acq,labels_dict,command_base,aslfile,aslfile_brain,aslfile_brain_mask,workdir,outputdir,RINGTHRESH=0.15,STRELCLOSE=disc3,PHASESHIFT=12,PHASEAXIS=1,FRAC_INT_THRESH="0.7000000000000002",VERT_GRAD="0"):
