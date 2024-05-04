@@ -20,6 +20,7 @@ from nipype import logging as nlogging
 import fcntl
 import time
 from bids import BIDSLayout
+from collections import OrderedDict
 
 UTLOGGER=nlogging.getLogger('nipype.utils')
 
@@ -985,6 +986,80 @@ def getProcNums(panpipe_labels):
     return int(np.min(np.array(procnum_list)))
 
 
+def add_mask_roi(atlas_file, roi_in, panpipe_labels, high_thresh=None,prob_thresh=0.5,roi_transform=None,invert_roi=False):
+
+    workdir = os.path.join(os.path.dirname(atlas_file),'roi_temp')
+    if not os.path.isdir(workdir):
+        os.makedirs(workdir)
+
+    trans_workdir = os.path.join(os.path.dirname(atlas_file),'roi_transformed')
+    if not os.path.isdir(trans_workdir):
+        os.makedirs(trans_workdir)
+
+    if prob_thresh:
+        PROBTHRESH=f" -thr {prob_thresh}"
+    else:
+        PROBTHRESH=""
+
+    if high_thresh:
+        HIGHTHRESH=f" -uthr {high_thresh}"
+    else:
+        HIGHTHRESH = ""
+
+    if invert_roi:
+        BINSTRING = " -binv"
+    else:
+        BINSTRING = " -bin"
+
+
+    # store roi in work dir for
+    command_base, container = getContainer(panpipe_labels,nodename="add_atlas_roi",SPECIFIC="NEURO_CONTAINER")
+    new_roi=newfile(trans_workdir, roi_in, suffix="desc-label")
+    command = f"{command_base} fslmaths"\
+        f"  {roi_in}" +\
+        HIGHTHRESH +\
+        PROBTHRESH +\
+        BINSTRING +\
+        f" {new_roi}" 
+    
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
+
+    from panpipelines.nodes.antstransform import antstransform_proc
+
+    roi_transform_ref = getParams(panpipe_labels,"ROI_TRANSFORM_REF")
+    if roi_transform:
+        CURRDIR = os.getcwd()
+        os.chdir(trans_workdir)
+        results = antstransform_proc(panpipe_labels, new_roi,roi_transform, roi_transform_ref)
+        new_roi_transformed = results['out_file']
+        os.chdir(CURRDIR)
+    else:
+        new_roi_transformed = newfile(trans_workdir, new_roi)
+        shutil.move(new_roi, new_roi_transformed)
+
+    # make output file into int. This was initially don in ANTS above but had issues with rois that had value of 1
+    command = f"{command_base} fslmaths"\
+            f"  {new_roi_transformed}"\
+            f" {new_roi_transformed}" \
+             " -odt int"
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
+
+    if os.path.exists(atlas_file):
+        command = f"{command_base} fslmaths"\
+            f"  {new_roi_transformed}"\
+            f" -mas {atlas_file}" +\
+            f" {atlas_file}"
+    else:
+        command = f"{command_base} fslmaths"\
+            f" {new_roi_transformed}"\
+            f" {atlas_file}" 
+    
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
+
+
 def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, high_thresh=None,low_thresh=None,prob_thresh=0.5,roi_transform=None):
 
     workdir = os.path.join(os.path.dirname(atlas_file),'roi_temp')
@@ -1077,7 +1152,54 @@ def create_3d_atlas_from_rois(atlas_file, roi_list,panpipe_labels, roi_values=No
         if roi_transform_mat and roi_num < len(roi_transform_mat):
             roi_transform = roi_transform_mat[roi_num]
         roi_value = roi_values[roi_num]
-        add_atlas_roi(atlas_file, roi, roi_value, panpipe_labels,high_thresh=roi_value,prob_thresh=prob_thresh,roi_transform=roi_transform)
+        if isinstance(prob_thresh,list):
+            prob_thresh_val = float(prob_thresh[np.min((roi_num,len(prob_thresh)-1))])
+        elif prob_thresh:
+            prob_thresh_val = prob_thresh
+        else:
+            prob_thresh_val = ""
+
+        add_atlas_roi(atlas_file, roi, roi_value, panpipe_labels,high_thresh=roi_value,prob_thresh=prob_thresh_val,roi_transform=roi_transform)
+
+    return atlas_file
+
+def create_3d_mask_from_rois(atlas_file, roi_list,panpipe_labels, roi_values=None,prob_thresh=0.5,explode3d=True,invert_roi=False):
+
+    roi_list = expand_rois(roi_list,os.path.dirname(atlas_file),panpipe_labels,explode3d=explode3d)
+    roi_transform_mat = getParams(panpipe_labels,"ROI_TRANSFORM_MAT")
+    panpipe_labels=updateParams(panpipe_labels,"ROI_TRANSFORM_REF",getParams(panpipe_labels,"NEWATLAS_TRANSFORM_REF"))
+
+    numrois=len(roi_list)
+
+    # create rois
+    for roi_num in range(numrois):
+        roi = roi_list[roi_num]
+        roi_transform=None
+        if roi_transform_mat and roi_num < len(roi_transform_mat):
+            roi_transform = roi_transform_mat[roi_num]
+
+        if isinstance(roi_values,list):
+            roi_value = float(roi_values[np.min((roi_num,len(roi_values)-1))])
+        elif prob_thresh:
+            roi_value = roi_values
+        else:
+            roi_value = None
+
+        if isinstance(prob_thresh,list):
+            prob_thresh_val = float(prob_thresh[np.min((roi_num,len(prob_thresh)-1))])
+        elif prob_thresh:
+            prob_thresh_val = prob_thresh
+        else:
+            prob_thresh_val = 0.5
+
+        if isinstance(invert_roi,list):
+            invert_roi_val = isTrue(invert_roi[np.min((roi_num,len(invert_roi)-1))])
+        elif invert_roi:
+            invert_roi_val = invert_roi
+        else:
+            invert_roi_val = False
+
+        add_mask_roi(atlas_file, roi, panpipe_labels,high_thresh=roi_value,prob_thresh=prob_thresh_val,roi_transform=roi_transform,invert_roi=invert_roi_val)
 
     return atlas_file
 
@@ -1096,11 +1218,6 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
     else:
         HIGHTHRESH = ""
 
-    if low_thresh:
-        LOWTHRESH=f" -thr {low_thresh}"
-    else:
-        LOWTHRESH=""
-
     command_base, container = getContainer(panpipe_labels,nodename="merge_atlas_roi",SPECIFIC="NEURO_CONTAINER")
 
     roicount=0
@@ -1108,7 +1225,18 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
     roi_files=[]
     for roi_in in roi_list:       
         # store roi in work dir\
-        roicount=roicount+1
+        if isinstance(low_thresh,list):
+            low_thresh_val = float(low_thresh[np.min((roicount,len(low_thresh)-1))])
+        elif low_thresh:
+            low_thresh_val = low_thresh
+        else:
+            low_thresh_val = ""
+
+        if low_thresh_val:
+            LOWTHRESH=f" -thr {low_thresh_val}"
+        else:
+            LOWTHRESH=""
+        
         new_roi=newfile(workdir, roi_in,suffix="desc-bin")
         command = f"{command_base} fslmaths"\
             f"  {roi_in}" +\
@@ -1119,6 +1247,7 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
         evaluated_command=substitute_labels(command,panpipe_labels)
         results = runCommand(evaluated_command)
         roi_files.append(new_roi)
+        roicount=roicount+1
 
     from panpipelines.nodes.antstransform import antstransform_proc
     roi_files_transformed=[]
@@ -1877,3 +2006,151 @@ def getPepolarSources(bids_dir,participant_label,participant_session=None,acquis
     bidslist = layout.get(return_type='file',subject=participant_label,session=participant_session,acquisition=acquisition,datatype=datatype,suffix=suffix,extension=extension)
 
     return bidslist
+
+
+def get_fslparams(fsl_dict):
+    params = ""
+    for fsl_tag, fsl_value in fsl_dict.items():
+        if "--" in fsl_tag and "---" not in fsl_tag:
+            if fsl_value == "^^^":
+                    params=params + " " + fsl_tag
+            elif fsl_value == "###":
+                UTLOGGER.info(f"Parameter {fsl_tag} is being skipped. This has been explicitly required in configuration.")
+            else:
+                if fsl_value:
+                    params = params + " " + fsl_tag+"=" + str(fsl_value)
+
+        elif str(fsl_tag).upper().startswith("DUMMYKEY") and fsl_value:
+                params=params + " " + fsl_value
+        elif "-" in fsl_tag and "--" not in fsl_tag:
+            if fsl_value == "^^^":
+                    params=params + " " + fsl_tag
+            elif fsl_value == "###":
+                UTLOGGER.info(f"Parameter {fsl_tag} is being skipped. This has been explicitly required in configuration.")
+            else:
+                if fsl_value:
+                    params = params + " " + fsl_tag +" " + str(fsl_value)
+
+        else:
+            print(f"fsl tag {fsl_tag} not valid.")
+    return params
+
+def N4BiasFieldCorrection(panpipe_labels,inputfile,biascorr_output,biascorr_field=None,mask=None,dims=3,spline_spacing="[ 180 ]",convergence="[ 50x50x50x50, 0.0]",shrink_factor="1"):
+    command_base, container = getContainer(panpipe_labels,nodename="N4BiasFieldCorrection",SPECIFIC="ANTS_CONTAINER",LOGGER=UTLOGGER)
+
+    if not biascorr_field:
+        biascorr_field = newfile(assocfile=biascorr_output,suffix="biascorr-field")
+
+    ants_dict=OrderedDict()
+    ants_dict = updateParams(ants_dict,"-d",str(dims))
+    ants_dict = updateParams(ants_dict,"-v","1")
+    ants_dict = updateParams(ants_dict,"-s",str(shrink_factor))
+    ants_dict = updateParams(ants_dict,"-b",str(spline_spacing))
+    ants_dict = updateParams(ants_dict,"-c",str(convergence))
+    ants_dict = updateParams(ants_dict,"-i",str(inputfile))
+    ants_dict = updateParams(ants_dict,"-o",f"[ {str(biascorr_output)},{biascorr_field} ]")
+    ants_dict = updateParams(ants_dict,"-m",mask)
+
+    params = get_fslparams(ants_dict)
+    command=f"{command_base} N4BiasFieldCorrection"\
+        " "+params
+    evaluated_command=substitute_labels(command, panpipe_labels)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+
+def clean_up_edge(panpipe_labels, outfile, maskim, tmpnm, despike_thresh=2.1,edge_thresh=0.5):
+    command_base, container = getContainer(panpipe_labels,nodename="clean_up_edge",SPECIFIC="FSL_CONTAINER",LOGGER=UTLOGGER)
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"--loadfmap",f"{str(outfile)}")
+    fsl_dict = updateParams(fsl_dict,"--savefmap",f"{str(tmpnm)}_tmp_fmapfilt")
+    fsl_dict = updateParams(fsl_dict,"--mask",f"{str(maskim)}")
+    fsl_dict = updateParams(fsl_dict,"--despike","^^^")
+    fsl_dict = updateParams(fsl_dict,"--despikethreshold",f"{str(despike_thresh)}")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fugue"\
+        " "+params
+    evaluated_command=substitute_labels(command, panpipe_labels)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(maskim)}")
+    fsl_dict = updateParams(fsl_dict,"-kernel","2D")
+    fsl_dict = updateParams(fsl_dict,"-ero",f"{str(tmpnm)}_tmp_eromask")
+
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, panpipe_labels)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(maskim)}")
+    fsl_dict = updateParams(fsl_dict,"-sub",f"{str(tmpnm)}_tmp_eromask")
+    fsl_dict = updateParams(fsl_dict,"-thr",f"{str(edge_thresh)}")
+    fsl_dict = updateParams(fsl_dict,"-bin",f"{str(tmpnm)}_tmp_edgemask")
+
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, panpipe_labels)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(tmpnm)}_tmp_fmapfilt")
+    fsl_dict = updateParams(fsl_dict,"-mas",f"{str(tmpnm)}_tmp_edgemask")
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{str(tmpnm)}_tmp_fmapfiltedge")
+
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, panpipe_labels)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(outfile)}")
+    fsl_dict = updateParams(fsl_dict,"-mas",f"{str(tmpnm)}_tmp_eromask")
+    fsl_dict = updateParams(fsl_dict,"-add",f"{str(tmpnm)}_tmp_fmapfiltedge")
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{str(outfile)}")
+
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, panpipe_labels)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+
+def demean_image(panpipe_labels, outim, maskim, tmpnm, percentile=50):
+    command_base, container = getContainer(panpipe_labels,nodename="demean_image",SPECIFIC="FSL_CONTAINER",LOGGER=UTLOGGER)
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(outim)}")
+    fsl_dict = updateParams(fsl_dict,"-mas",f"{maskim}")
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{str(tmpnm)}_tmp_fmapmasked")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, panpipe_labels)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(tmpnm)}_tmp_fmapmasked")
+    fsl_dict = updateParams(fsl_dict,"-k",f"{maskim}")
+    fsl_dict = updateParams(fsl_dict,"-P",f"{str(percentile)}")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslstats"\
+        " "+params
+    evaluated_command=substitute_labels(command, panpipe_labels)
+    subfactor = runCommand(evaluated_command,UTLOGGER).strip()
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(outim)}")
+    fsl_dict = updateParams(fsl_dict,"-sub",f"{subfactor}")
+    fsl_dict = updateParams(fsl_dict,"-mas",f"{maskim}")
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{str(outim)}")
+    fsl_dict = updateParams(fsl_dict,"-odt","float")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, panpipe_labels)
+    results = runCommand(evaluated_command,UTLOGGER)

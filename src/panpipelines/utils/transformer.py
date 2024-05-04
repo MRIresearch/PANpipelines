@@ -98,7 +98,8 @@ def apply_transform_mni_to_mni2009_ants(TEMPLATEFLOW_HOME,input_file,out_file, C
 
     apply_transform_ants(input_file, mni2009_t1_ref,out_file,mninlin6_mni2009_trans,COMMANDBASE,reverse=reverse, costfunction=costfunction,output_type=output_type)
 
-def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBASE, transform_ori="RAS:RAS",target_ori="RAS", reverse=False, costfunction=None, output_type=None):
+
+def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBASE, transform_ori=":",target_ori="", reverse=False, costfunction=None, output_type=None):
 
     input_file = os.path.abspath(input_file)
     ref_file=os.path.abspath(ref_file)
@@ -109,12 +110,12 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBA
     
     # Ensure input_file, reference_file and transform are in the same orientation
     ref_ori = get_orientation_from_file(ref_file,"image")
-    if not ref_ori[0] == expected_ref_ori:
+    if expected_ref_ori and ref_ori[0] and not ref_ori[0] == expected_ref_ori:
         print("reorienting  ref_file {} from ref_ori {} to expected_ref_ori {}".format(ref_file, ref_ori, expected_ref_ori))
         ref_file=reorient(ref_file, expected_ref_ori, os.path.dirname(out_file))
 
     mov_ori = get_orientation_from_file(input_file,"image")
-    if not mov_ori[0] == expected_mov_ori:
+    if expected_mov_ori  and mov_ori[0] and not mov_ori[0] == expected_mov_ori:
         print("reorienting input_file (moving) {} from mov_ori {} to expected_mov_ori {}".format(input_file, mov_ori, expected_mov_ori))
         input_file=reorient(input_file, expected_mov_ori, os.path.dirname(out_file))
 
@@ -180,7 +181,7 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBA
     # Transform to target orientation
     # Ensure input_file, reference_file and transform are in the same orientation
     actual_target_ori = get_orientation_from_file(out_file,"image")
-    if not actual_target_ori[0] == target_ori:
+    if target_ori and not actual_target_ori[0] == target_ori:
         print("reorienting  target_file {} from actual_target_ori {} to {}".format(out_file, actual_target_ori, target_ori))
         out_file=reorient(out_file, target_ori,out_file)
 
@@ -813,7 +814,7 @@ def invertWarpfield_ANTS(ants_fwd_field, ants_inv_field, orig_source,orig_destin
     convertwarp_toANTS(fnirt_inv_field,orig_destination, ants_inv_field, COMMANDBASE,absolute)
 
 def invertAffine_FLIRT(fwd_affine, inv_affine, COMMANDBASE):
-    command=f"{COMMANDBASE} comvert_xfm"\
+    command=f"{COMMANDBASE} convert_xfm"\
         f" -omat {inv_affine}"\
         f" -inverse"\
         f" {fwd_affine}"

@@ -17,50 +17,73 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
     if len(execution.keys()) > 0:
         pan_workflow.config = process_dict(pan_workflow.config,execution)
 
-    # do we have  a lesion to exclude?
-    lesioncreate_node = None
-    lesion_templates = getParams(labels_dict,"LESION_TEMPLATE")
-    if lesion_templates:
-        lesion_list=[]
-        lesion_name = getParams(labels_dict,"LESION_NAME")
-        if not lesion_name:
-            lesion_name="lesion"
-        lesion_index = getParams(labels_dict,"LESION_INDEX")
-        if isinstance(lesion_templates,list):
-            for lesion_template in lesion_templates:
-                evaluated_lesion_template = substitute_labels(lesion_template,labels_dict)
-                if "*" not in evaluated_lesion_template:
-                    lesion_list.append(evaluated_lesion_template)
+    # do we have  a mask to exclude?
+    maskcreate_node = None
+    mask_templates = getParams(labels_dict,"MASK_TEMPLATE")
+    if mask_templates:
+        mask_list=[]
+        mask_name = getParams(labels_dict,"MASK_NAME")
+        if not mask_name:
+            mask_name="mask"
+        mask_index = getParams(labels_dict,"MASK_INDEX")
+        if isinstance(mask_templates,list):
+            for mask_template in mask_templates:
+                evaluated_mask_template = substitute_labels(mask_template,labels_dict)
+                if "*" not in evaluated_mask_template:
+                    mask_list.append(evaluated_mask_template)
                 else:
-                    lesion_list.extend(glob.glob(evaluated_lesion_template))
+                    mask_list.extend(glob.glob(evaluated_mask_template))
         else:
-            lesion_list.extend(glob.glob(lesion_templates))
+            mask_list.extend(glob.glob(mask_templates))
 
-        # if lesion template is invalid then continue, otherwise print message and continue without
-        # using lesion segmenntation
-        LESION_TEMPLATE_EXISTS=True
-        for lesion in lesion_list:
-            if not os.path.exists(lesion):
-                LESION_TEMPLATE_EXISTS = False
+        # if mask template is invalid then continue, otherwise print message and continue without
+        # using mask segmenntation
+        MASK_TEMPLATE_EXISTS=True
+        for mask in mask_list:
+            if not os.path.exists(mask):
+                MASK_TEMPLATE_EXISTS = False
 
-        if lesion_list and LESION_TEMPLATE_EXISTS:    
-            # store and restore parameters used by both lesion and newatlas
+        if mask_list and MASK_TEMPLATE_EXISTS and getParams(labels_dict,"MASK_TRANSFORM_MAT"):    
+            # store and restore parameters used by both mask and newatlas
             newatlas_transform_mat = getParams(labels_dict,"NEWATLAS_TRANSFORM_MAT")
             newatlas_transform_ref = getParams(labels_dict,"NEWATLAS_TRANSFORM_REF")
-            lesion_transform_mat = getParams(labels_dict,"LESION_TRANSFORM_MAT")
-            lesion_transform_ref = getParams(labels_dict,"LESION_TRANSFORM_REF")
+            newatlas_type = getParams(labels_dict,"NEWATLAS_TYPE")
+            newatlas_name = getParams(labels_dict,"NEWATLAS_NAME")
+            newatlas_probthresh = getParams(labels_dict,"NEWATLAS_PROBTHRESH")
+            newatlas_invertroi = getParams(labels_dict,"NEWATLAS_INVERTROI")
+            newatlas_indexmode = getParams(labels_dict,"NEWATLAS_INDEXMODE")
 
-            labels_dict = updateParams(labels_dict,"NEWATLAS_TRANSFORM_MAT",lesion_transform_mat)
-            labels_dict = updateParams(labels_dict,"NEWATLAS_TRANSFORM_REF",lesion_transform_ref)
+            mask_transform_mat = getParams(labels_dict,"MASK_TRANSFORM_MAT")
+            mask_transform_ref = getParams(labels_dict,"MASK_TRANSFORM_REF")
+            mask_type = getParams(labels_dict,"MASK_TYPE")
+            if not mask_type:
+                mask_type = "3D_mask"
+            mask_name = getParams(labels_dict,"MASK_NAME")
+            mask_probthresh = getParams(labels_dict,"MASK_PROBTHRESH")
+            mask_invertroi = getParams(labels_dict,"MASK_INVERTROI")
+            mask_indexmode = getParams(labels_dict,"MASK_INDEXMODE")
+
+            labels_dict = updateParams(labels_dict,"NEWATLAS_TRANSFORM_MAT",mask_transform_mat)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_TRANSFORM_REF",mask_transform_ref)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_TYPE",mask_type)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_NAME",mask_name)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_PROBTHRESH",mask_probthresh)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_INVERTROI",mask_invertroi)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_INDEXMODE",mask_indexmode)
 
             labels_dict = updateParams(labels_dict,"COST_FUNCTION","NearestNeighbor")
-            lesioncreate_node = atlascreate.create(labels_dict,name=f"lesioncreate_{lesion_name}_node",roi_list=lesion_list,roilabels_list=lesion_index,LOGGER=LOGGER)
+            maskcreate_node = atlascreate.create(labels_dict,name=f"maskcreate_{mask_name}_node",roi_list=mask_list,roilabels_list=mask_index,LOGGER=LOGGER)
 
             labels_dict = updateParams(labels_dict,"NEWATLAS_TRANSFORM_MAT",newatlas_transform_mat)
             labels_dict = updateParams(labels_dict,"NEWATLAS_TRANSFORM_REF",newatlas_transform_ref)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_TYPE",newatlas_type)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_NAME",newatlas_name)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_PROBTHRESH",newatlas_probthresh)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_INVERTROI",newatlas_invertroi)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_INDEXMODE",newatlas_indexmode)
         else:
             if LOGGER:
-                LOGGER.info(f"Lesion Template defined but valid template file not found. Ignoring Lesion Template.")
+                LOGGER.info(f"mask Template defined but valid template file not found. Ignoring mask Template.")
 
     # do we need to create a custom atlas?
     atlas_index = getParams(labels_dict,"ATLAS_INDEX")
@@ -139,8 +162,11 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
         roimean_map_node.inputs.input_file = measures_list
 
 
-    if lesioncreate_node:
-        pan_workflow.connect(lesioncreate_node,'atlas_file',roimean_map_node,'lesion_file')
+    if maskcreate_node:
+        pan_workflow.connect(maskcreate_node,'atlas_file',roimean_map_node,'mask_file')
+    elif mask_templates:
+        roimean_map_node.inputs.mask_file = mask_templates
+
 
 
     if createGraph:

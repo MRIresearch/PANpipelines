@@ -113,6 +113,12 @@ def get3Disc(dimN):
 
     return npzero3d
 
+def within_range(vox,dims):
+    if vox[0] > (dims[0] - 1) or vox[1] > (dims[1] - 1) or  vox[2] > (dims[2] - 1):
+        return False
+    
+    return True
+
 def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,participant_session,artefact_outputdir,PHASESHIFT=12,PHASEAXIS=1,ALLOWOVERLAP=False,CLOSE_DISC_STR="",DILATE_DISC_STR="disc-1",ERODE_DISC_STR="",T1_DILATE_DISC_STR="",COMBINED_ERODE_DISC_STR="",FILL_HOLES_STR="2",expand_ring=["1","1"],DO_T1_SHIFT=True, DO_CONSERVATIVE=True):
 
 
@@ -164,10 +170,14 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
     else:
         session=""
 
+    artefact_subdirname="asl_artefact"
+    if getParams(labels_dict,'CHEMSHIFT_DIRNAME'):
+        artefact_subdirname = getParams(labels_dict,'CHEMSHIFT_DIRNAME')
+
     if not artefact_outputdir:
-        artefact_outputdir = os.path.join(output_dir,"asl_artefact", subject,session)
+        artefact_outputdir = os.path.join(output_dir,artefact_subdirname, subject,session)
     else:
-        artefact_outputdir = os.path.join(artefact_outputdir,"asl_artefact", subject,session)
+        artefact_outputdir = os.path.join(artefact_outputdir,artefact_subdirname, subject,session)
 
     if not os.path.exists(artefact_outputdir):
         os.makedirs(artefact_outputdir, exist_ok=True)
@@ -199,7 +209,10 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
     for rr in rr_mm_outer_skull:
         vox = apply_affine(inv_Torig, rr)
         vox_ind = tuple(np.round(vox).astype(int))
-        outer_skull_vol[vox_ind] = 255
+        if within_range(vox_ind,origimg_shape):
+            outer_skull_vol[vox_ind] = 255
+        else:
+            IFLOGGER.warn(f"{vox} outside range of {origimg_shape} for surface {rr}")
 
     for tri in tris_outer_skull:
         p0 = np.round(apply_affine(inv_Torig,rr_mm_outer_skull[tri[0]])).astype(int)
@@ -211,7 +224,10 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
             valid_vox = returnCandidates(p0,p1,p2)
         for vox in valid_vox:
             vox_ind = tuple(vox.astype(int))
-            outer_skull_vol[vox_ind] = 255
+            if within_range(vox_ind,origimg_shape):
+                outer_skull_vol[vox_ind] = 255
+            else:
+                IFLOGGER.warn(f"{vox} outside range of {origimg_shape} for surface {rr}")
     outer_skull_img = nibabel.Nifti1Image(outer_skull_vol,origimg.affine,origimg.header)
     outer_skull_img_file=os.path.join(work_dir,f"{subject}_{session}_outer_skull.nii.gz")
     nibabel.save(outer_skull_img,outer_skull_img_file) 
@@ -403,7 +419,7 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
         outer_skull_shifted_images.append(outer_skull_shift)
 
     if len(outer_skull_shifted_images) > 1:
-        command = f"fslmaths {outer_skull_shifted_images[0]} "
+        command = f"{command_base} fslmaths {outer_skull_shifted_images[0]} "
         for shifted_image in outer_skull_shifted_images[1:]:
             command = command + f"-add {shifted_image} "
 
@@ -571,12 +587,8 @@ def preproc_proc(labels_dict,bids_dir=""):
 
         artefact_outputdir = getParams(labels_dict,'DERIVATIVES_DIR')
         if not artefact_outputdir:
-            artefact_outputdir = os.path.join(output_dir,"asl_artefact", subject,session)
-        else:
-            artefact_outputdir = os.path.join(artefact_outputdir,"asl_artefact", subject,session)
+            artefact_outputdir = output_dir
 
-        if not os.path.exists(artefact_outputdir):
-            os.makedirs(artefact_outputdir, exist_ok=True)
 
         if VERSION_TO_RUN == "2":
             derive_asl_artefact_v2(asl_acq,labels_dict,command_base, participant_label,participant_session,artefact_outputdir)
