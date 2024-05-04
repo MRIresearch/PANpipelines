@@ -33,6 +33,7 @@ def sdcflows_pepolar_fieldmap(fmap_sources, subject, session,fieldmap_dir,workdi
     sinker.inputs.substitutions = [
         ('reoriented',f"sub-{subject}_ses-{session}_desc-preproc_fieldmap"),
         ('dir-AP_epi_average_merged_padded_sliced_volreg_base_fieldcoef_fixed',f"desc-coeff_fieldmap"),
+        ('dir-PA_epi_average_merged_padded_sliced_volreg_base_fieldcoef_fixed',f"desc-coeff_fieldmap"),
         ('clipped',f"sub-{subject}_ses-{session}_desc-magnitude_fieldmap")
     ]
     basename = os.path.basename(fieldmap_dir)

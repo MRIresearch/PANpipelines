@@ -6,6 +6,8 @@ import nibabel as nb
 from bids import BIDSLayout
 from nipype import logging as nlogging
 import json
+from collections import OrderedDict
+import numpy as np
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
@@ -83,19 +85,40 @@ def scaleASL(asl_input, command_base, scale_factor,work_dir, basil_dict,labels_d
     
     return basil_dict
 
+def getFmapSources(bids_dir,subject,session,fmap_mode="phasediff"):
+    if fmap_mode == "phasediff":
+        return getPhaseDiffSources(bids_dir,subject,session)
+    elif fmap_mode == "pepolar":
+        return getPepolarSources(bids_dir,subject,session)
+    else:
+        return []
+    
+
 def process_sdcflows_fieldmap(fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir,bids_dir,subject,session,fmap_mode="phasediff"):
     fmapjson = getGlob(os.path.join(fieldmap_dir,"*desc-preproc_fieldmap.json"))
     if not fmapjson:
         fmapjson = os.path.join(fieldmap_dir,f"sub-{subject}_ses-{session}_desc-preproc_fieldmap.json")
         fmapdict={}
-        if fmap_mode == "phasediff":
-            fmapdict["RawSources"] = getPhaseDiffSources(bids_dir,subject,session)
-            fmapdict["Units"] = "Hz"
-            export_labels(fmapdict,fmapjson)
-        elif fmap_mode == "pepolar":
-            fmapdict["RawSources"] = getPepolarSources(bids_dir,subject,session)
-            fmapdict["Units"] = "Hz"
-            export_labels(fmapdict,fmapjson)
+        fmapdict["RawSources"] = getFmapSources(bids_dir,subject,session,fmap_mode)
+        fmapdict["Units"] = "Hz"
+        export_labels(fmapdict,fmapjson)
+    else:
+        with open(fmapjson,"r") as infile:
+            fmapdict=json.load(infile)
+        if fmapdict:
+            sources=[]
+            Units = ""
+            if "RawSources" in fmapdict.keys():
+                sources = fmapdict["RawSources"]
+            if not sources:
+                fmapdict["RawSources"] = getFmapSources(bids_dir,subject,session,fmap_mode)
+                export_labels(fmapdict,fmapjson)
+
+            if "Units" in fmapdict.keys():
+                Units = fmapdict["Units"]
+            if not Units:
+                fmapdict["Units"] = "Hz"
+                export_labels(fmapdict,fmapjson)
 
     return process_fmriprep_fieldmap(fieldmap_dir,layout, asljson , asl_acq, basil_dict, labels_dict, command_base, work_dir,fmap_mode=fmap_mode)
 
@@ -116,47 +139,29 @@ def process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, b
 
     if "Units" in fmapdict.keys():
         if fmapdict["Units"] == "Hz":
-            IFLOGGER.info(f"Convert {fmap} in Hz to {fmaprads} in rad/s")
-            if "RawSources" in fmapdict.keys():
-                sources = fmapdict["RawSources"]
-                phase1 = [x for x in sources if "phase1" in x]
-                echo1=None
-                if phase1:
-                    phase1_entities = layout.parse_file_entities(phase1[0])
-                    phase1_md = layout.get(**phase1_entities)[0].get_metadata()
-                    if phase1_md:
-                        echo1=phase1_md["EchoTime"]
-                phase2 = [x for x in sources if "phase2" in x]
-                echo2=None
-                if phase2:
-                    phase2_entities = layout.parse_file_entities(phase2[0])
-                    phase2_md = layout.get(**phase2_entities)[0].get_metadata()
-                    if phase2_md:
-                        echo2=phase2_md["EchoTime"]
+            
+            mult = 2 * np.pi
+            IFLOGGER.info(f"Multiply {fmap} by {mult} to Convert from Hz to {fmaprads} in rad/s")
 
-                if echo1 and echo2:
-                    echodiff = echo2 - echo1
-                    mult = 2 * np.pi * np.abs(echodiff)
+            params = f"{fmap}"\
+                    f" -mul {mult}" \
+                    f" {fmaprads}" \
+                    " -odt float"
 
-                    params = f"{fmap}"\
-                        f" -mul {mult}" \
-                        f" {fmaprads}" \
-                        " -odt float"
-
-                    command=f"{command_base} fslmaths"\
+            command=f"{command_base} fslmaths"\
                         " "+params
 
-                    evaluated_command=substitute_labels(command, labels_dict)
-                    runCommand(evaluated_command,IFLOGGER)
-                    basil_dict = updateParams(basil_dict,FMAP,fmaprads)
+            evaluated_command=substitute_labels(command, labels_dict)
+            runCommand(evaluated_command,IFLOGGER)
+            basil_dict = updateParams(basil_dict,FMAP,fmaprads)
             
-            elif fmapdict["Units"] == "rad/s":
-                IFLOGGER.info(f"{fmap} ialready in rad/s. Rename to {fmaprads}.")
-                fmaprads = fmap
-                basil_dict = updateParams(basil_dict,FMAP,fmaprads)
-            else:
-                unkunits = fmapdict["Units"]
-                IFLOGGER.info(f"Units {unkunits} not recognized.")
+        elif fmapdict["Units"] == "rad/s":
+            IFLOGGER.info(f"{fmap} ialready in rad/s. Rename to {fmaprads}.")
+            fmaprads = fmap
+            basil_dict = updateParams(basil_dict,FMAP,fmaprads)
+        else:
+            unkunits = fmapdict["Units"]
+            IFLOGGER.info(f"Units {unkunits} not recognized.")
            
     
     if os.path.exists(fmaprads): 
@@ -177,9 +182,9 @@ def process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, b
         basil_dict = updateParams(basil_dict,FMAPMAG,fmapmag)
         basil_dict = updateParams(basil_dict,FMAPMAGBRAIN,fmapmag_brain)
 
+    echospacing = None
     if os.path.exists(fmapmag_brain):
-        echospacing = None
-
+        
         if "EffectiveEchoSpacing" in asljson.keys():
             echospacing = asljson["EffectiveEchoSpacing"]
             IFLOGGER.info(f"Echospacing {echospacing} obtained from BIDS metadata") 
@@ -225,23 +230,233 @@ def process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, b
 def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljson, asl_acq, command_base, work_dir):
 
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
+    xnat_project = getParams(labels_dict,"PARTICIPANT_XNAT_PROJECT")
+    xnat_shared_project = getParams(labels_dict,"PARTICIPANT_XNAT_SHARED_PROJECT")
 
     phase1 = layout.get(subject=participant_label,suffix='phase1', extension='nii.gz')
     echo1=None
     if phase1:
         phase1_md = phase1[0].get_metadata()
         if phase1_md:
-            echo1=phase1_md["EchoTime1"]
+            echo1=phase1_md["EchoTime"]
+        phase1 = phase1[0].path
 
     phase2 = layout.get(subject=participant_label,suffix='phase2', extension='nii.gz')
     echo2=None
     if phase2:
         phase2_md = phase2[0].get_metadata()
         if phase2_md:
-            echo2=phase2_md["EchoTime2"]
+            echo2=phase2_md["EchoTime"]
+        phase2 = phase2[0].path
+    
+    deltaTE=None
+    deltaTEms=None
+    if echo1 and echo2:
+        deltaTE=(float(echo2) - float(echo1))
+        deltaTEms=(1000 * deltaTE)
 
     mag1 = layout.get(subject=participant_label,suffix='magnitude1', extension='nii.gz')
+    if mag1:
+        mag1=mag1[0].path
     mag2 = layout.get(subject=participant_label,suffix='magnitude2', extension='nii.gz')
+    if mag2:
+        mag2=mag2[0].path
+
+    magnitude = mag1
+    magnitude_biascorr = newfile(work_dir,magnitude,suffix="biascorr")
+    biascorr_biasfield = newfile(work_dir,magnitude,suffix="biascorr-biasfield")
+    N4BiasFieldCorrection(labels_dict,magnitude,magnitude_biascorr,biascorr_biasfield)
+
+    magnitude_biascorr_brain = newfile(work_dir,magnitude_biascorr,suffix="brain")
+    command_base, container = getContainer(labels_dict,nodename="process_fsl_prepare_fieldmap",SPECIFIC="FSL_CONTAINER",LOGGER=IFLOGGER)
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{magnitude_biascorr}")
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{magnitude_biascorr_brain}")
+    fsl_dict = updateParams(fsl_dict,"-R","^^^")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} bet"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{magnitude_biascorr_brain}")
+    fsl_dict = updateParams(fsl_dict,"-ero",f"{magnitude_biascorr_brain}")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    magnitude_biascorr_brain_mask = newfile(work_dir,magnitude_biascorr_brain,suffix="mask")
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{magnitude_biascorr_brain}")
+    fsl_dict = updateParams(fsl_dict,"-thr"," 0.00000001")
+    fsl_dict = updateParams(fsl_dict,"-bin",f"{magnitude_biascorr_brain_mask}")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(phase1)}")
+    fsl_dict = updateParams(fsl_dict,"-a","^^^")
+    fsl_dict = updateParams(fsl_dict,"-R","^^^")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslstats"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    phasedivstr1 = runCommand(evaluated_command,UTLOGGER)
+    phasediv1 = np.max([abs(float(x)) for x in phasedivstr1.split()]) 
+
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phase2}")
+    fsl_dict = updateParams(fsl_dict,"-a","^^^")
+    fsl_dict = updateParams(fsl_dict,"-R","^^^")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslstats"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    phasedivstr2 = runCommand(evaluated_command,UTLOGGER)
+    phasediv2 = np.max([abs(float(x)) for x in phasedivstr2.split()]) 
+
+    phaserads1 = newfile(work_dir,phase1,suffix="rads")
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phase1}")
+    fsl_dict = updateParams(fsl_dict,"-div",f"{phasediv1}")
+    fsl_dict = updateParams(fsl_dict,"-mul","3.14159")
+    fsl_dict = updateParams(fsl_dict,"-mas",f"{magnitude_biascorr_brain_mask}")
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{phaserads1}")
+    fsl_dict = updateParams(fsl_dict,"-odt","float")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    phaserads2 = newfile(work_dir,phase2,suffix="rads")
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phase2}")
+    fsl_dict = updateParams(fsl_dict,"-div",f"{phasediv2}")
+    fsl_dict = updateParams(fsl_dict,"-mul","3.14159")
+    fsl_dict = updateParams(fsl_dict,"-mas",f"{magnitude_biascorr_brain_mask}")
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{phaserads2}")
+    fsl_dict = updateParams(fsl_dict,"-odt","float")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    phaserads1_unwrap = newfile(work_dir,phaserads1,suffix="unwrapped")
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"-a",f"{magnitude_biascorr}")
+    fsl_dict = updateParams(fsl_dict,"-p",f"{phaserads1}")
+    fsl_dict = updateParams(fsl_dict,"-m",f"{magnitude_biascorr_brain_mask}")
+    fsl_dict = updateParams(fsl_dict,"-u",f"{phaserads1_unwrap}")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} prelude"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    phaserads2_unwrap = newfile(work_dir,phaserads2,suffix="unwrapped")
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"-a",f"{magnitude_biascorr}")
+    fsl_dict = updateParams(fsl_dict,"-p",f"{phaserads2}")
+    fsl_dict = updateParams(fsl_dict,"-m",f"{magnitude_biascorr_brain_mask}")
+    fsl_dict = updateParams(fsl_dict,"-u",f"{phaserads2_unwrap}")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} prelude"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    phasediffrads = newfile(work_dir,phase1,suffix="unwrapped-diff-rads")
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phaserads2_unwrap}")
+    fsl_dict = updateParams(fsl_dict,"-sub",f"{phaserads1_unwrap}")
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{phasediffrads}")
+    fsl_dict = updateParams(fsl_dict,"-odt","float")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    fmaprads_raw = newfile(work_dir,phasediffrads,suffix="fmap-raw")
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phasediffrads}")
+    fsl_dict = updateParams(fsl_dict,"-div",f"{deltaTE}")
+    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{fmaprads_raw}")
+    fsl_dict = updateParams(fsl_dict,"-odt","float")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fslmaths"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    fmap = newfile(work_dir,phasediffrads,suffix="fmap-final")
+    fsl_dict=OrderedDict()
+    fsl_dict = updateParams(fsl_dict,"--loadfmap",f"{fmaprads_raw }")
+    fsl_dict = updateParams(fsl_dict,"--mask",f"{magnitude_biascorr_brain_mask}")
+    fsl_dict = updateParams(fsl_dict,"--savefmap",f"{fmap}")
+    params = get_fslparams(fsl_dict)
+    command=f"{command_base} fugue"\
+        " "+params
+    evaluated_command=substitute_labels(command, labels_dict)
+    results = runCommand(evaluated_command,UTLOGGER)
+
+    demean_image(labels_dict,fmap,magnitude_biascorr_brain_mask,os.path.join(work_dir,"tmp1"))
+    clean_up_edge(labels_dict,fmap,magnitude_biascorr_brain_mask,os.path.join(work_dir,"tmp2"))
+
+    basil_dict = updateParams(basil_dict,FMAP,fmap)
+
+    echospacing = None
+    if os.path.exists(magnitude_biascorr_brain):
+        basil_dict = updateParams(basil_dict,FMAPMAG,magnitude_biascorr)
+        basil_dict = updateParams(basil_dict,FMAPMAGBRAIN,magnitude_biascorr_brain)
+        
+        if "EffectiveEchoSpacing" in asljson.keys():
+            echospacing = asljson["EffectiveEchoSpacing"]
+            IFLOGGER.info(f"Echospacing {echospacing} obtained from BIDS metadata") 
+        
+        if not echospacing:
+            IFLOGGER.info(f"Echospacing not found in BIDS metadata. Attempting to retrieve from config file.") 
+            ECHOSPACING_DICT= getParams(labels_dict,"ASL_ECHOSPACING")
+            if ECHOSPACING_DICT is not None and isinstance(ECHOSPACING_DICT, dict):
+                if asl_acq in ECHOSPACING_DICT.keys():
+                    if ECHOSPACING_DICT[asl_acq] is not None and isinstance(ECHOSPACING_DICT[asl_acq], dict):
+                        if xnat_project in ECHOSPACING_DICT[asl_acq].keys():
+                            echospacing = ECHOSPACING_DICT[asl_acq][xnat_project]
+
+                        elif xnat_shared_project in ECHOSPACING_DICT[asl_acq].keys():
+                            echospacing = ECHOSPACING_DICT[asl_acq][xnat_shared_project]
+                        
+                        elif "default" in ECHOSPACING_DICT[asl_acq].keys():
+                            echospacing = ECHOSPACING_DICT[asl_acq]["default"]
+
+                        else:
+                            IFLOGGER.info(f"ASL_ECHOSPACING Dictionary keys {ECHOSPACING_DICT[asl_acq].keys()} not valid") 
+
+                    else:
+                        echospacing = ECHOSPACING_DICT[asl_acq]
+     
+            if echospacing:
+                IFLOGGER.info(f"Echospacing {echospacing} obtained from config file.")   
+            else:
+                IFLOGGER.error(f"Echospacing not defined. Fieldmap correction will not work.") 
+                raise ValueError("<ASL_ECHOSPACING> not defined in config file for fieldmap processing.")
+
+        basil_dict = updateParams(basil_dict,ECHOSPACING,echospacing) 
+        pedir_ijk = asljson["PhaseEncodingDirection"]
+        IFLOGGER.info(f"PE Direction of ASL is {pedir_ijk}")   
+        pedir_fsl = pedir_ijk.replace('j-','-y').replace('j','y').replace('i-','-x').replace('i','x').replace('k-','-z').replace('k','z')
+        IFLOGGER.info(f"PE Direction of ASL converted to {pedir_fsl} for BASIL.")    
+        basil_dict = updateParams(basil_dict,PEDIR,pedir_fsl)
+
     return basil_dict
 
 def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
@@ -364,8 +579,8 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 basil_dict = updateParams(basil_dict,TIS,str(tis))
 
         # process field map if it exists
-        fieldmap_type=None
         FIELDMAP_TYPE_DICT = getParams(labels_dict,'FIELDMAP_TYPE')
+        fieldmap_type = FIELDMAP_TYPE_DICT 
         if FIELDMAP_TYPE_DICT  is not None and isinstance(FIELDMAP_TYPE_DICT,dict):
             if asl_acq in FIELDMAP_TYPE_DICT.keys():
                 fieldmap_type = substitute_labels(FIELDMAP_TYPE_DICT[asl_acq],labels_dict)
@@ -373,8 +588,8 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
         if fieldmap_type:
             # use preprocessed field mao from fmriprep
             if fieldmap_type == "fmriprep_preproc":
-                fmriprep_fieldmap_dir = None
                 FMRIPREP_FIELDMAP_DIR_DICT  = getParams(labels_dict,'FMRIPREP_FIELDMAP_DIR')
+                fmriprep_fieldmap_dir = FMRIPREP_FIELDMAP_DIR_DICT
                 if FMRIPREP_FIELDMAP_DIR_DICT is not None and isinstance(FMRIPREP_FIELDMAP_DIR_DICT ,dict):
                     if asl_acq in FMRIPREP_FIELDMAP_DIR_DICT.keys():
                         fmriprep_fieldmap_dir = substitute_labels(FMRIPREP_FIELDMAP_DIR_DICT[asl_acq],labels_dict)
@@ -385,8 +600,8 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                     IFLOGGER.warn(f"Attempting to create fieldmap using {fieldmap_type} but sources not found. Exiting")
                     sys.exit(1)
             elif fieldmap_type == "sdcflows_preproc":
-                fieldmap_dir = None
                 SDCFLOWS_FIELDMAP_DIR_DICT  = getParams(labels_dict,'SDCFLOWS_FIELDMAP_DIR')
+                fieldmap_dir =  SDCFLOWS_FIELDMAP_DIR_DICT
                 if SDCFLOWS_FIELDMAP_DIR_DICT is not None and isinstance(SDCFLOWS_FIELDMAP_DIR_DICT ,dict):
                     if asl_acq in SDCFLOWS_FIELDMAP_DIR_DICT.keys():
                         fieldmap_dir = substitute_labels(SDCFLOWS_FIELDMAP_DIR_DICT[asl_acq],labels_dict)
@@ -403,10 +618,8 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 else:
                     IFLOGGER.warn(f"Attempting to create fieldmap using {fieldmap_type} but sources not found. Exiting")
                     sys.exit(1)
-            elif fieldmap_type == "fsl_prepare_fieldmap":
-                IFLOGGER.warn(f"{fieldmap_type} not yet implemented. Exiting")
-                sys.exit(1)              
-                #basil_dict = process_fsl_prepare_fieldmap(layout, asljson,basil_dict,labels_dict, asljson, asl_acq, command_base, work_dir)
+            elif fieldmap_type == "fsl_prepare_fieldmap":            
+                basil_dict = process_fsl_prepare_fieldmap(layout, asljson,basil_dict,labels_dict, asljson, asl_acq, command_base, work_dir)
 
         fslanat_dir=os.path.abspath(fslanat_dir)
         basil_dict = updateParams(basil_dict,FSLANAT,fslanat_dir)

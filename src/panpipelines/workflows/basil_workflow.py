@@ -20,24 +20,48 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
     if len(execution.keys()) > 0:
         pan_workflow.config = process_dict(pan_workflow.config,execution)
 
-    # Specify node inputs
-    fslanat_manual=getParams(labels_dict,"FSLANAT_MANUAL")
-    if fslanat_manual and fslanat_manual == "Y":
-        fslanat_dir=getParams(labels_dict,"FSLANAT_DIR")
-        basil_node = basil.create(labels_dict,fslanat_dir=fslanat_dir,LOGGER=LOGGER)
-        pan_workflow.add_nodes([basil_node])
-    else:
-        fslanat_node = fslanat.create(labels_dict,LOGGER=LOGGER)
-        basil_node = basil.create(labels_dict,LOGGER=LOGGER)
-        pan_workflow.connect(fslanat_node,'fslanat_dir',basil_node,'fslanat_dir')
+    bids_dir = getParams(labels_dict,"BIDS_DIR")
+    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
+    acq_label = getAcquisition(bids_dir,participant_label,participant_session=participant_session)
 
+    use_pepolar_fmap = getParams(labels_dict,'USE_PEPOLAR_FMAP')
+    if use_pepolar_fmap and participant_label in use_pepolar_fmap:
+        sdcflows_fmap_mode="pepolar"
+        labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_MODE",sdcflows_fmap_mode)
+        labels_dict = updateParams(labels_dict,"FIELDMAP_TYPE","sdcflows_preproc")
+        if not getParams(labels_dict,"SDCFLOWS_FIELDMAP_DIR"):
+            labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_DIR","<WORKFLOW_DIR>/sdcflows/fmap")
+    elif use_pepolar_fmap and f"{participant_label}_{participant_session}" in use_pepolar_fmap:
+        sdcflows_fmap_mode="pepolar"
+        labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_MODE",sdcflows_fmap_mode)
+        labels_dict = updateParams(labels_dict,"FIELDMAP_TYPE","sdcflows_preproc")
+        if not getParams(labels_dict,"SDCFLOWS_FIELDMAP_DIR"):
+            labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_DIR","<WORKFLOW_DIR>/sdcflows/fmap")
+
+    use_phasediff_fmap = getParams(labels_dict,'USE_PHASEDIFF_FMAP')
+    if use_phasediff_fmap and participant_label in use_phasediff_fmap:
+        sdcflows_fmap_mode="phasediff"
+        labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_MODE",sdcflows_fmap_mode)
+        labels_dict = updateParams(labels_dict,"FIELDMAP_TYPE","sdcflows_preproc")
+        if not getParams(labels_dict,"SDCFLOWS_FIELDMAP_DIR"):
+            labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_DIR","<WORKFLOW_DIR>/sdcflows/fmap")
+    elif use_phasediff_fmap and f"{participant_label}_{participant_session}" in use_phasediff_fmap:
+        sdcflows_fmap_mode="phasediff"
+        labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_MODE",sdcflows_fmap_mode)
+        labels_dict = updateParams(labels_dict,"FIELDMAP_TYPE","sdcflows_preproc")
+        if not getParams(labels_dict,"SDCFLOWS_FIELDMAP_DIR"):
+            labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_DIR","<WORKFLOW_DIR>/sdcflows/fmap")
+
+    use_phasediff_manual_fmap = getParams(labels_dict,'USE_PHASEDIFF_MANUAL_FMAP')
+    if use_phasediff_manual_fmap and participant_label in use_phasediff_manual_fmap:
+        labels_dict = updateParams(labels_dict,"FIELDMAP_TYPE","fsl_prepare_fieldmap")
+    elif use_phasediff_manual_fmap and f"{participant_label}_{participant_session}" in use_phasediff_manual_fmap:
+        labels_dict = updateParams(labels_dict,"FIELDMAP_TYPE","fsl_prepare_fieldmap")
+    
     FIELDMAP_TYPE = getParams(labels_dict,"FIELDMAP_TYPE")
     SDCFLOWS_FMAP_DIR = getParams(labels_dict,"SDCFLOWS_FIELDMAP_DIR")
     if FIELDMAP_TYPE and SDCFLOWS_FMAP_DIR:
-        bids_dir = getParams(labels_dict,"BIDS_DIR")
-        participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
-        participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
-        acq_label = getAcquisition(bids_dir,participant_label,participant_session=participant_session)
         if isinstance(FIELDMAP_TYPE,dict):
             if acq_label in FIELDMAP_TYPE.keys():
                 FIELDMAP_TYPE = FIELDMAP_TYPE[acq_label]   
@@ -59,19 +83,6 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
                 sdcflows_fmap_mode = SDCFLOWS_FMAP_MODE
             else:
                 sdcflows_fmap_mode="phasediff"          
-
-            use_pepolar_fmap = getParams(labels_dict,'USE_PEPOLAR_FMAP')
-            if use_pepolar_fmap and participant_label in use_pepolar_fmap:
-                sdcflows_fmap_mode="pepolar"
-            elif use_pepolar_fmap and f"{participant_label}_{participant_session}" in use_pepolar_fmap:
-                sdcflows_fmap_mode="pepolar"
-
-            use_phasediff_fmap = getParams(labels_dict,'USE_PHASEDIFF_FMAP')
-            if use_phasediff_fmap and participant_label in use_phasediff_fmap:
-                sdcflows_fmap_mode="phasediff"
-            elif use_phasediff_fmap and f"{participant_label}_{participant_session}" in use_phasediff_fmap:
-                sdcflows_fmap_mode="phasediff"
-            labels_dict = updateParams(labels_dict,"SDCFLOWS_FIELDMAP_MODE",sdcflows_fmap_mode)
             
             sdcflows_workdir = os.path.dirname(SDCFLOWS_FMAP_DIR)
             if not os.path.exists(sdcflows_workdir):
@@ -113,6 +124,17 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
                 if LOGGER:
                     LOGGER.warn("Attempting to create fieldmap but sources not found. Exiting")
                 sys.exit(1)
+
+        # Specify node inputs
+    fslanat_manual=getParams(labels_dict,"FSLANAT_MANUAL")
+    if fslanat_manual and fslanat_manual == "Y":
+        fslanat_dir=getParams(labels_dict,"FSLANAT_DIR")
+        basil_node = basil.create(labels_dict,fslanat_dir=fslanat_dir,LOGGER=LOGGER)
+        pan_workflow.add_nodes([basil_node])
+    else:
+        fslanat_node = fslanat.create(labels_dict,LOGGER=LOGGER)
+        basil_node = basil.create(labels_dict,LOGGER=LOGGER)
+        pan_workflow.connect(fslanat_node,'fslanat_dir',basil_node,'fslanat_dir')
 
             
     if createGraph:
