@@ -40,7 +40,6 @@ def aslprep_proc(labels_dict,bids_dir=""):
     aslprep_dict = updateParams(aslprep_dict,"--mem_mb","<BIDSAPP_MEMORY>")
     aslprep_dict = updateParams(aslprep_dict,"--nthreads","<BIDSAPP_THREADS>")
     aslprep_dict = updateParams(aslprep_dict,"--fs-license-file","<FSLICENSE>")
-    aslprep_dict = updateParams(aslprep_dict,"--ignore fieldmaps",IS_PRESENT)
     aslprep_dict = updateParams(aslprep_dict,"-w","<CWD>/aslprep_work")
 
     # Additional params
