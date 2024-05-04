@@ -51,6 +51,15 @@ def qsiprep_proc(labels_dict,bids_dir=""):
         eddy_config = newfile(cwd,eddy_config,prefix=f"sub-{participant_label}_ses-{participant_session}")
         export_labels(eddy_json, eddy_config)
 
+    unique_eddy_update = getParams(labels_dict,'UNIQUE_EDDY_CONFIG_UPDATE')
+    if eddy_json and unique_eddy_update and isinstance(unique_eddy_update,dict):
+        for itemkey,itemvalue in unique_eddy_update.items():
+            if itemkey == f"{participant_label}_{participant_session}" or itemkey == f"{participant_label}" and isinstance(itemvalue,dict):
+                for subitemkey,subitemvalue in itemvalue.items():
+                    eddy_json[subitemkey] = substitute_labels(subitemvalue,labels_dict)
+                eddy_config = newfile(cwd,eddy_config,prefix=f"sub-{participant_label}_ses-{participant_session}",suffix="unique")
+                export_labels(eddy_json, eddy_config)
+
     # This is for 1 specific scenario - we will terminate early if field map is missing
     layout = BIDSLayout(bids_dir)
     epi = layout.get(subject=participant_label, session=participant_session, suffix="epi",extension=".nii.gz") 
