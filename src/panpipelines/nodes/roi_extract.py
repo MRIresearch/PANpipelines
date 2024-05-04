@@ -18,7 +18,7 @@ from nilearn import image
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
-def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, lesion_file):
+def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
 
     metadata_comments=""
     cwd=os.getcwd()
@@ -27,13 +27,24 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, lesion_file)
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
 
-    lesion_inverse_img = None
-    if lesion_file and not lesion_file == ".": 
-        lesion_img = nib.load(lesion_file)
-        lesion_data = lesion_img.get_fdata()
-        inverse_data = np.zeros(lesion_data.shape)
-        inverse_data[lesion_data < 1] = 1 
-        lesion_inverse_img=nib.Nifti1Image(inverse_data, lesion_img.affine)
+    INVERT_MASK = isTrue(getParams(labels_dict,'MASK_INVERT'))
+    MASK_NAME = getParams(labels_dict,'MASK_NAME')
+    if not MASK_NAME:
+        MASK_NAME = "mask"
+
+    mask_img =None
+    mask_inverse_img = None
+    if mask_file and not mask_file == ".": 
+        IFLOGGER.info(f"{mask_file} provided to mask measures.")
+        mask_img = nib.load(mask_file)
+        mask_data = mask_img.get_fdata()
+        if INVERT_MASK:
+            IFLOGGER.info(f"Inverse of {mask_file} will be used to mask results.")
+            inverse_data = np.zeros(mask_data.shape)
+            inverse_data[mask_data < 1] = 1 
+            mask_inverse_img=nib.Nifti1Image(inverse_data, mask_img.affine)
+        else:
+            mask_inverse_img=mask_img
 
     
     if not session_label:
@@ -63,16 +74,6 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, lesion_file)
         input_file_nii = newfile(mgzdir,input_file,extension=".nii.gz")
         convMGZ2NII(input_file, input_file_nii, fs_command_base)
         input_file = input_file_nii
-
-    if Path(lesion_file).suffix == ".mgz":
-        mgzdir = os.path.join(cwd,'mgz_nii')
-        if not os.path.isdir(mgzdir):
-            os.makedirs(mgzdir)
-
-        fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
-        lesion_file_nii = newfile(mgzdir,lesion_file,extension=".nii.gz")
-        convMGZ2NII(lesion_file, lesion_file_nii, fs_command_base)
-        lesion_file = lesion_file_nii
 
     atlas_type="3D"
     atlas_img  = nib.load(atlas_file)
@@ -127,10 +128,10 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, lesion_file)
             measure_type = "4D"
 
     if atlas_type == "4D":
-        if lesion_inverse_img:
+        if mask_inverse_img:
             NiftiMasker = NiftiMapsMasker(
                 atlas_img,
-                mask_img = lesion_inverse_img,
+                mask_img = mask_inverse_img,
                 Labels = labels_name_list,
                 standardize=False
             )
@@ -141,10 +142,10 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, lesion_file)
                 standardize=False
             )
     else:
-        if lesion_inverse_img:
+        if mask_inverse_img:
             NiftiMasker = NiftiLabelsMasker(
                 atlas_img,
-                mask_img = lesion_inverse_img,
+                mask_img = mask_inverse_img,
                 Labels = labels_name_list,
                 standardize=False
             )
@@ -154,6 +155,11 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, lesion_file)
                 Labels = labels_name_list,
                 standardize=False
             )
+
+    mask_inverse_file = None
+    if mask_inverse_img:
+        mask_inverse_file = newfile(roi_output_dir,input_file,prefix="nilearn-mask",suffix=MASK_NAME)
+        nib.save(mask_inverse_img,mask_inverse_file)
 
     NiftiMasker.fit(input_file)
     signals = NiftiMasker.transform(input_file)
@@ -321,7 +327,9 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, lesion_file)
     metadata = updateParams(metadata,"Atlas File",atlas_file)
     metadata = updateParams(metadata,"Atlas Labels",atlas_index)
     metadata = updateParams(metadata,"Input File",input_file)
-    metadata = updateParams(metadata,"Command","Nilearn NifiMasker")
+    metadata = updateParams(metadata,"Command","Nilearn NiftiMasker")
+    if mask_inverse_file:
+        metadata = updateParams(metadata,"Mask",mask_inverse_file)
     if metadata_comments:
         metadata = updateParams(metadata,"Comments",metadata_comments)
 
@@ -345,7 +353,7 @@ class roi_extractInputSpec(BaseInterfaceInputSpec):
     input_file = File(desc="input file")
     atlas_file = File(desc='atlas file')
     atlas_index = File(desc='atlas index file')
-    lesion_file = File(desc='lesion file')
+    mask_file = File(desc='mask file')
 
 class roi_extractOutputSpec(TraitedSpec):
     roi_csv = File(desc='CSV file of results')
@@ -365,7 +373,7 @@ class roi_extract_pan(BaseInterface):
             self.inputs.input_file,
             self.inputs.atlas_file,
             self.inputs.atlas_index,
-            self.inputs.lesion_file,
+            self.inputs.mask_file,
         )
 
         setattr(self, "_results", outputs)
@@ -376,7 +384,7 @@ class roi_extract_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="roi_extract_node",input_file="",atlas_file="",atlas_index="", lesion_file="", LOGGER=IFLOGGER):
+def create(labels_dict,name="roi_extract_node",input_file="",atlas_file="",atlas_index="", mask_file="", LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(roi_extract_pan(), name=name)
 
@@ -388,7 +396,7 @@ def create(labels_dict,name="roi_extract_node",input_file="",atlas_file="",atlas
     pan_node.inputs.input_file = input_file
     pan_node.inputs.atlas_file =  atlas_file
     pan_node.inputs.atlas_index =  atlas_index
-    pan_node.inputs.lesion_file =  lesion_file
+    pan_node.inputs.mask_file =  mask_file
 
     return pan_node
 

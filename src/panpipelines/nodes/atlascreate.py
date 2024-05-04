@@ -16,13 +16,14 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
     output_dir = cwd
  
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
 
-    atlas_name = getParams(labels_dict,'ATLAS_NAME')
+    atlas_name = getParams(labels_dict,'NEWATLAS_NAME')
     atlas_workdir = os.path.join(cwd,'{}_workdir'.format(atlas_name))
     if not os.path.isdir(atlas_workdir):
         os.makedirs(atlas_workdir)
 
-    atlas_file = newfile(cwd, atlas_name, prefix=f"sub-{participant_label}", extension="nii.gz")
+    atlas_file = newfile(cwd, atlas_name, prefix=f"sub-{participant_label}_ses-{participant_session}", extension="nii.gz")
     IFLOGGER.info(f"Creating new atlas {atlas_file}")
 
     special_atlas_type=""
@@ -33,6 +34,20 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
 
     atlas_type = "3D"
     atlas_type = getParams(labels_dict,'NEWATLAS_TYPE')
+
+    prob_thresh =  getParams(labels_dict,'NEWATLAS_PROBTHRESH')
+    if prob_thresh:
+        if not isinstance(prob_thresh,list):
+            prob_thresh = float(prob_thresh)
+    else:
+        prob_thresh = 0.5
+
+    invert_roi =  getParams(labels_dict,'NEWATLAS_INVERTROI')
+    if invert_roi:
+        if not isinstance(invert_roi,list):
+            invert_roi = isTrue(invert_roi)
+    else:
+        invert_roi = False
 
     atlas_index_mode = None
     if getParams(labels_dict,'NEWATLAS_INDEX_MODE'):
@@ -46,13 +61,16 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
             atlas_index_mode = "hcpmmp1aseg_tsv"
         roi_list = [atlas_file]
     elif atlas_type == "3D":
-        create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict)
+        create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict,prob_thresh=prob_thresh)
     elif atlas_type == "3D_contig":
-        create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict,explode3d=False)
+        create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict,prob_thresh=prob_thresh,explode3d=False)
+    elif atlas_type == "3D_mask":
+        roi_values = getParams(labels_dict,'MASK_ROIVALUE')
+        create_3d_mask_from_rois(atlas_file, roi_list,labels_dict,roi_values=roi_values, prob_thresh=prob_thresh,explode3d=False,invert_roi=invert_roi)
     elif atlas_type =="4D":
-        create_4d_atlas_from_rois(atlas_file, roi_list,labels_dict)
+        create_4d_atlas_from_rois(atlas_file, roi_list,labels_dict,low_thresh=prob_thresh)
     else:
-        create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict)
+        create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict,prob_thresh=prob_thresh)
 
     if not atlas_index_mode:
         atlas_index_mode = "tsv"
