@@ -267,7 +267,10 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
 
     atlas_name = getParams(labels_dict,'ATLAS_NAME')
     if not atlas_name:
-        atlas_name = os.path.basename(atlas_file).split('.')[0].split('_')[0].split('-')[0]
+        atlas_name = getParams(labels_dict,'NEWATLAS_NAME')
+    if not atlas_name:
+        atlas_name = "-".join([x for x in os.path.basename(atlas_file).split("_") if not "sub" in x and not "ses" in x])
+        atlas_name = atlas_name.split(".nii")[0]
     csv_basename = f"atlas-{atlas_name}"
 
     modality = get_bidstag("desc",input_file,True)
@@ -275,17 +278,18 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
         modality=modality[-1].split(".")[0]
         csv_basename = csv_basename + "_" + modality
     else:
-        modality = os.path.basename(input_file).split('.')[0].split('_')[-1].split('-')[-1]
+        modality = "-".join([x for x in os.path.basename(input_file).split("_") if not "sub" in x and not "ses" in x])
+        modality = modality.split(".nii")[0]
         csv_basename = csv_basename + "_" + modality
 
-    table_columns = [f"{atlas_name}.{x}.{modality}" for x in reconciled_labels]
+    table_columns = [f"{atlas_name}.{modality}.{x}" for x in reconciled_labels]
 
     if not session_label:
         csv_basename  = f"sub-{participant_label}" + "_" + csv_basename
     else:
         csv_basename  = f"sub-{participant_label}_ses-{session_label}" + "_" + csv_basename
 
-    roi_csv = os.path.join(roi_output_dir,'{}.csv'.format(csv_basename))
+    roi_csv = newfile(outputdir=roi_output_dir,assocfile=csv_basename,extension="csv")
 
     if num_rows < 2:
         if session_label:
