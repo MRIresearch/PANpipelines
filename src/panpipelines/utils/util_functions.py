@@ -639,6 +639,164 @@ def get_freesurfer_genstats(stats_file,columns, prefix="",participant_label="",s
     else:
         return None
 
+def recurse_dict(jsondict,itemkeyorig, retdict):
+    for itemkey, itemvalue in jsondict.items():
+        if isinstance(itemvalue,dict):
+            retdict = recurse_dict(itemvalue, itemkeyorig + "." + itemkey,retdict)
+        else:
+            retdict[itemkeyorig + "." + itemkey]=itemvalue
+    return retdict
+
+
+def get_flatdict(jsondata):
+    flatdict=OrderedDict()
+
+    for itemkey, itemvalue in jsondata.items():
+        retdict=OrderedDict()
+        if isinstance(itemvalue,dict):
+            retdict = recurse_dict(itemvalue,itemkey,retdict)
+        else:
+            newitemkey=itemkey
+            newitemvalue=itemvalue
+            retdict[newitemkey]=newitemvalue
+
+        for retitemkey, retitemvalue in retdict.items():
+            if isinstance(retitemvalue,list):
+                retitemvalue = [str(x) for x in retitemvalue]
+                retitemvalue = " ".join(retitemvalue)
+            flatdict[retitemkey]=retitemvalue
+
+    return flatdict
+
+
+def get_text(text_file, extract_columns=None, prefix="",participant_label="", session_label="",delimiter='\s+'):
+    if not prefix is None and not prefix =="":
+        prefix=prefix+"."
+    else:
+        prefix =""
+
+    try:
+        df = pd.read_csv(text_file,sep=delimiter,header=None)
+    except Exception as jde:
+        df=pd.DataFrame()
+
+    if not df.empty:
+        all_columns = {}
+        all_columns = df.columns.to_list()
+
+        table_columns = []
+        table_values = []
+        if not extract_columns:
+            extract_columns = all_columns
+
+        for index in range(len(extract_columns)):
+            if index < len(all_columns):
+                table_columns.append(extract_columns[index])
+                table_values.append(df[index].iloc[0])
+            else:
+                UTLOGGER.warn(f"Index {index} greater than length of columns in {text_file} - skipping")
+
+        if len(table_columns) > 0:
+            table_columns = [prefix+x for x in table_columns]
+
+        if len(table_columns) > 0 and len(table_values) > 0 and len(table_columns) == len(table_values):
+            cum_df = pd.DataFrame([table_values])
+            cum_df.columns = table_columns
+            if session_label is not None and not session_label == "":
+                cum_df.insert(0,"session_id",["ses-"+session_label])
+            if participant_label is not None and not participant_label == "":
+                cum_df.insert(0,"subject_id",["sub-"+participant_label])
+            return cum_df
+        else:
+            return None   
+
+
+def get_csvstats(csv_file, extract_columns=None, prefix="",participant_label="", session_label="",delimiter=","):
+    if not prefix is None and not prefix =="":
+        prefix=prefix+"."
+    else:
+        prefix =""
+
+    try:
+        df = pd.read_table(csv_file,sep=delimiter)
+    except Exception as jde:
+        df=pd.DataFrame()
+
+    if not df.empty:
+        all_columns = {}
+        all_columns = df.columns.to_list()
+
+        table_columns = []
+        table_values = []
+        if not extract_columns:
+            extract_columns = all_columns
+
+        for column in extract_columns:
+            if column in all_columns:
+                table_columns.append(column)
+                table_values.append(df[column].iloc[0])
+            else:
+                UTLOGGER.warn(f"Column {column} not defined in {csv_file} - skipping")
+
+        if len(table_columns) > 0:
+            table_columns = [prefix+x for x in table_columns]
+
+        if len(table_columns) > 0 and len(table_values) > 0 and len(table_columns) == len(table_values):
+            cum_df = pd.DataFrame([table_values])
+            cum_df.columns = table_columns
+            if session_label is not None and not session_label == "":
+                cum_df.insert(0,"session_id",["ses-"+session_label])
+            if participant_label is not None and not participant_label == "":
+                cum_df.insert(0,"subject_id",["sub-"+participant_label])
+            return cum_df
+        else:
+            return None
+
+
+def get_jsonstats(json_file, extract_columns=None, prefix="",participant_label="", session_label=""):
+    if not prefix is None and not prefix =="":
+        prefix=prefix+"."
+    else:
+        prefix =""
+
+    try:
+        with open(json_file,"r") as in_file:
+            jsondata = json.load(in_file)
+    except json.decoder.JSONDecodeError as jde:
+        jsondata=None
+
+    all_columns = {}
+    if jsondata:
+        all_columns = get_flatdict(jsondata)
+
+    table_columns = []
+    table_values = []
+    if not extract_columns:
+        table_columns = all_columns.keys()
+        table_values = all_columns.values()
+    else:
+
+        for column in extract_columns:
+            if column in all_columns.keys():
+                table_columns.append(column)
+                table_values.append(all_columns[column])
+            else:
+                UTLOGGER.warn(f"Column {column} not defined in {json_file} - skipping")
+
+    if len(table_columns) > 0:
+        table_columns = [prefix+x for x in table_columns]
+
+    if len(table_columns) > 0 and len(table_values) > 0 and len(table_columns) == len(table_values):
+        cum_df = pd.DataFrame([table_values])
+        cum_df.columns = table_columns
+        if session_label is not None and not session_label == "":
+            cum_df.insert(0,"session_id",["ses-"+session_label])
+        if participant_label is not None and not participant_label == "":
+            cum_df.insert(0,"subject_id",["sub-"+participant_label])
+        return cum_df
+    else:
+        return None
+
 def isTrue(arg):
     return arg is not None and (arg == 'Y' or arg == '1' or arg == 'True' or arg == 'true')
 

@@ -9,7 +9,21 @@ from nipype import logging as nlogging
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
-def parse_textdata_proc(labels_dict, textdata, textdata_type):
+def getprefix(custom_prefix, extra_prefix, add_prefix):
+    prefix=""
+    if add_prefix:
+        if custom_prefix and extra_prefix:
+            prefix=extra_prefix + "." + custom_prefix
+        elif extra_prefix:
+            prefix=extra_prefix 
+    else:
+        if custom_prefix:
+            prefix=custom_prefix
+    
+    return prefix
+
+
+def parse_textdata_proc(labels_dict, textdata, textdata_type,custom_prefix, add_prefix):
 
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
@@ -30,71 +44,135 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type):
         os.makedirs(roi_output_dir)
 
     out_files=[]
-    roi_csv = None
+    roi_csv = ""
     df=None
     basefile_name = os.path.basename(textdata)
     IFLOGGER.info(f"Data file {textdata} provided. Using {basefile_name} for csv output base.")
 
-
-    pipeline_name = getParams(labels_dict,'PIPELINE')
-    if not pipeline_name:
-        pipeline_name="UnDetermined"
+    current_pipeline = getParams(labels_dict,'PIPELINE')
+    if not current_pipeline:
+        current_pipeline = "Undetermined"
 
     # Need to think about this additional prefix - only included it because of the use case of comparing
     # different freesurfer pipelines. There should be a more elegant way to handle this.
     # Actually yes - just get the pipeline name or desc!
     subject_project = getParams(labels_dict,'PARTICIPANT_XNAT_PROJECT')
-    if subject_project:
+    if subject_project and subject_project in textdata:
         creating_pipeline = textdata.split("/" + subject_project)[0].split("/")[-1]
     else:
         creating_pipeline=""
         
-    addpref=""
-    if creating_pipeline:
-        addpref = creating_pipeline + "-"
+    extra_prefix=""
+    prefix=""
+    use_creating_pipeline = isTrue(getParams(labels_dict,'USE_CREATING_PIPELINE_PREFIX'))
+    if use_creating_pipeline:
+        extra_prefix = creating_pipeline + "."
+
+    override_add_prefix = isTrue(getParams(labels_dict,'OVERRIDE_ADD_PREFIX'))
+    if override_add_prefix:
+        add_prefix=True
 
     if "aseg" in basefile_name or textdata_type=="aseg":
-        prefix= addpref + "aseg"
+        extra_prefix= extra_prefix + "aseg"
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_genstats(textdata,columns=["Volume_mm3"], prefix=prefix,participant_label=participant_label,session_label=session_label)
     elif "lh.aparc.a2009s" in basefile_name or textdata_type=="lh.aparc.a2009s":
-        prefix= addpref + "lh-Destrieux"
+        extra_prefix= extra_prefix + "lh-Destrieux"
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label,session_label=session_label)
     elif "rh.aparc.a2009s" in basefile_name or textdata_type=="rh.aparc.a2009s":
-        prefix= addpref + "rh-Destrieux"
+        extra_prefix= extra_prefix + "rh-Destrieux"
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label,session_label=session_label)
     elif "lh.aparc" in basefile_name or textdata_type=="lh.aparc":
-        prefix= addpref + "lh-DK"
+        extra_prefix= extra_prefix + "lh-DK"
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label,session_label=session_label)
     elif "rh.aparc" in basefile_name or textdata_type=="rh.aparc":
-        prefix= addpref + "rh-DK"
+        extra_prefix= extra_prefix + "rh-DK"
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label,session_label=session_label)     
     elif "hipposubfields.lh" in basefile_name or textdata_type=="hipposubfields.lh":
-        prefix= addpref + "lh-hipposf" + basefile_name.split("hipposubfields.lh.")[1].split(".stats")[0].replace(".","-")
+        extra_prefix= extra_prefix + "lh-hipposf" + basefile_name.split("hipposubfields.lh.")[1].split(".stats")[0].replace(".","-")
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_hippostats(textdata,prefix=prefix, participant_label=participant_label,session_label=session_label)
     elif "hipposubfields.rh" in basefile_name or textdata_type=="hipposubfields.rh":
-        prefix= addpref + "rh-hipposf" + basefile_name.split("hipposubfields.rh.")[1].split(".stats")[0].replace(".","-")
+        extra_prefix= extra_prefix+ "rh-hipposf" + basefile_name.split("hipposubfields.rh.")[1].split(".stats")[0].replace(".","-")
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_hippostats(textdata,prefix=prefix, participant_label=participant_label,session_label=session_label)
     elif "hippoSfVolumes" in basefile_name or textdata_type=="hippoSfVolumes":
-        prefix =  addpref + basefile_name.split(".hippoSfVolumes")[0] + "-hippo" + basefile_name.split(".hippoSfVolumes")[1].split(".txt")[0].replace(".","-")
+        extra_prefix= extra_prefix+ basefile_name.split(".hippoSfVolumes")[0] + "-hippo" + basefile_name.split(".hippoSfVolumes")[1].split(".txt")[0].replace(".","-")
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_subregionstats(textdata,prefix=prefix, participant_label=participant_label,session_label=session_label)
     elif "amygNucVolumes" in basefile_name or textdata_type=="amygNucVolumes":
-        prefix =  addpref + basefile_name.split(".amygNucVolumes")[0] + "-amyg" + basefile_name.split(".amygNucVolumes")[1].split(".txt")[0].replace(".","-")
+        extra_prefix= extra_prefix + basefile_name.split(".amygNucVolumes")[0] + "-amyg" + basefile_name.split(".amygNucVolumes")[1].split(".txt")[0].replace(".","-")
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_subregionstats(textdata,prefix=prefix, participant_label=participant_label,session_label=session_label)
     elif "ThalamicNuclei" in basefile_name or textdata_type=="ThalamicNuclei":
-        prefix =  addpref + "thalamic" + basefile_name.split("ThalamicNuclei")[1].split(".volumes.txt")[0].replace(".","-")
+        extra_prefix= extra_prefix+ "thalamic" + basefile_name.split("ThalamicNuclei")[1].split(".volumes.txt")[0].replace(".","-")
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_subregionstats(textdata,prefix=prefix, participant_label=participant_label,session_label=session_label)
     elif "brainstemSsLabelsbeta" in basefile_name or textdata_type=="brainstembeta":
-        prefix =  addpref + "brainstembeta"
+        extra_prefix= extra_prefix + "brainstembeta"
         df = get_freesurfer_subregionstats(textdata,prefix=prefix, participant_label=participant_label,session_label=session_label)
+    elif "bold.json" in basefile_name or textdata_type=="mriqc_bold":
+        extra_prefix= extra_prefix + "bold" 
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
+        extract_columns = getParams(labels_dict,'MRIQC_BOLD_COLS')
+        df = get_jsonstats(textdata,extract_columns=extract_columns, prefix=prefix, participant_label=participant_label,session_label=session_label)
+    elif "T1w.json" in basefile_name or textdata_type=="mriqc_t1w":
+        extra_prefix= extra_prefix + "t1w" 
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
+        extract_columns = getParams(labels_dict,'MRIQC_T1W_COLS')
+        df = get_jsonstats(textdata,extract_columns=extract_columns, prefix=prefix, participant_label=participant_label,session_label=session_label)
+    elif "T2w.json" in basefile_name or textdata_type=="mriqc_t2w":
+        extra_prefix= extra_prefix + "t2w" 
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
+        extract_columns = getParams(labels_dict,'MRIQC_T2W_COLS')
+        df = get_jsonstats(textdata,extract_columns=extract_columns, prefix=prefix, participant_label=participant_label,session_label=session_label)
+    elif "dwi.json" in basefile_name or textdata_type=="mriqc_dwi":
+        extra_prefix= extra_prefix + "dwi" 
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
+        extract_columns = getParams(labels_dict,'MRIQC_DWI_COLS')
+        df = get_jsonstats(textdata,extract_columns=extract_columns, prefix=prefix, participant_label=participant_label,session_label=session_label)
+    elif "QC_collection" in basefile_name or textdata_type=="exploreasl_qc":
+        extra_prefix= extra_prefix + "exploreasl_qc" 
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
+        extract_columns = getParams(labels_dict,'EXPLOREASL_QC_COLS')
+        df = get_jsonstats(textdata,extract_columns=extract_columns, prefix=prefix, participant_label=participant_label,session_label=session_label)
+    elif "qualitycontrol_cbf.csv" in basefile_name or textdata_type=="aslprep_qc":
+        extra_prefix= extra_prefix + "aslprep_qc" 
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
+        extract_columns = getParams(labels_dict,'ASLPREP_QC_COLS')
+
+        delimiter = getParams(labels_dict,'TEXT_DELIMITER')
+        if delimiter:
+            delimiter = delimiter
+        else:
+            delimiter=","
+
+        df = get_csvstats(textdata,extract_columns=extract_columns, prefix=prefix, participant_label=participant_label,session_label=session_label,delimiter=delimiter)
+    elif ".txt" in basefile_name or textdata_type=="singletext":
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
+        extract_columns = getParams(labels_dict,"TEXT_COLS")
+
+        delimiter = getParams(labels_dict,'TEXT_DELIMITER')
+        if delimiter:
+            delimiter = delimiter
+        else:
+            delimiter='\s+'
+
+        df = get_text(textdata, extract_columns=extract_columns, prefix=prefix,participant_label=participant_label, session_label=session_label,delimiter=delimiter)
+ 
     else:
         IFLOGGER.info("basename {textdata} not implemented.")
 
 
     if df is not None:
         if NOSESSION:
-            roi_csv = os.path.join(roi_output_dir,'{}_{}_{}.csv'.format(participant_label,pipeline_name,basefile_name))
+            roi_csv = os.path.join(roi_output_dir,'{}_{}_{}.csv'.format("sub-"+participant_label,creating_pipeline,prefix))
         else:
-            roi_csv = os.path.join(roi_output_dir,'{}_{}_{}_{}.csv'.format(participant_label,session_label,pipeline_name,basefile_name))            
+            roi_csv = os.path.join(roi_output_dir,'{}_{}_{}_{}.csv'.format("sub-"+participant_label,"ses-"+session_label,creating_pipeline,prefix))            
         df.to_csv(roi_csv,sep=",",header=True, index=False)
         out_files.insert(0,roi_csv)
 
@@ -105,7 +183,8 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type):
         metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_json}")
         metadata = updateParams(metadata,"FileCreated",f"{roi_csv}")
         metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
-        metadata = updateParams(metadata,"Pipeline",f"{pipeline_name}")
+        metadata = updateParams(metadata,"Pipeline",f"{current_pipeline}")
+        metadata = updateParams(metadata,"Prefix",f"{prefix}")
         metadata = updateParams(metadata,"InputFile",f"{textdata}")
         metadata = updateParams(metadata,"InputFilePipeline",f"{creating_pipeline}")
         export_labels(metadata,roi_csv_json)
@@ -123,6 +202,8 @@ class parse_textdataInputSpec(BaseInterfaceInputSpec):
     labels_dict = traits.Dict({},mandatory=False,desc='labels', usedefault=True)
     textdata = File(desc='text data file to parse')
     textdata_type = traits.String(desc='type of file to help discern parsing method')
+    custom_prefix = traits.String(desc='Prefix to add to columns')
+    add_prefix = traits.Bool(False,desc="Add automatic prefux",usedefault=True)
 
 class parse_textdataOutputSpec(TraitedSpec):
     roi_csv = File(desc='CSV file of results')
@@ -140,7 +221,9 @@ class parse_textdata_pan(BaseInterface):
         outputs = parse_textdata_proc(
             self.inputs.labels_dict,
             self.inputs.textdata,
-            self.inputs.textdata_type
+            self.inputs.textdata_type,
+            self.inputs.custom_prefix,
+            self.inputs.add_prefix
         )
 
         setattr(self, "_results", outputs)
@@ -151,7 +234,7 @@ class parse_textdata_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="parse_textdata_node",textdata="",textdata_type="",LOGGER=IFLOGGER):
+def create(labels_dict,name="parse_textdata_node",textdata="",textdata_type="",custom_prefix="",add_prefix=False,LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(parse_textdata_pan(), name=name)
 
@@ -161,11 +244,16 @@ def create(labels_dict,name="parse_textdata_node",textdata="",textdata_type="",L
     # Specify node inputs
     pan_node.inputs.labels_dict = labels_dict
 
-    if not textdata is None and not textdata == "":
+    if not textdata:
         pan_node.inputs.textdata = textdata
  
-    if not textdata_type is None and not textdata_type == "":
-        pan_node.inputs.textdata_type = textdata_type                
+    if not textdata_type:
+        pan_node.inputs.textdata_type = textdata_type    
+
+    if not custom_prefix:
+        pan_node.inputs.custom_prefix = custom_prefix 
+
+    pan_node.inputs.add_prefix =  add_prefix            
 
     return pan_node
 
