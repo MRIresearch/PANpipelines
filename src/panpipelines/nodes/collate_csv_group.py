@@ -25,7 +25,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     participants_session = getParams(labels_dict,'GROUP_SESSION_LABEL')
     pipeline = getParams(labels_dict,'PIPELINE')
 
-    csv_list=[]
+    csv_list_left=[]
+    csv_list_right=[]
 
     if (participants_label is not None and (isinstance(participants_label,list) and len(participants_label) > 1)) and (participants_project is not None and (isinstance(participants_project,list) and len(participants_project)> 1)):
         for part_vals in zip(participants_label,participants_project,participants_session):
@@ -34,84 +35,255 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             labels_dict = updateParams(labels_dict,"PARTICIPANT_SESSION",part_vals[2])
             for meas_template in csv_list1:
                 evaluated_meas_template = substitute_labels(meas_template,labels_dict)
-                csv_list.extend(glob.glob(evaluated_meas_template))
+                csv_list_left.extend(glob.glob(evaluated_meas_template))
             for meas_template in csv_list2:
                 evaluated_meas_template = substitute_labels(meas_template,labels_dict)
-                csv_list.extend(glob.glob(evaluated_meas_template)) 
+                csv_list_right.extend(glob.glob(evaluated_meas_template)) 
     else:
         labels_dict = updateParams(labels_dict,"PARTICIPANT_LABEL","*")
         labels_dict = updateParams(labels_dict,"PARTICIPANT_XNAT_PROJECT","*")
         labels_dict = updateParams(labels_dict,"PARTICIPANT_SESSION","*")
         for meas_template in csv_list1:
             evaluated_meas_template = substitute_labels(meas_template,labels_dict)
-            csv_list.extend(glob.glob(evaluated_meas_template))
+            csv_list_left.extend(glob.glob(evaluated_meas_template))
         for meas_template in csv_list2:
             evaluated_meas_template = substitute_labels(meas_template,labels_dict)
-            csv_list.extend(glob.glob(evaluated_meas_template))
+            csv_list_right.extend(glob.glob(evaluated_meas_template))
 
-    csv_list.sort()
+    csv_list_left = list(set(csv_list_left))
+    csv_list_right = list(set(csv_list_right))
+
+    csv_list_left.sort()
+    csv_list_right.sort()
     
     roi_output_dir = os.path.join(cwd,'group_roi_output_dir')
     if not os.path.isdir(roi_output_dir):
         os.makedirs(roi_output_dir)
 
-    IFLOGGER.info(f"List of csv files to collate: {csv_list}")
+    IFLOGGER.info(f"List of csv files (left) to collate: {csv_list_left}")
+    IFLOGGER.info(f"List of csv files (right) to collate: {csv_list_right}")
 
     out_files=[]
+
     roi_csv_inner = None
+    cum_df_inner= None
     roi_csv_outer = None
-    cum_df_inner=pd.DataFrame()
-    cum_df_outer=pd.DataFrame()
-    if len(csv_list) > 0:
-        for csv_file in csv_list:
+    cum_df_outer= None
+
+    roi_csv_inner_left = None
+    roi_csv_outer_left = None
+    cum_df_inner_left=pd.DataFrame()
+    cum_df_outer_left=pd.DataFrame()
+    if len(csv_list_left) > 0:
+        for csv_file in csv_list_left:
             df = pd.read_table(csv_file,sep=",")
-            if cum_df_inner.empty:
-                cum_df_inner = df
+            if cum_df_inner_left.empty:
+                cum_df_inner_left = df
             else:
-                cum_df_inner = pd.concat([cum_df_inner,df],join="inner")
+                cum_df_inner_left = pd.concat([cum_df_inner_left,df],join="inner")
 
-            if cum_df_outer.empty:
-                cum_df_outer = df
+            if cum_df_outer_left.empty:
+                cum_df_outer_left = df
             else:
-                cum_df_outer = pd.concat([cum_df_outer,df],join="outer")
+                cum_df_outer_left = pd.concat([cum_df_outer_left,df],join="outer")
 
-        collate_name = getParams(labels_dict,"COLLATE_NAME")
-        if not collate_name:
+        collate_name_left = getParams(labels_dict,"COLLATE_NAME_LEFT")
+        if not collate_name_left:
             if not pipeline:
-                collate_name="csvgroup"
+                collate_name_left="csvgroup"
             else:
-                collate_name="pipeline"
+                collate_name_left="pipeline"
 
-        roi_csv_inner = os.path.join(roi_output_dir,'{}_{}_inner.csv'.format("group",collate_name))
-        roi_csv_outer = os.path.join(roi_output_dir,'{}_{}_outer.csv'.format("group",collate_name))
+        roi_csv_inner_left = os.path.join(roi_output_dir,'{}_{}_inner_left.csv'.format("group",collate_name_left))
+        roi_csv_outer_left = os.path.join(roi_output_dir,'{}_{}_outer_left.csv'.format("group",collate_name_left))
 
-        cum_df_inner.to_csv(roi_csv_inner,sep=",",header=True, index=False)
-        cum_df_outer.to_csv(roi_csv_outer,sep=",",header=True, index=False)
+        #create sorted output
+        cum_df_inner_left = cum_df_inner_left.reindex(sorted(cum_df_inner_left.columns), axis=1)
+        if "session_id" in cum_df_inner_left.columns and "subject_id" in cum_df_inner_left.columns:
+            sub_col = cum_df_inner_left.pop("subject_id")
+            ses_col = cum_df_inner_left.pop("session_id")
 
-        out_files.insert(0,roi_csv_inner)
-        out_files.insert(0,roi_csv_outer)
+            cum_df_inner_left.insert(0,"session_id",ses_col)
+            cum_df_inner_left.insert(0,"subject_id",sub_col)
+
+        #create sorted output
+        cum_df_outer_left = cum_df_outer_left.reindex(sorted(cum_df_outer_left.columns), axis=1)
+        if "session_id" in cum_df_outer_left.columns and "subject_id" in cum_df_outer_left.columns:
+            sub_col = cum_df_outer_left.pop("subject_id")
+            ses_col = cum_df_outer_left.pop("session_id")
+
+            cum_df_outer_left.insert(0,"session_id",ses_col)
+            cum_df_outer_left.insert(0,"subject_id",sub_col)
+
+        cum_df_inner_left.to_csv(roi_csv_inner_left,sep=",",header=True, index=False)
+        cum_df_outer_left.to_csv(roi_csv_outer_left,sep=",",header=True, index=False)
 
         metadata = {}
+        roi_csv_inner_left_json = os.path.splitext(roi_csv_inner_left)[0] + ".json"
+        metadata = updateParams(metadata,"Title","collate_csv_group.py: Inner Join (left hand table)")
+        metadata = updateParams(metadata,"Description","Combine csv files of provided participants into group table. Only matched columns are retained.")
+        metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_inner_left_json}")
+        metadata = updateParams(metadata,"FileCreated",f"{roi_csv_inner_left}")
+        metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
+        metadata = updateParams(metadata,"Pipeline",f"{pipeline}")
+        metadata = updateParams(metadata,"InputFiles",f"{csv_list_left}")
+        export_labels(metadata,roi_csv_inner_left_json)
+
+        metadata = {}
+        roi_csv_outer_left_json = os.path.splitext(roi_csv_outer_left)[0] + ".json"
+        metadata = updateParams(metadata,"Title","collate_csv_group.py: Outer Join (eft hand table)")
+        metadata = updateParams(metadata,"Description","Combine csv files of provided participants into group table. Unmatched columns are retained.")
+        metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_outer_left_json}")
+        metadata = updateParams(metadata,"FileCreated",f"{roi_csv_outer_left}")
+        metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
+        metadata = updateParams(metadata,"Pipeline",f"{pipeline}")
+        metadata = updateParams(metadata,"InputFiles",f"{csv_list_left}")
+        export_labels(metadata,roi_csv_outer_left_json)
+
+    roi_csv_inner_right = None
+    roi_csv_outer_right = None
+    cum_df_inner_right=pd.DataFrame()
+    cum_df_outer_right=pd.DataFrame()
+    if len(csv_list_right) > 0:
+        for csv_file in csv_list_right:
+            df = pd.read_table(csv_file,sep=",")
+            if cum_df_inner_right.empty:
+                cum_df_inner_right = df
+            else:
+                cum_df_inner_right = pd.concat([cum_df_inner_right,df],join="inner")
+
+            if cum_df_outer_right.empty:
+                cum_df_outer_right = df
+            else:
+                cum_df_outer_right = pd.concat([cum_df_outer_right,df],join="outer")
+
+        collate_name_right = getParams(labels_dict,"COLLATE_NAME_RIGHT")
+        if not collate_name_right:
+            if not pipeline:
+                collate_name_right="csvgroup"
+            else:
+                collate_name_right="pipeline"
+
+        roi_csv_inner_right = os.path.join(roi_output_dir,'{}_{}_inner_right.csv'.format("group",collate_name_right))
+        roi_csv_outer_right = os.path.join(roi_output_dir,'{}_{}_outer_right.csv'.format("group",collate_name_right))
+
+        #create sorted output
+        cum_df_inner_right = cum_df_inner_right.reindex(sorted(cum_df_inner_right.columns), axis=1)
+        if "session_id" in cum_df_inner_right.columns and "subject_id" in cum_df_inner_right.columns:
+            sub_col = cum_df_inner_right.pop("subject_id")
+            ses_col = cum_df_inner_right.pop("session_id")
+
+            cum_df_inner_right.insert(0,"session_id",ses_col)
+            cum_df_inner_right.insert(0,"subject_id",sub_col)
+
+        #create sorted output
+        cum_df_outer_right = cum_df_outer_right.reindex(sorted(cum_df_outer_right.columns), axis=1)
+        if "session_id" in cum_df_outer_right.columns and "subject_id" in cum_df_outer_right.columns:
+            sub_col = cum_df_outer_right.pop("subject_id")
+            ses_col = cum_df_outer_right.pop("session_id")
+
+            cum_df_outer_right.insert(0,"session_id",ses_col)
+            cum_df_outer_right.insert(0,"subject_id",sub_col)
+
+        cum_df_inner_right.to_csv(roi_csv_inner_right,sep=",",header=True, index=False)
+        cum_df_outer_right.to_csv(roi_csv_outer_right,sep=",",header=True, index=False)
+
+        metadata = {}
+        roi_csv_inner_right_json = os.path.splitext(roi_csv_inner_right)[0] + ".json"
+        metadata = updateParams(metadata,"Title","collate_csv_group.py: Inner Join (right hand table)")
+        metadata = updateParams(metadata,"Description","Combine csv files of provided participants into group table. Only matched columns are retained.")
+        metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_inner_right_json}")
+        metadata = updateParams(metadata,"FileCreated",f"{roi_csv_inner_right}")
+        metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
+        metadata = updateParams(metadata,"Pipeline",f"{pipeline}")
+        metadata = updateParams(metadata,"InputFiles",f"{csv_list_right}")
+        export_labels(metadata,roi_csv_inner_right_json)
+
+        metadata = {}
+        roi_csv_outer_right_json = os.path.splitext(roi_csv_outer_right)[0] + ".json"
+        metadata = updateParams(metadata,"Title","collate_csv_group.py: Outer Join (eft hand table)")
+        metadata = updateParams(metadata,"Description","Combine csv files of provided participants into group table. Unmatched columns are retained.")
+        metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_outer_right_json}")
+        metadata = updateParams(metadata,"FileCreated",f"{roi_csv_outer_right}")
+        metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
+        metadata = updateParams(metadata,"Pipeline",f"{pipeline}")
+        metadata = updateParams(metadata,"InputFiles",f"{csv_list_right}")
+        export_labels(metadata,roi_csv_outer_right_json)
+
+    collate_join_left= getParams(labels_dict,"COLLATECOLS_JOIN_LEFT")
+    if not collate_join_left:
+        collate_join_left=["subject_id","session_id"]
+    collate_join_right= getParams(labels_dict,"COLLATECOLS_JOIN_RIGHT")
+    if not collate_join_right:
+        collate_join_right=["subject_id","session_id"]
+
+    if not cum_df_inner_right.empty and not cum_df_inner_left.empty:
+        cum_df_inner = pd.merge(cum_df_inner_left, cum_df_inner_right,  how='left', left_on=collate_join_left, right_on =collate_join_right)
+        roi_csv_inner = os.path.join(roi_output_dir,'{}_{}-{}_inner.csv'.format("final-group",collate_name_left,collate_name_right))
+
+        #create sorted output
+        cum_df_inner = cum_df_inner.reindex(sorted(cum_df_inner.columns), axis=1)
+        if "session_id" in cum_df_inner.columns and "subject_id" in cum_df_inner.columns:
+            sub_col = cum_df_inner.pop("subject_id")
+            ses_col = cum_df_inner.pop("session_id")
+
+            cum_df_inner.insert(0,"session_id",ses_col)
+            cum_df_inner.insert(0,"subject_id",sub_col)
+
+        cum_df_inner.to_csv(roi_csv_inner,sep=",",header=True, index=False)
+        metadata = {}
         roi_csv_inner_json = os.path.splitext(roi_csv_inner)[0] + ".json"
-        metadata = updateParams(metadata,"Title","collate_csv_group.py: Inner Join")
+        metadata = updateParams(metadata,"Title","collate_csv_group.py: Inner Join (both tables)")
         metadata = updateParams(metadata,"Description","Combine csv files of provided participants into group table. Only matched columns are retained.")
         metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_inner_json}")
         metadata = updateParams(metadata,"FileCreated",f"{roi_csv_inner}")
         metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
         metadata = updateParams(metadata,"Pipeline",f"{pipeline}")
-        metadata = updateParams(metadata,"InputFiles",f"{csv_list}")
+        metadata = updateParams(metadata,"InputFiles",f"{roi_csv_inner_left},{roi_csv_inner_right}")
         export_labels(metadata,roi_csv_inner_json)
+        out_files.insert(0,roi_csv_inner_left)
+        out_files.insert(1,roi_csv_inner_right)
+    elif not cum_df_inner_right.empty:
+        roi_csv_inner = roi_csv_inner_right
+        out_files.insert(0,roi_csv_inner_right)
+    elif not cum_df_inner_left.empty:
+        roi_csv_inner = roi_csv_inner_left
+        out_files.insert(0,roi_csv_inner_left)
 
+    if not cum_df_outer_right.empty and not cum_df_outer_left.empty:
+        cum_df_outer = pd.merge(cum_df_outer_left, cum_df_outer_right,  how='left', left_on=collate_join_left, right_on =collate_join_right)
+        roi_csv_outer = os.path.join(roi_output_dir,'{}_{}-{}_outer.csv'.format("final-group",collate_name_left,collate_name_right))
+
+        #create sorted output
+        cum_df_outer = cum_df_outer.reindex(sorted(cum_df_outer.columns), axis=1)
+        if "session_id" in cum_df_outer.columns and "subject_id" in cum_df_outer.columns:
+            sub_col = cum_df_outer.pop("subject_id")
+            ses_col = cum_df_outer.pop("session_id")
+            cum_df_outer.insert(0,"session_id",ses_col)
+            cum_df_outer.insert(0,"subject_id",sub_col)
+
+        cum_df_outer.to_csv(roi_csv_outer,sep=",",header=True, index=False)
         metadata = {}
         roi_csv_outer_json = os.path.splitext(roi_csv_outer)[0] + ".json"
-        metadata = updateParams(metadata,"Title","collate_csv_group.py: Outer Join")
+        metadata = updateParams(metadata,"Title","collate_csv_group.py: Outer Join (both tables)")
         metadata = updateParams(metadata,"Description","Combine csv files of provided participants into group table. Unmatched columns are retained.")
         metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_outer_json}")
         metadata = updateParams(metadata,"FileCreated",f"{roi_csv_outer}")
         metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
         metadata = updateParams(metadata,"Pipeline",f"{pipeline}")
-        metadata = updateParams(metadata,"InputFiles",f"{csv_list}")
+        metadata = updateParams(metadata,"InputFiles",f"{roi_csv_outer_left},{roi_csv_outer_right}")
         export_labels(metadata,roi_csv_outer_json)
+        out_files.insert(0,roi_csv_outer_left)
+        out_files.insert(1,roi_csv_outer_right)
+    elif not cum_df_outer_right.empty:
+        roi_csv_outer = roi_csv_outer_right
+        out_files.insert(0,roi_csv_outer_right)
+    elif not cum_df_outer_left.empty:
+        roi_csv_outer = roi_csv_outer_left
+        out_files.insert(0,roi_csv_outer_left)
+
+    out_files.insert(0,roi_csv_inner)
+    out_files.insert(1,roi_csv_outer)
 
     return {
         "roi_csv_inner":roi_csv_inner,
