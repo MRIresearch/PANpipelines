@@ -20,6 +20,12 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
     if len(execution.keys()) > 0:
         pan_workflow.config = process_dict(pan_workflow.config,execution)
 
+    CREATE_FIELDMAP=True
+    CREATE_FIELDMAP=getParams(labels_dict,"CREATE_FIELDMAP")
+    if CREATE_FIELDMAP:
+        CREATE_FIELDMAP = isTrue(CREATE_FIELDMAP)
+
+
     bids_dir = getParams(labels_dict,"BIDS_DIR")
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
@@ -111,19 +117,20 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
                     f" --workdir {sdcflows_workdir}" \
                     f" --fmap_mode {sdcflows_fmap_mode}"
             elif LOGGER:
-                    LOGGER.warn(f"{sdcflows_fmap_mode} not recognized as a field map option.")                
+                    LOGGER.warn(f"{sdcflows_fmap_mode} not recognized as a field map option.")
 
-            if sources:
-                SDCFLOWS_CONTAINER_TO_USE = getParams(labels_dict,"SDCFLOWS_CONTAINER_TO_USE")
-                if SDCFLOWS_CONTAINER_TO_USE:
-                    panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,command=f"python {sdcflows_fieldmap.__file__}",container_img=SDCFLOWS_CONTAINER_TO_USE)
-                else: 
-                    panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,command=f"python {sdcflows_fieldmap.__file__}")
-                panscript.run()
-            else:
-                if LOGGER:
-                    LOGGER.warn("Attempting to create fieldmap but sources not found. Exiting")
-                sys.exit(1)
+            if CREATE_FIELDMAP:                
+                if sources:
+                    SDCFLOWS_CONTAINER_TO_USE = getParams(labels_dict,"SDCFLOWS_CONTAINER_TO_USE")
+                    if SDCFLOWS_CONTAINER_TO_USE:
+                        panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,command=f"python {sdcflows_fieldmap.__file__}",container_img=SDCFLOWS_CONTAINER_TO_USE)
+                    else: 
+                        panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,command=f"python {sdcflows_fieldmap.__file__}")
+                    panscript.run()
+                else:
+                    if LOGGER:
+                        LOGGER.warn("Attempting to create fieldmap but sources not found. Exiting")
+                    sys.exit(1)
 
         # Specify node inputs
     fslanat_manual=getParams(labels_dict,"FSLANAT_MANUAL")
