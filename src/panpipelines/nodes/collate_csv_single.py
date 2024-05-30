@@ -9,12 +9,14 @@ from nipype import logging as nlogging
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
-def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
+def collate_csv_single_proc(labels_dict, csv_list1, add_prefix):
 
     if csv_list1 is None:
         csv_list1 = []
-    if csv_list2 is None:
-        csv_list2 = []
+
+    csv_list=[]
+    csv_list.extend(csv_list1)     
+    IFLOGGER.info(f"List of csv files to collate: {csv_list}")
 
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
@@ -32,32 +34,55 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     if not os.path.isdir(roi_output_dir):
         os.makedirs(roi_output_dir)
 
-    csv_list=[]
-    if csv_list1 is not None:
-        csv_list.extend(csv_list1)
+    subject_project = getParams(labels_dict,'PARTICIPANT_XNAT_PROJECT')
+    measures_prefixes = getParams(labels_dict,"MEASURES_PREFIXES")
+    measures_prefixes_evaluated={}
+    if measures_prefixes and isinstance(measures_prefixes,dict):
+        for itemkey, itemvalue in measures_prefixes.items():
+            measures_prefixes_evaluated[substitute_labels(itemkey,labels_dict)] = substitute_labels(itemvalue,labels_dict)
+    else:
+        measures_prefixes_evaluated = substitute_labels(measures_prefixes,labels_dict)
 
-    if csv_list2 is not None:
-        csv_list.extend(csv_list2)
-
-    csv_list.sort()
-    IFLOGGER.info(f"List of csv files to collate: {csv_list}")
 
     out_files=[]
     roi_csv = None
     if len(csv_list) > 0:
         cum_table_data = []
         cum_table_columns=[]
+        csv_file_count=0
         for csv_file in csv_list:
+
+            if subject_project and subject_project in csv_file:
+                creating_pipeline = csv_file.split("/" + subject_project)[0].split("/")[-1]
+            else:
+                creating_pipeline="default"
+
             filenames = os.path.basename(csv_file).split("_")
             if len(filenames) > 3:
-                prefix= filenames[1]+"_"+filenames[2]+"."
+                prefix= filenames[1]+"_"+filenames[2]
             elif len(filenames) > 2:
-                prefix= filenames[1]+"."
+                prefix= filenames[1]
             else:
-                prefix= filenames[0]+"."
+                prefix= filenames[0]
+
+            if measures_prefixes_evaluated:
+                if creating_pipeline in measures_prefixes_evaluated.keys():
+                    custom_prefix=measures_prefixes_evaluated[creating_pipeline]
+                else:
+                    custom_prefix=""
+            
+            elif measures_prefixes_evaluated:
+                custom_prefix=measures_prefixes_evaluated
 
             if not add_prefix:
-                prefix=""
+                if custom_prefix:
+                    prefix=custom_prefix +"."
+                else:
+                    prefix=""
+            elif custom_prefix:
+                prefix=prefix + "." + custom_prefix +"."
+            else:
+                prefix=prefix + "."
 
             df = pd.read_table(csv_file,sep=",")
             if "subject_id" in df.columns:
@@ -68,6 +93,7 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             table_columns = [prefix+x for x in table_columns]
             cum_table_columns.extend(table_columns)
             cum_table_data.extend(df.values.tolist()[0])
+            csv_file_count = csv_file_count + 1
 
         cum_df = pd.DataFrame([cum_table_data])
         cum_df.columns = cum_table_columns
@@ -120,7 +146,6 @@ def collate_csv_single_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 class collate_csv_singleInputSpec(BaseInterfaceInputSpec):
     labels_dict = traits.Dict({},mandatory=False,desc='labels', usedefault=True)
     csv_list1 = traits.List(desc='list of files')
-    csv_list2 = traits.List(desc='list of files')
     add_prefix = traits.Bool(False,desc="Create header prefix while joining tables",usedefault=True)
 
 class collate_csv_singleOutputSpec(TraitedSpec):
@@ -139,7 +164,6 @@ class collate_csv_single_pan(BaseInterface):
         outputs = collate_csv_single_proc(
             self.inputs.labels_dict,
             self.inputs.csv_list1,
-            self.inputs.csv_list2,
             self.inputs.add_prefix
         )
 
@@ -151,7 +175,7 @@ class collate_csv_single_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="collate_csv_single_node",csv_list1="",csv_list2="",add_prefix=False,LOGGER=IFLOGGER):
+def create(labels_dict,name="collate_csv_single_node",csv_list1="",add_prefix=False,LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(collate_csv_single_pan(), name=name)
 
@@ -164,9 +188,6 @@ def create(labels_dict,name="collate_csv_single_node",csv_list1="",csv_list2="",
     if not csv_list1 is None and not csv_list1 == "":
         pan_node.inputs.csv_list1 = csv_list1
  
-    if not csv_list2 is None and not csv_list2 == "":
-        pan_node.inputs.csv_list2 = csv_list2
-
     pan_node.inputs.add_prefix =  add_prefix
 
     return pan_node
