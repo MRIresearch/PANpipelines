@@ -658,7 +658,14 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
         # Additional params
         BASIL_OVERRIDE_PARAMS = getParams(labels_dict,"BASIL_OVERRIDE_PARAMS")
         if BASIL_OVERRIDE_PARAMS and isinstance(BASIL_OVERRIDE_PARAMS,dict):
-            add_labels(BASIL_OVERRIDE_PARAMS,basil_dict)        
+            add_labels(BASIL_OVERRIDE_PARAMS,basil_dict) 
+
+        # Additional params for specific subjects
+        UNIQUE_BASIL_OVERRIDE_PARAMS = getParams(labels_dict,"UNIQUE_BASIL_OVERRIDE_PARAMS")
+        if UNIQUE_BASIL_OVERRIDE_PARAMS and isinstance(UNIQUE_BASIL_OVERRIDE_PARAMS,dict):
+            for itemkey,itemvalue in UNIQUE_BASIL_OVERRIDE_PARAMS.items():
+                if itemkey == f"{participant_label}_{participant_session}" or itemkey == f"{participant_label}" and isinstance(itemvalue,dict):
+                    add_labels(itemvalue,basil_dict)    
 
         params = ""
         for basil_tag, basil_value in basil_dict.items():
