@@ -13,5 +13,6 @@ __all__ = [
     "collatecsv_workflow",
     "collatecsvgroup_workflow",
     "lst_workflow",
-    "preproc_workflow"
+    "preproc_workflow",
+    "mriqc_workflow"
 ]

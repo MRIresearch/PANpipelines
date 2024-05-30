@@ -14,5 +14,6 @@ __all__ = [
     "collatecsv_panpipeline",
     "collatecsvgroup_panpipeline",
     "lst_panpipeline",
-    "preproc_panpipeline"
+    "preproc_panpipeline",
+    "mriqc_panpipeline"
 ]
