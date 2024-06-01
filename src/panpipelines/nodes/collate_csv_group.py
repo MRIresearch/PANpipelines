@@ -94,6 +94,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             else:
                 collate_name_left="pipeline"
 
+        collate_prefix_left = getParams(labels_dict,"COLLATE_PREFIX_LEFT")
+
         roi_csv_inner_left = os.path.join(roi_output_dir,'{}_{}_inner_left.csv'.format("group",collate_name_left))
         roi_csv_outer_left = os.path.join(roi_output_dir,'{}_{}_outer_left.csv'.format("group",collate_name_left))
 
@@ -103,8 +105,19 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             sub_col = cum_df_inner_left.pop("subject_id")
             ses_col = cum_df_inner_left.pop("session_id")
 
+            if collate_prefix_left:
+                orig_cols = cum_df_inner_left.columns.tolist()
+                new_cols = [f"{collate_prefix_left}.{x}" for x in orig_cols]
+                new_dict = dict(zip(orig_cols,new_cols))
+                cum_df_inner_left = cum_df_inner_left.rename(columns=new_dict)
+
             cum_df_inner_left.insert(0,"session_id",ses_col)
             cum_df_inner_left.insert(0,"subject_id",sub_col)
+        elif collate_prefix_left:
+                orig_cols = cum_df_inner_left.columns.tolist()
+                new_cols = [f"{collate_prefix_left}.{x}" for x in orig_cols]
+                new_dict = dict(zip(orig_cols,new_cols))
+                cum_df_inner_left = cum_df_inner_left.rename(columns=new_dict)
 
         #create sorted output
         cum_df_outer_left = cum_df_outer_left.reindex(sorted(cum_df_outer_left.columns), axis=1)
@@ -112,8 +125,19 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             sub_col = cum_df_outer_left.pop("subject_id")
             ses_col = cum_df_outer_left.pop("session_id")
 
+            if collate_prefix_left:
+                orig_cols = cum_df_outer_left.columns.tolist()
+                new_cols = [f"{collate_prefix_left}.{x}" for x in orig_cols]
+                new_dict = dict(zip(orig_cols,new_cols))
+                cum_df_outer_left = cum_df_outer_left.rename(columns=new_dict)
+
             cum_df_outer_left.insert(0,"session_id",ses_col)
             cum_df_outer_left.insert(0,"subject_id",sub_col)
+        elif collate_prefix_left:
+            orig_cols = cum_df_outer_left.columns.tolist()
+            new_cols = [f"{collate_prefix_left}.{x}" for x in orig_cols]
+            new_dict = dict(zip(orig_cols,new_cols))
+            cum_df_outer_left = cum_df_outer_left.rename(columns=new_dict)
 
         cum_df_inner_left.to_csv(roi_csv_inner_left,sep=",",header=True, index=False)
         cum_df_outer_left.to_csv(roi_csv_outer_left,sep=",",header=True, index=False)
@@ -164,6 +188,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             else:
                 collate_name_right="pipeline"
 
+        collate_prefix_right = getParams(labels_dict,"COLLATE_PREFIX_RIGHT")
+
         roi_csv_inner_right = os.path.join(roi_output_dir,'{}_{}_inner_right.csv'.format("group",collate_name_right))
         roi_csv_outer_right = os.path.join(roi_output_dir,'{}_{}_outer_right.csv'.format("group",collate_name_right))
 
@@ -173,8 +199,20 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             sub_col = cum_df_inner_right.pop("subject_id")
             ses_col = cum_df_inner_right.pop("session_id")
 
+            if collate_prefix_right:
+                orig_cols = cum_df_inner_right.columns.tolist()
+                new_cols = [f"{collate_prefix_right}.{x}" for x in orig_cols]
+                new_dict = dict(zip(orig_cols,new_cols))
+                cum_df_inner_right = cum_df_inner_right.rename(columns=new_dict)
+
             cum_df_inner_right.insert(0,"session_id",ses_col)
             cum_df_inner_right.insert(0,"subject_id",sub_col)
+
+        elif collate_prefix_right:
+            orig_cols = cum_df_inner_right.columns.tolist()
+            new_cols = [f"{collate_prefix_right}.{x}" for x in orig_cols]
+            new_dict = dict(zip(orig_cols,new_cols))
+            cum_df_inner_right = cum_df_inner_right.rename(columns=new_dict)
 
         #create sorted output
         cum_df_outer_right = cum_df_outer_right.reindex(sorted(cum_df_outer_right.columns), axis=1)
@@ -182,8 +220,19 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             sub_col = cum_df_outer_right.pop("subject_id")
             ses_col = cum_df_outer_right.pop("session_id")
 
+            if collate_prefix_right:
+                orig_cols = cum_df_outer_right.columns.tolist()
+                new_cols = [f"{collate_prefix_right}.{x}" for x in orig_cols]
+                new_dict = dict(zip(orig_cols,new_cols))
+                cum_df_outer_right = cum_df_outer_right.rename(columns=new_dict)
+
             cum_df_outer_right.insert(0,"session_id",ses_col)
             cum_df_outer_right.insert(0,"subject_id",sub_col)
+        elif collate_prefix_right:
+            orig_cols = cum_df_outer_right.columns.tolist()
+            new_cols = [f"{collate_prefix_right}.{x}" for x in orig_cols]
+            new_dict = dict(zip(orig_cols,new_cols))
+            cum_df_outer_right = cum_df_outer_right.rename(columns=new_dict)
 
         cum_df_inner_right.to_csv(roi_csv_inner_right,sep=",",header=True, index=False)
         cum_df_outer_right.to_csv(roi_csv_outer_right,sep=",",header=True, index=False)
@@ -213,9 +262,15 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     collate_join_left= getParams(labels_dict,"COLLATECOLS_JOIN_LEFT")
     if not collate_join_left:
         collate_join_left=["subject_id","session_id"]
+    elif collate_prefix_left:
+        collate_join_left = [f"{collate_prefix_left}.{x}" if  f"{collate_prefix_left}." not in x and x != "subject_id" and x != "session_id" else x for x in collate_join_left ]
+
     collate_join_right= getParams(labels_dict,"COLLATECOLS_JOIN_RIGHT")
     if not collate_join_right:
         collate_join_right=["subject_id","session_id"]
+    elif collate_prefix_right:
+        collate_join_right = [f"{collate_prefix_right}.{x}" if  f"{collate_prefix_right}." not in x and x != "subject_id" and x != "session_id" else x for x in collate_join_right ]
+
 
     if not cum_df_inner_right.empty and not cum_df_inner_left.empty:
         cum_df_inner = pd.merge(cum_df_inner_left, cum_df_inner_right,  how='left', left_on=collate_join_left, right_on =collate_join_right)
