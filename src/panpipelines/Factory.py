@@ -105,6 +105,13 @@ class PANFactory:
         except Exception as ex:
             pass
 
+    def get_runscript(self, name):
+        try:
+            module = __import__(f"{self.script_module}.{name}",fromlist=[name])
+            return module
+        except Exception as ex:
+            pass
+
     def get_processflow(self, name):
         if "script" in name:
             processflow = self.get_script(name)

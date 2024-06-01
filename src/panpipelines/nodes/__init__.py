@@ -19,5 +19,6 @@ __all__ = [
     "atlascreate",
     "lst",
     "preproc",
-    "mriqc"
+    "mriqc",
+    "pancontainergroup"
 ]

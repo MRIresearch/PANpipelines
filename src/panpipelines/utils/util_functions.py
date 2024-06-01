@@ -86,6 +86,29 @@ def drop_ses(value):
 def isTrue(arg):
     return arg is not None and (arg == 'Y' or arg == 'y' or arg == '1' or arg == 'True' or arg == 'true' or arg == True)
 
+def special_substitution(expression,pardict, key,unbracedKey):
+    if expression is not None and key is not None and pardict is not None:
+        if key=="<XNAT_USER>":
+            credentials = os.path.abspath(getParams(pardict,"CREDENTIALS"))
+            if credentials is not None and os.path.exists(credentials):
+                with open(credentials, 'r') as infile:
+                    cred_dict = json.load(infile)
+                    if "user" in cred_dict.keys():
+                        cred_user = getParams(cred_dict,"user")
+                        expression = expression.replace(key,cred_user) 
+        elif key=="<XNAT_PASSWORD>":
+            credentials = os.path.abspath(getParams(pardict,"CREDENTIALS"))
+            if credentials is not None and os.path.exists(credentials):
+                with open(credentials, 'r') as infile:
+                    cred_dict = json.load(infile)
+                    if "password" in cred_dict.keys():
+                        cred_password = getParams(cred_dict,"password")
+                        expression = expression.replace(key,cred_password)
+        elif unbracedKey in pardict and isinstance(pardict[unbracedKey],list):
+            list_string = " ".join(pardict[unbracedKey])
+            expression = expression.replace(key,list_string)
+    return expression
+
 def getParams(pardict, key, update=True):
     if key is not None and pardict is not None:
         if key in pardict:
@@ -136,6 +159,17 @@ def export_labels(panpipe_labels,export_file):
     with open(export_file,"w") as outfile:
         json.dump(panpipe_labels,outfile,indent=2)
 
+def special_substitute_labels(expression,panpipe_labels,exceptions=[]):
+    if isinstance(expression,str):
+        braced_vars = re.findall(r'\<.*?\>',expression)
+        for braced_var in braced_vars:
+            unbraced_var = braced_var.replace('<','').replace('>','')
+            lookup_var = getParams(panpipe_labels,unbraced_var)
+            if isinstance(lookup_var,str) and lookup_var is not None and unbraced_var not in exceptions:
+                expression = expression.replace(braced_var,lookup_var) 
+            else:
+                expression = special_substitution(expression, panpipe_labels,braced_var,unbraced_var)           
+    return expression
 
 def substitute_labels(expression,panpipe_labels,exceptions=[]):
     if isinstance(expression,str):
@@ -2071,6 +2105,8 @@ def getContainer(labels_dict,nodename="",SPECIFIC=None,CONTAINERALT="PAN_CONTAIN
         container_run_options = getParams(labels_dict,f"{SPECIFIC}_RUN_OPTIONS")
         container_prerun = getParams(labels_dict,f"{SPECIFIC}_PRERUN")
         container = getParams(labels_dict,f"{SPECIFIC}")
+        if SPECIFIC == "DUMMY_CONTAINER":
+            return "",""
     else:
         container_run_options = None
         container_prerun = None
