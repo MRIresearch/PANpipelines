@@ -7,13 +7,14 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 
 class panscript:
 
-    def __init__(self,labels_dict,name='template_panscript',params="",command="",execution={}):
+    def __init__(self,labels_dict,name='template_panscript',params="",command="",interactive=False, execution={}):
 
         # Create Node
         self.labels_dict = labels_dict
         self.name = name
         self.params = params
         self.command = command
+        self.interactive = interactive
 
 
     def pre_run(self):
@@ -31,7 +32,7 @@ class panscript:
         os.chdir(pkgdir)
         
         evaluated_command=substitute_labels(command, self.labels_dict)
-        runCommand(evaluated_command,IFLOGGER)
+        runCommand(evaluated_command,IFLOGGER,interactive=self.interactive)
 
         self.post_run()
         return self.get_results()

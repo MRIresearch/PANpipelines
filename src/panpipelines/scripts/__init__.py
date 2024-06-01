@@ -4,5 +4,6 @@ __all__ = [
     "aslprep_panscript",
     "pancontainer_panscript",
     "sdcflows_fieldmap",
-    "mne_make_surfaces"
+    "mne_make_surfaces",
+    "paninfo_bidsqc"
 ]

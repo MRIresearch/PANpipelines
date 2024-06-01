@@ -220,9 +220,14 @@ def main():
         panpipe_labels = updateParams(panpipe_labels, "PIPELINE", pipeline)
         panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels,pipeline)
 
-        # rather rigid - but we foreshadow the worfflow directory here and use a param so it is useable
-        wf_dir = f"<PIPELINE_DIR>/{pipeline}/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/{pipeline}_wf"
-        panpipe_labels = updateParams(panpipe_labels,f"WORKFLOW_DIR",wf_dir)
+        analysis_level = getParams(panpipe_labels,"ANALYSIS_LEVEL")
+        if analysis_level == "group":
+            # rather rigid - but we foreshadow the worfflow directory here and use a param so it is useable
+            wf_dir = f"<PIPELINE_DIR>/{pipeline}/group/{pipeline}_wf"
+            panpipe_labels = updateParams(panpipe_labels,f"WORKFLOW_DIR",wf_dir)
+        else:
+            wf_dir = f"<PIPELINE_DIR>/{pipeline}/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/{pipeline}_wf"
+            panpipe_labels = updateParams(panpipe_labels,f"WORKFLOW_DIR",wf_dir)
 
         # We handle the <DEPENDENCY> key specially as this is a list that we need to resolve into DEPENDENCY1, DEPENDENCY2, ...DEPENDENCYN
         dependency_list = getParams(panpipe_labels,"DEPENDENCY")
@@ -244,8 +249,6 @@ def main():
             
         # Now we can resolve all the references based on precedence in the pipeline section
         panpipe_labels = update_labels(panpipe_labels)
-
-        analysis_level = getParams(panpipe_labels,"ANALYSIS_LEVEL")
 
         processing_environment=getParams(panpipe_labels,"PROCESSING_ENVIRONMENT") 
 

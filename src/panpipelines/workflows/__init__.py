@@ -14,5 +14,6 @@ __all__ = [
     "collatecsvgroup_workflow",
     "lst_workflow",
     "preproc_workflow",
-    "mriqc_workflow"
+    "mriqc_workflow",
+    "pancontainergroup_workflow"
 ]

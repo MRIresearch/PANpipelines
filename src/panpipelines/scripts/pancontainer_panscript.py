@@ -4,8 +4,8 @@ from panpipelines.scripts.panscript import *
 
 class pancontainer_panscript(panscript):
 
-    def __init__(self,labels_dict,name='pancontainer_panscript',params="",command="",container_img="PAN_CONTAINER",execution={}):
-        super().__init__(labels_dict,name=name,params=params,command=command)
+    def __init__(self,labels_dict,name='pancontainer_panscript',params="",command="",interactive=False,container_img="PAN_CONTAINER",execution={}):
+        super().__init__(labels_dict,name=name,params=params,command=command,interactive=interactive)
 
         self.params = params
 
