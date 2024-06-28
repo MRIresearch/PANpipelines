@@ -479,6 +479,27 @@ def release_lock(lock_file):
     except Exception as e:
         UTLOGGER.debug(f"problem closing lockfile {lock_file}.\n{e}")
 
+
+def getSubjectInfo(labels_dict, participant_label):
+    sessions_file = getParams(labels_dict,"SESSIONS_FILE")
+    if sessions_file:
+        sessions_df = pd.read_table(sessions_file,sep="\t")
+        search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant_label))]
+        if search_df.empty:
+            UTLOGGER.info(f"No Subject_ID values found for {participant_label} in {sessions_file}. Returning passed value.")
+            return participant_label
+        else:
+            sub_id=[sub_id for sub_id in list(search_df.xnat_subject_id.values)]
+            if not sub_id:
+                UTLOGGER.info(f"No Subject_ID values found for {participant_label} in {sessions_file}. Returning passed value.")
+                return participant_label
+            else:
+                return sub_id[0]
+    else:
+        UTLOGGER.info(f"No Subject_ID values found for {participant_label} in {sessions_file}. Returning passed value.")
+        return participant_label   
+
+
 LOCK_SUFFIX=".lock"
 def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,password):
 
@@ -517,7 +538,8 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
                 command_base, container = getContainer(labels_dict,nodename="process_fsl_glm",SPECIFIC="XNATDOWNLOAD_CONTAINER")
 
                 UTLOGGER.info("Downloading started from XNAT.")
-                getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password)
+                subject_id = getSubjectInfo(labels_dict,participant_label)
+                getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password,subject_id=subject_id)
             else:
                 UTLOGGER.info(f"IN_XNAT set to {IN_XNAT}. Do not have a means of obtaining data for {participant_label}. Please add this subject's data to {bids_dir}")
 
@@ -531,12 +553,15 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
         except Exception as e:
             pass
 
-def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,user,password):
+def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,user,password,subject_id=None):
 
     import xnat
     with xnat.connect(server=host,user=user, password=password) as connection:
         project = connection.projects[project]
-        subject = project.subjects[subject_label]
+        if not subject_id:
+            subject = project.subjects[subject_label]
+        else:
+            subject = project.subjects[subject_id]
         experiments = subject.experiments
         expcount = len(experiments)
         for expnum in range(expcount):
@@ -562,6 +587,9 @@ def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,us
                     shutil.rmtree(tmpdir)
                 else:
                     UTLOGGER.info(f"Problem dowbloading data for {subject_label} using {resource_label} in {experiment.label}")
+                    if subject_id:
+                        UTLOGGER.info(f"{subject_id} used as key to access data")
+
 
 
 
