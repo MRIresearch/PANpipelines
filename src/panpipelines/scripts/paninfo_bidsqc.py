@@ -63,6 +63,7 @@ TARGET_PROJECT="PAN_250_1"
 
 
 PAN_RELEASE="PAN_RELEASE"
+PAN_SITE="PAN_SITE"
 HMLID="HMLID"
 HMLID_REC="HMLID_REC"
 XNATID_ORIG="XNATID_ORIG"
@@ -117,6 +118,7 @@ CANDO_ASL_SDC_DWI= "CANDO_ASL_SDC_DWI"
 
 table_header = []
 table_header.append(PAN_RELEASE)
+table_header.append(PAN_SITE)
 table_header.append(HMLID)
 table_header.append(HMLID_REC)
 table_header.append(XNATID_ORIG)
@@ -207,6 +209,8 @@ def getProject(p2site):
             return "003_HML"
         elif p2site == "JH":
             return "004_HML"
+        elif p2site == "PAN250":
+            return "PAN_250_1"
         else:
             print(f"P2site {p2site} not recognized")
             return ''
@@ -224,6 +228,8 @@ def getSite(project):
             return "EU"
         elif project == "004_HML":
             return "JH"
+        elif project == "PAN_250_1":
+            return "PAN250"
         else:
             print(f"Project {project} not recognized")
             return ''
@@ -518,6 +524,7 @@ def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
 
                     table_row = initializeRow()
                     loadParams(table_row,PAN_RELEASE,project_t)
+                    loadParams(table_row,PAN_SITE,getSite(project_t))
 
                     subject = subjects[sub_index]
 

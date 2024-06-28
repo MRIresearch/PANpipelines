@@ -221,33 +221,46 @@ for x = 1:num_sessions
     tcnr_brain = mean(cnr_brain_t);
 
     % csf mask metrics
-    csfbrainii = niftiread(csfmask_file);
-    csfbrainmask = csfbrainii > 0.5;
-    aslmetrics(x).csfbrainmask = csfbrainmask;
-
-    csfbrainmask_d = repmat(csfbrainmask,[1,1,1,dimt]);
-
-    ctrldata_brain_csf = ctrldata;
-    ctrldata_brain_csf(~csfbrainmask_d) = nan;
-    labeldata_brain_csf = labeldata;
-    labeldata_brain_csf(~csfbrainmask_d) = nan;
-    diffdata_brain_csf = diffdata;
-    diffdata_brain_csf(~csfbrainmask_d) = nan;
-
-    mean_ctrl_brain_csf = validmean(ctrldata_brain_csf(:));
-    mean_label_brain_csf = validmean(labeldata_brain_csf(:));
-    mean_diff_brain_csf = validmean(diffdata_brain_csf(:));
-
-    negmask_brain_csf = diffdata_brain_csf < 0;
-    diffdata_brain_csf_negsup = diffdata_brain_csf;
-    diffdata_brain_csf_negsup(negmask_brain_csf) = nan;
-    mean_diff_brain_csf_negsup = validmean(diffdata_brain_csf_negsup(:));
-
-    perf_brain_csf = diffdata_brain_csf ./ ctrldata_brain_csf;
-    mean_perf_brain_csf = validmean(perf_brain_csf);
-
-    perf_brain_csf_negsup = diffdata_brain_csf_negsup ./ ctrldata_brain_csf;
-    mean_perf_brain_csf_negsup = validmean(perf_brain_csf_negsup);
+    if isfile(csfmask_file)
+        csfbrainii = niftiread(csfmask_file);
+        csfbrainmask = csfbrainii > 0.5;
+        aslmetrics(x).csfbrainmask = csfbrainmask;
+    
+        csfbrainmask_d = repmat(csfbrainmask,[1,1,1,dimt]);
+    
+        ctrldata_brain_csf = ctrldata;
+        ctrldata_brain_csf(~csfbrainmask_d) = nan;
+        labeldata_brain_csf = labeldata;
+        labeldata_brain_csf(~csfbrainmask_d) = nan;
+        diffdata_brain_csf = diffdata;
+        diffdata_brain_csf(~csfbrainmask_d) = nan;
+    
+        mean_ctrl_brain_csf = validmean(ctrldata_brain_csf(:));
+        mean_label_brain_csf = validmean(labeldata_brain_csf(:));
+        mean_diff_brain_csf = validmean(diffdata_brain_csf(:));
+    
+        negmask_brain_csf = diffdata_brain_csf < 0;
+        diffdata_brain_csf_negsup = diffdata_brain_csf;
+        diffdata_brain_csf_negsup(negmask_brain_csf) = nan;
+        mean_diff_brain_csf_negsup = validmean(diffdata_brain_csf_negsup(:));
+    
+        perf_brain_csf = diffdata_brain_csf ./ ctrldata_brain_csf;
+        mean_perf_brain_csf = validmean(perf_brain_csf);
+    
+        perf_brain_csf_negsup = diffdata_brain_csf_negsup ./ ctrldata_brain_csf;
+        mean_perf_brain_csf_negsup = validmean(perf_brain_csf_negsup);
+    else    
+        mean_ctrl_brain_csf = nan;
+        mean_label_brain_csf = nan;
+        mean_diff_brain_csf = nan;
+        mean_diff_brain_csf_negsup = nan;
+        mean_m0_brain_csf = nan;
+        mean_perf_brain_csf = nan;
+        mean_perf_brain_csf_negsup = nan;
+        cgain_brain_csf = nan;
+        mean_calib_brain_csf = nan;
+        mean_calib_brain_csf_negsup = nan;
+    end
 
     % M0
     mean_m0 = validmean(calibdata);
@@ -257,13 +270,17 @@ for x = 1:num_sessions
         dimt = sizectrl(4);
         brainmask_calib_d = repmat(brainmask,[1,1,1,dimt]); 
         gmbrainmask_calib_d = repmat(gmbrainmask,[1,1,1,dimt]); 
-        wmbrainmask_calib_d = repmat(wmbrainmask,[1,1,1,dimt]); 
-        csfbrainmask_calib_d = repmat(csfbrainmask,[1,1,1,dimt]); 
+        wmbrainmask_calib_d = repmat(wmbrainmask,[1,1,1,dimt]);
+        if isfile(csfmask_file)
+            csfbrainmask_calib_d = repmat(csfbrainmask,[1,1,1,dimt]); 
+        end
     else
         brainmask_calib_d = brainmask;
         gmbrainmask_calib_d = gmbrainmask;
         wmbrainmask_calib_d = wmbrainmask;
-        csfbrainmask_calib_d = csfbrainmask;
+        if isfile(csfmask_file)
+            csfbrainmask_calib_d = csfbrainmask;
+        end
     end
     
     calibdata_brain = calibdata;
@@ -278,29 +295,37 @@ for x = 1:num_sessions
     calibdata_brain_wm(~wmbrainmask_calib_d) = nan;
     mean_m0_brain_wm = validmean(calibdata_brain_wm);
 
-    calibdata_brain_csf = calibdata;
-    calibdata_brain_csf(~csfbrainmask_calib_d) = nan;
-    mean_m0_brain_csf = validmean(calibdata_brain_csf);
+    if isfile(csfmask_file)
+        calibdata_brain_csf = calibdata;
+        calibdata_brain_csf(~csfbrainmask_calib_d) = nan;
+        mean_m0_brain_csf = validmean(calibdata_brain_csf);
+    end
 
     if calibt > 1
         calibdata_mean = mean(calibdata,4);
         calibdata_brain_mean = mean(calibdata_brain,4);
         calibdata_brain_gm_mean = mean(calibdata_brain_gm,4);
         calibdata_brain_wm_mean = mean(calibdata_brain_wm,4);
-        calibdata_brain_csf_mean = mean(calibdata_brain_csf,4);
+        if isfile(csfmask_file)
+            calibdata_brain_csf_mean = mean(calibdata_brain_csf,4);
+        end
     else
         calibdata_mean = squeeze(calibdata);
         calibdata_brain_mean = squeeze(calibdata_brain);
         calibdata_brain_gm_mean = squeeze(calibdata_brain_gm);
         calibdata_brain_wm_mean = squeeze(calibdata_brain_wm);
-        calibdata_brain_csf_mean = squeeze(calibdata_brain_csf);    
+        if isfile(csfmask_file)
+            calibdata_brain_csf_mean = squeeze(calibdata_brain_csf); 
+        end
     end
 
     ctrldata_mean = mean(ctrldata,4);
     ctrldata_brain_mean = mean(ctrldata_brain,4);
     ctrldata_brain_gm_mean = mean(ctrldata_brain_gm,4);
     ctrldata_brain_wm_mean = mean(ctrldata_brain_wm,4);
-    ctrldata_brain_csf_mean = mean(ctrldata_brain_csf,4);   
+    if isfile(csfmask_file)
+        ctrldata_brain_csf_mean = mean(ctrldata_brain_csf,4); 
+    end
 
     aslnum=ctrldata_mean(~isnan(ctrldata_mean));
     calibnum=calibdata_mean(~isnan(ctrldata_mean));
@@ -325,12 +350,14 @@ for x = 1:num_sessions
     res = polyfit(aslnum, calibnum, 1);
     cgain_brain_wm = res(1);
     intercept_brain_wm = res(2);
-
-    aslnum=ctrldata_brain_csf_mean(~isnan(ctrldata_brain_csf_mean));
-    calibnum=calibdata_brain_csf_mean(~isnan(ctrldata_brain_csf_mean));
-    res = polyfit(aslnum, calibnum, 1);
-    cgain_brain_csf = res(1);
-    intercept_brain_csf = res(2);
+    
+    if isfile(csfmask_file)
+        aslnum=ctrldata_brain_csf_mean(~isnan(ctrldata_brain_csf_mean));
+        calibnum=calibdata_brain_csf_mean(~isnan(ctrldata_brain_csf_mean));
+        res = polyfit(aslnum, calibnum, 1);
+        cgain_brain_csf = res(1);
+        intercept_brain_csf = res(2);
+    end
   
     mean_calib_mat = mean(diffdata,4) ./ calibdata_mean;
     mean_calib = validmean(mean_calib_mat);
@@ -364,13 +391,15 @@ for x = 1:num_sessions
     mean_calib_brain_wm_negsup = validmean(mean_calib_brain_wm_negsup_mat);
     median_calib_brain_wm_negsup = validmedian(mean_calib_brain_wm_negsup_mat);
 
-    mean_calib_brain_csf_mat = mean(diffdata_brain_csf,4) ./ calibdata_brain_csf_mean;
-    mean_calib_brain_csf = validmean(mean_calib_brain_csf_mat);
-    median_calib_brain_csf = validmedian(mean_calib_brain_csf_mat);
-
-    mean_calib_brain_csf_negsup_mat = mean(diffdata_brain_csf_negsup,4) ./ calibdata_brain_csf_mean;
-    mean_calib_brain_csf_negsup = validmean(mean_calib_brain_csf_negsup_mat);
-    median_calib_brain_csf_negsup = validmedian(mean_calib_brain_csf_negsup_mat);
+    if isfile(csfmask_file)
+        mean_calib_brain_csf_mat = mean(diffdata_brain_csf,4) ./ calibdata_brain_csf_mean;
+        mean_calib_brain_csf = validmean(mean_calib_brain_csf_mat);
+        median_calib_brain_csf = validmedian(mean_calib_brain_csf_mat);
+        
+        mean_calib_brain_csf_negsup_mat = mean(diffdata_brain_csf_negsup,4) ./ calibdata_brain_csf_mean;
+        mean_calib_brain_csf_negsup = validmean(mean_calib_brain_csf_negsup_mat);
+        median_calib_brain_csf_negsup = validmedian(mean_calib_brain_csf_negsup_mat);
+    end
 
     aslmetrics(x).neg_voxels_num=neg_voxels_num;
     aslmetrics(x).neg_voxels_mean=neg_voxels_mean;

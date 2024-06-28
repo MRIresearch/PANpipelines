@@ -12,6 +12,23 @@ It is recommended that a python environment manager like `conda` or `virtualenv`
 conda activate panpython
 pip install panpipelines
 ```
+# Current Limitations
+The current pipeline is currently optimised for **SLURM** environments in which singularity containers are automatically bound by the system administrator to disk locations on which users manage their data. This means that the `-B` parameter is not required to map output locations to their respective locations within the singularity image.  If the latter is not the case then users will need to run their deployments in the `/tmp` directory as this is automatically bound by singularity. We hope to eventually enable this pipeline to work in other scenarios that users may be facing e.g. Docker environments and more restrictive singularity environments. 
+Several pipelines rely on the image `aacazxnat/panproc-minimal:0.2` which is defined here https://github.com/MRIresearch/panproc-minimal. See the section below **Building singularity images from Docker Images** for information on how to convert your docker images into singularity images.
+
+# Building singularity images from Docker Images
+The script below can be used to build a singularity image from a docker image. The script defines a location `$SINGULARITY_CACHEDIR` which is used to download the image layers. This can be set up in a location where there is a reasonable amount of disk space as the layers can be quite large in size. The docker image location is defined by `$DOCKERURI`. Once the singularity image `$SINGNAME` is built it can be moved to another location if desired.
+
+```
+#!/bin/bash
+export SINGULARITY_CACHEDIR=$PWD/singularitycache
+mkdir -p $SINGULARITY_CACHEDIR
+
+SINGNAME=panprocminimal-v0.2.sif
+DOCKERURI=docker://aacazxnat/panproc-minimal:0.2
+singularity build $SINGNAME $DOCKERURI
+```
+
 # Deployment
 For an example of using the package to process MRI data please refer to the `./deployment` folder. All the necessary parameters for running the pipelines are described in a **config** file in the `./config` subdirectory which is passed as a parameter to the main module `pan_processing.py`. In the example provided this file is named `panpipeconfig_slurm.config`. 
 
