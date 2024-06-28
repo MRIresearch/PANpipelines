@@ -1,0 +1,9 @@
+{
+  "Title": "collate_csv_group.py: Outer Join (both tables)",
+  "Description": "Combine csv files of provided participants into group table. Unmatched columns are retained.",
+  "MetadataFile": "/xdisk/ryant/chidiugonna/PAN250_Deployment_20240530/20240530_pan250_processing_outputs/collategroup_arterial/group/collategroup_arterial_wf/collate_csv_group_node/group_roi_output_dir/final-group_arterial-stats-qc-measures_outer.json",
+  "FileCreated": "/xdisk/ryant/chidiugonna/PAN250_Deployment_20240530/20240530_pan250_processing_outputs/collategroup_arterial/group/collategroup_arterial_wf/collate_csv_group_node/group_roi_output_dir/final-group_arterial-stats-qc-measures_outer.csv",
+  "DateCreated": "2024-06-27 10:59:53:904386",
+  "Pipeline": "collategroup_arterial",
+  "InputFiles": "/xdisk/ryant/chidiugonna/PAN250_Deployment_20240530/20240530_pan250_processing_outputs/collategroup_arterial/group/collategroup_arterial_wf/collate_csv_group_node/group_roi_output_dir/group_arterial-stats_outer_left.csv,/xdisk/ryant/chidiugonna/PAN250_Deployment_20240530/20240530_pan250_processing_outputs/collategroup_arterial/group/collategroup_arterial_wf/collate_csv_group_node/group_roi_output_dir/group_qc-measures_outer_right.csv"
+}

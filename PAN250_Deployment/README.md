@@ -35,6 +35,13 @@ source /xdisk/ryant/$USER/PAN250_Deployment/venvs/pan250_env/bin/activate
 pip install -U panpipelines
 ```
 
+## Deployment Folder Structure
+Each Analysis utilizes the following three folders **config**, **atlas** and **batch_scripts** and a run script `*_run_pan250_*.sh`. There is a default copy of these fodlers and files in the deployment folder.
+
+Individual folders named **YYYYMMDD** contain specific updates to the generic files and folders above for a specific analysis run. So for example **20240530** contains updates to the **config** folder that should be used instead of the generic version to recreate the results available in **results**. 
+
+There is a limitation to the number of slurm jobs that an individual can invoke at the same time on the HPC (approx 1000 jobs) and so in practical terms jobs have to be broken up into smaller batches. For the example of **20240530** the first batch of jobs invoked by `001_run_pan250_aslproc.sh` will need to complete before the second batch `002_run_pan250_aslproc.sh` can be run.
+
 ## Edit pan250.config
 
 In the configuration file `./config/pan250.config` make the following changes:
@@ -87,3 +94,8 @@ On your first run please allow a few minutes for the PAN participation informati
 Most problems can be avoided by creating a clean new python environment using `conda` or `virtualenv`. If an existing python environment is used then package interactions and conflicts will unfortunately have to be handled manually and steps to resolve these will be unique to each environment in question.
 
 if you see this error `ImportError: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'OpenSSL 1.0.2k-fips  26 Jan 2017'. See: https://github.com/urllib3/urllib3/issues/2168` and you are using `Python 3.7 - 3.9` on the HPC then downgrade `urllib3` as follows `pip install urllib==1.25.9` 
+
+# General HPC Deployment
+As described in the main README, one of the current limitations of the pipeline is the fact that it is only optimised for **SLURM** environments in which singularity containers are automatically bound by the system administrator to disk locations on which users manage their data. This means that the `-B` parameter is not required to map output locations to their respective locations within the singularity image.  If the latter is not the case then users will need to run their deployments in the `/tmp` directory as this is automatically bound by singularity. We hope to eventually enable this pipeline to work in other scenarios that users may be facing e.g. Docker environments and more restrictive singularity environments.
+
+Several pipelines rely on the image `aacazxnat/panproc-minimal:0.2` which is defined here https://github.com/MRIresearch/panproc-minimal. See the section **Building singularity images from Docker Images** in main READMe for information on how to convert your docker images into singularity images. Users may want to customize this image so that it works better on their HPC systems.
