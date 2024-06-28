@@ -74,6 +74,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     roi_csv_outer_left = None
     cum_df_inner_left=pd.DataFrame()
     cum_df_outer_left=pd.DataFrame()
+
+    collate_prefix_left = None
     if len(csv_list_left) > 0:
         for csv_file in csv_list_left:
             df = pd.read_table(csv_file,sep=",")
@@ -168,6 +170,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     roi_csv_outer_right = None
     cum_df_inner_right=pd.DataFrame()
     cum_df_outer_right=pd.DataFrame()
+    collate_prefix_right=None
     if len(csv_list_right) > 0:
         for csv_file in csv_list_right:
             df = pd.read_table(csv_file,sep=",")
