@@ -67,7 +67,17 @@ def mriqc_proc(labels_dict,bids_dir=""):
     # Additional params
     MRIQC_OVERRIDE_PARAMS = getParams(labels_dict,"MRIQC_OVERRIDE_PARAMS")
     if MRIQC_OVERRIDE_PARAMS and isinstance(MRIQC_OVERRIDE_PARAMS,dict):
-        add_labels(MRIQC_OVERRIDE_PARAMS,mriqc_dict)        
+        add_labels(MRIQC_OVERRIDE_PARAMS,mriqc_dict)
+
+    # Additional params for specific subjects
+    UNIQUE_MRIQC_OVERRIDE_PARAMS = getParams(labels_dict,"UNIQUE_MRIQC_OVERRIDE_PARAMS")
+    if UNIQUE_MRIQC_OVERRIDE_PARAMS and isinstance(UNIQUE_MRIQC_OVERRIDE_PARAMS,list):
+        for override_definition in UNIQUE_MRIQC_OVERRIDE_PARAMS:
+            if isinstance(override_definition,dict) and "CANDIDATES" in override_definition.keys() and "PARAMS" in override_definition.keys():
+                subject_list = override_definition["CANDIDATES"]
+                subject_params = override_definition["PARAMS"]
+                if f"{participant_label}_{participant_session}" in subject_list or f"{participant_label}" in subject_list:
+                    add_labels(subject_params,mriqc_dict)        
 
     params = ""
     for mriqc_tag, mriqc_value in mriqc_dict.items():
