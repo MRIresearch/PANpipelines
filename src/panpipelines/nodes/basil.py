@@ -308,7 +308,7 @@ def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljso
     command=f"{command_base} fslstats"\
         " "+params
     evaluated_command=substitute_labels(command, labels_dict)
-    phasedivstr1 = runCommand(evaluated_command,UTLOGGER)
+    phasedivstr1 = getLastFromList(runCommand(evaluated_command,UTLOGGER).split("\n"))
     phasediv1 = np.max([abs(float(x)) for x in phasedivstr1.split()]) 
 
     fsl_dict=OrderedDict()
@@ -319,7 +319,7 @@ def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljso
     command=f"{command_base} fslstats"\
         " "+params
     evaluated_command=substitute_labels(command, labels_dict)
-    phasedivstr2 = runCommand(evaluated_command,UTLOGGER)
+    phasedivstr2 = getLastFromList(runCommand(evaluated_command,UTLOGGER).split("\n"))
     phasediv2 = np.max([abs(float(x)) for x in phasedivstr2.split()]) 
 
     phaserads1 = newfile(work_dir,phase1,suffix="rads")
@@ -461,6 +461,8 @@ def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljso
 
 def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
+    cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
     command_base, container = getContainer(labels_dict,nodename="basil",SPECIFIC="BASIL_CONTAINER",LOGGER=IFLOGGER)
 
     IFLOGGER.info("Checking the oxford_asl version:")
@@ -481,9 +483,7 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
     basil_dict = updateParams(basil_dict,REGIONANALYSIS,IS_PRESENT)
     basil_dict = updateParams(basil_dict,FIXBAT,IS_PRESENT)
     basil_dict = updateParams(basil_dict,WHITEPAPER,IS_PRESENT)
-  
-    cwd=os.getcwd()
-    labels_dict = updateParams(labels_dict,"CWD",cwd)
+
     
     output_dir=os.path.join(cwd,"basiloutput")
     if not os.path.exists(output_dir):

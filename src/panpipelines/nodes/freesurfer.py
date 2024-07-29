@@ -12,6 +12,7 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def freesurfer_proc(labels_dict,bids_dir=""):
 
+    command_base, container = getContainer(labels_dict,nodename="freesurfer", SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER) 
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
     layout = BIDSLayout(bids_dir)
@@ -23,9 +24,9 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     subjects_dir = os.path.join(cwd,'subjects_dir')
     if not os.path.isdir(subjects_dir):
         os.makedirs(subjects_dir)
-    os.environ["SINGULARITYENV_SUBJECTS_DIR"]=subjects_dir
-
-    command_base, container = getContainer(labels_dict,nodename="freesurfer", SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)   
+    os.environ["SUBJECTS_DIR"]=subjects_dir
+    os.environ["SINGULARITYENV_SUBJECTS_DIR"]=translate_binding(command_base,subjects_dir)
+  
     FREEVER="Unknown"
     IFLOGGER.info("Checking the recon-all version:")
     command = f"{command_base} recon-all --version"

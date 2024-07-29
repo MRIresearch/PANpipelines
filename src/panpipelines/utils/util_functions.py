@@ -1120,6 +1120,14 @@ def getFirstFromList(itemlist,default_result=""):
     else:
         return default_result
 
+def getLastFromList(itemlist,default_result="",ignoreBlanks=True):
+    if ignoreBlanks:
+        itemlist = [x for x in itemlist if x]
+    if len (itemlist) > 0:
+        return(itemlist[-1])
+    else:
+        return default_result
+
 def newfile(outputdir=None, assocfile=None, prefix=None, suffix=None, intwix=None, extension=None, replace=False):
    
     if assocfile is None:
@@ -1756,7 +1764,7 @@ def create_3d_hcpmmp1_aseg(atlas_file,roi_list,panpipe_labels):
     evaluated_command=substitute_labels(command,panpipe_labels)
     results = runCommand(evaluated_command)
 
-    os.environ["SINGULARITYENV_SUBJECTS_DIR"]=freesurfer_dir
+    os.environ["SINGULARITYENV_SUBJECTS_DIR"]=translate_binding(command_base,freesurfer_dir)
 
     command = f"{command_base} mri_surf2surf"\
         " --srcsubject fsaverage" \
@@ -2184,16 +2192,69 @@ def getContainer(labels_dict,nodename="",SPECIFIC=None,CONTAINERALT="PAN_CONTAIN
 
     return command_base, container
 
+def map_bindings(command):
+    bind_dict={}
+    store_binding=False
+    command_list = shlex.split(command)
+    new_command_list=[]
+    if "singularity" in command_list or "docker" in command_list or "apptainer" in command_list:
+        for x in command_list:
+            if store_binding:
+                if len(x.split(":"))>1:
+                    bind_dict[x.split(":")[0]] = x.split(":")[1]
+                store_binding=False
+                new_command_list.append(x)
+            elif x == "-v" or x =="-B" or x=="--bind":
+                store_binding=True
+                new_command_list.append(x)
+            else:
+                bind_dict_sorted = OrderedDict(sorted(bind_dict.items(), key = lambda x : len(x[0]),reverse=True))
+                for itemkey,itemvalue in bind_dict_sorted.items():
+                    if x == itemkey:
+                        x = itemvalue
+                        break
+                    elif isinstance(x,str):
+                        x = x.replace(itemkey,itemvalue)
+                new_command_list.append(x)
+        command_list = new_command_list
+
+    return command_list
+
+def translate_binding(command,host_location):
+    bind_dict={}
+    store_binding=False
+    command_list = shlex.split(command)
+
+    if "singularity" in command_list or "docker" in command_list or "apptainer" in command_list:
+        for x in command_list:
+            if store_binding:
+                if len(x.split(":"))>1:
+                    bind_dict[x.split(":")[0]] = x.split(":")[1]
+                store_binding=False
+
+            elif x == "-v" or x =="-B" or x=="--bind":
+                store_binding=True
+
+        bind_dict_sorted = OrderedDict(sorted(bind_dict.items(), key = lambda x : len(x[0]),reverse=True))
+        for itemkey,itemvalue in bind_dict_sorted.items():
+            if host_location == itemkey:
+                return itemvalue
+            elif isinstance(host_location,str):
+                host_location= host_location.replace(itemkey,itemvalue)
+                
+    return host_location
+
+
 def runCommand(command,LOGGER=UTLOGGER,suppress="",interactive=False):
     if suppress:
         LOGGER.info(suppress)
-    else:
-        LOGGER.info(command)
-    evaluated_command_args = shlex.split(command)
+    
+    evaluated_command_args = map_bindings(command)
     if suppress:
         results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
         return "<Suppressed>"
     else:
+        LOGGER.info(" ".join(evaluated_command_args))
         if not interactive:
             results = subprocess.run(evaluated_command_args,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, text=True)
             LOGGER.info(results.stdout)

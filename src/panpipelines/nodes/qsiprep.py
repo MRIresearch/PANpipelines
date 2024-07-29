@@ -18,12 +18,12 @@ def qsiprep_proc(labels_dict,bids_dir=""):
 
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
+    command_base, container = getContainer(labels_dict,nodename="qsiprep", SPECIFIC="QSIPREP_CONTAINER",LOGGER=IFLOGGER)
 
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
-    os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
+    os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=translate_binding(command_base,TEMPLATEFLOW_HOME)
 
-    command_base, container = getContainer(labels_dict,nodename="qsiprep", SPECIFIC="QSIPREP_CONTAINER",LOGGER=IFLOGGER)
     IFLOGGER.info("Checking the qsiprep version:")
     command = f"{command_base} --version"
     evaluated_command=substitute_labels(command, labels_dict)
@@ -43,22 +43,25 @@ def qsiprep_proc(labels_dict,bids_dir=""):
             IFLOGGER.info(f"eddy params provided in file {eddy_config} and contents are:")
             IFLOGGER.info(f"{eddy_json}")
 
-    eddy_update = getParams(labels_dict,'EDDY_CONFIG_UPDATE')
+    # singularity/docker binding
+    eddy_config = newfile(cwd,eddy_config,prefix=f"sub-{participant_label}_ses-{participant_session}")
+    for itemkey,itemvalue in eddy_json.items():
+        eddy_json[itemkey] = translate_binding(command_base,substitute_labels(itemvalue,labels_dict))
 
+    eddy_update = getParams(labels_dict,'EDDY_CONFIG_UPDATE')
     if eddy_json and eddy_update and isinstance(eddy_update,dict):
         for itemkey,itemvalue in eddy_update.items():
-            eddy_json[itemkey] = substitute_labels(itemvalue,labels_dict)
-        eddy_config = newfile(cwd,eddy_config,prefix=f"sub-{participant_label}_ses-{participant_session}")
-        export_labels(eddy_json, eddy_config)
-
+            eddy_json[itemkey] = translate_binding(command_base,substitute_labels(itemvalue,labels_dict))
+        
     unique_eddy_update = getParams(labels_dict,'UNIQUE_EDDY_CONFIG_UPDATE')
     if eddy_json and unique_eddy_update and isinstance(unique_eddy_update,dict):
+        eddy_config = newfile(cwd,eddy_config,prefix=f"sub-{participant_label}_ses-{participant_session}",suffix="unique")
         for itemkey,itemvalue in unique_eddy_update.items():
             if itemkey == f"{participant_label}_{participant_session}" or itemkey == f"{participant_label}" and isinstance(itemvalue,dict):
                 for subitemkey,subitemvalue in itemvalue.items():
-                    eddy_json[subitemkey] = substitute_labels(subitemvalue,labels_dict)
-                eddy_config = newfile(cwd,eddy_config,prefix=f"sub-{participant_label}_ses-{participant_session}",suffix="unique")
-                export_labels(eddy_json, eddy_config)
+                    eddy_json[subitemkey] = translate_binding(command_base,substitute_labels(subitemvalue,labels_dict))
+                
+    export_labels(eddy_json, eddy_config)
 
     # This is for 1 specific scenario - we will terminate early if field map is missing
     layout = BIDSLayout(bids_dir)
