@@ -17,29 +17,24 @@ def fmriprep_proc(labels_dict,bids_dir=""):
 
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
-    labels_dict = updateParams(labels_dict,"FMRIWORK",cwd + "/fmriwork")
-    if not os.path.isdir(cwd + "/fmriwork"):
-        os.makedirs(cwd + "/fmriwork")
-    labels_dict = updateParams(labels_dict,"FMRIOUTPUT",cwd + "/fmrioutput")
-    if not os.path.isdir(cwd + "/fmrioutput"):
-        os.makedirs(cwd + "/fmrioutput")
-    
-    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
-    TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
-    os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
-    os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
 
     command_base, container = getContainer(labels_dict,nodename="fmriprep", SPECIFIC="FMRIPREP_CONTAINER",LOGGER=IFLOGGER)
+    TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
+    os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
+    os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=translate_binding(command_base,TEMPLATEFLOW_HOME)
+
     IFLOGGER.info("Checking the fmriprep version:")
     command = f"{command_base} --version"
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
-
-
-    # handle field maps - use dwirpe as standard if valid, otherwise use megre 
-    layout = BIDSLayout(bids_dir)
+    
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
+
+    # handle field maps - use dwirpe as standard if valid, otherwise use megre 
+    if not bids_dir:
+        bids_dir = substitute_labels('<BIDS_DIR>', labels_dict)
+    layout = BIDSLayout(bids_dir)
 
     fmri_fmap_entity ={}
     fmri_fmap_entity["extension"] = "nii.gz"
@@ -77,7 +72,7 @@ def fmriprep_proc(labels_dict,bids_dir=""):
     fmriprep_dict = updateParams(fmriprep_dict,"--nthreads","<BIDSAPP_THREADS>")
     fmriprep_dict = updateParams(fmriprep_dict,"--fs-license-file","<FSLICENSE>")
     fmriprep_dict = updateParams(fmriprep_dict,"--omp-nthreads","1")
-    fmriprep_dict = updateParams(fmriprep_dict,"-w","/work")
+    fmriprep_dict = updateParams(fmriprep_dict,"-w","<CWD>/fmriwork")
 
     # Additional params
     FMRIPREP_OVERRIDE_PARAMS = getParams(labels_dict,"FMRIPREP_OVERRIDE_PARAMS")
@@ -103,7 +98,7 @@ def fmriprep_proc(labels_dict,bids_dir=""):
 
     command=f"{command_base}"\
             " "+ bids_dir +\
-            " /out"\
+            " <CWD>/fmrioutput"\
             " participant"\
             " "+ params 
 

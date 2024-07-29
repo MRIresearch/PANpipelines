@@ -26,7 +26,7 @@ class fmriprep_panscript(panscript):
             " --omp-nthreads <BIDSAPP_THREADS>"\
             " -w <OUTPUT_DIR>/fmriwork"
 
-        self.command = "singularity run --cleanenv --nv --no-home <FMRIPREP_CONTAINER>"\
+        self.command = "singularity run --cleanenv --nv --no-home -B <PIPELINE_DIR>:/tmp -B <TEMPLATEFLOW_HOME>:/mnt/TemplateFlow -B <BIDS_DIR>:/mnt/BIDS -B <FSLICENSE>:/mnt/license.txt -B <CWD>:/cwd <FMRIPREP_CONTAINER>"\
                 " <BIDS_DIR>"\
                 " <OUTPUT_DIR>/fmrioutput"\
                 " participant"
@@ -35,7 +35,7 @@ class fmriprep_panscript(panscript):
         print("pre run - setting template flow directory")
         TEMPLATEFLOW_HOME=getParams(self.labels_dict,"TEMPLATEFLOW_HOME")
         os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
-        os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
+        os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=translate_binding(self.command,TEMPLATEFLOW_HOME)
 
         print("Creating output directory")
         output_dir = getParams(self.labels_dict,"OUTPUT_DIR")

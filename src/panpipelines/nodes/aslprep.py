@@ -14,23 +14,21 @@ IGNORE="###"
 
 def aslprep_proc(labels_dict,bids_dir=""):
 
+    cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+
+    command_base, container = getContainer(labels_dict,nodename="aslprep",SPECIFIC="ASLPREP_CONTAINER",LOGGER=IFLOGGER)
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
-    os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
-    
-    command_base, container = getContainer(labels_dict,nodename="aslprep",SPECIFIC="ASLPREP_CONTAINER",LOGGER=IFLOGGER)
+    os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=translate_binding(command_base,TEMPLATEFLOW_HOME)
+
     IFLOGGER.info("Checking the aslprep version:")
     command = f"{command_base} --version"
     evaluated_command=substitute_labels(command,labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
-
-    cwd=os.getcwd()
-    labels_dict = updateParams(labels_dict,"CWD",cwd)
     
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
-    TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
-    os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
-    os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
+    participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
 
     aslprep_dict={}
     aslprep_dict = updateParams(aslprep_dict,"--participant_label","<PARTICIPANT_LABEL>")

@@ -17,29 +17,24 @@ def mriqc_proc(labels_dict,bids_dir=""):
 
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
-    labels_dict = updateParams(labels_dict,"MRIQCWORK",cwd + "/mriqcwork")
-    if not os.path.isdir(cwd + "/mriqcwork"):
-        os.makedirs(cwd + "/mriqcwork")
-    labels_dict = updateParams(labels_dict,"MRIQCOUTPUT",cwd + "/mriqcoutput")
-    if not os.path.isdir(cwd + "/mriqcoutput"):
-        os.makedirs(cwd + "/mriqcoutput")
-    
-    participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
-    TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
-    os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
-    os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
 
     command_base, container = getContainer(labels_dict,nodename="mriqc", SPECIFIC="MRIQC_CONTAINER",LOGGER=IFLOGGER)
+    TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
+    os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
+    os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=translate_binding(command_base,TEMPLATEFLOW_HOME)
+
     IFLOGGER.info("Checking the mriqc version:")
     command = f"{command_base} --version"
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
-
-
-    # handle field maps - use dwirpe as standard if valid, otherwise use megre 
-    layout = BIDSLayout(bids_dir)
+    
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
+
+    # handle field maps - use dwirpe as standard if valid, otherwise use megre
+    if not bids_dir:
+        bids_dir = substitute_labels('<BIDS_DIR>', labels_dict)
+    layout = BIDSLayout(bids_dir)
 
     bids_filter_dict={}
     bids_filter_dict["bold"] = {}
@@ -62,7 +57,7 @@ def mriqc_proc(labels_dict,bids_dir=""):
     mriqc_dict = updateParams(mriqc_dict,"--nprocs","<BIDSAPP_THREADS>")
     mriqc_dict = updateParams(mriqc_dict,"--omp-nthreads","4")
     mriqc_dict = updateParams(mriqc_dict,"--no-sub",IS_PRESENT)
-    mriqc_dict = updateParams(mriqc_dict,"-w","/work")
+    mriqc_dict = updateParams(mriqc_dict,"-w","<CWD>/mriqcwork")
 
     # Additional params
     MRIQC_OVERRIDE_PARAMS = getParams(labels_dict,"MRIQC_OVERRIDE_PARAMS")
@@ -98,7 +93,7 @@ def mriqc_proc(labels_dict,bids_dir=""):
 
     command=f"{command_base}"\
             " "+ bids_dir +\
-            " /out"\
+            " <CWD>/mriqcout"\
             " participant"\
             " "+ params 
 

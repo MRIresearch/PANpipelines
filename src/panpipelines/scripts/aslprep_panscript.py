@@ -21,7 +21,7 @@ class aslprep_panscript(panscript):
             " --ignore fieldmaps"\
             " -w <OUTPUT_DIR>/aslprep_work"
 
-        self.command = "singularity run --cleanenv --nv --no-home <ASLPREP_CONTAINER>"\
+        self.command = "singularity run --cleanenv --nv --no-home -B <PIPELINE_DIR>:/tmp -B <TEMPLATEFLOW_HOME>:/mnt/TemplateFlow -B <BIDS_DIR>:/mnt/BIDS -B <FSLICENSE>:/mnt/license.txt -B <CWD>:/cwd <ASLPREP_CONTAINER>"\
                 " <BIDS_DIR>"\
                 " <OUTPUT_DIR>/aslprep_output"\
                 " participant"
@@ -65,7 +65,7 @@ class aslprep_panscript(panscript):
         print("pre run - setting template flow directory")
         TEMPLATEFLOW_HOME=getParams(self.labels_dict,"TEMPLATEFLOW_HOME")
         os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
-        os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
+        os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=translate_binding(self.command,TEMPLATEFLOW_HOME)
 
         # change fsl out type - important as some aslprep nodes are expecting .nii.gz explictly
         os.environ["FSLOUTPUTTYPE"]="NIFTI_GZ"
