@@ -103,6 +103,25 @@ def collate_csv_single_proc(labels_dict, csv_list1, add_prefix):
         cum_df_unique = cum_df.loc[:,~cum_df.columns.duplicated()].copy()
         # sort the columns by name alphabetically
         cum_df_unique = cum_df_unique.reindex(sorted(cum_df_unique.columns), axis=1)
+
+
+        #process extra columns
+        collate_extratext = getParams(labels_dict,"COLLATE_EXTRATEXT")
+        if collate_extratext:
+            for column_name, column_details in collate_extratext.items():
+                column_value = column_details["Value"]
+                braced_var = re.findall(r'\<.*?\>',column_value)
+                if braced_var:
+                    unbraced_var = braced_var[0].replace('<','').replace('>','')
+                    column_value = getParams(labels_dict,unbraced_var)
+
+                if column_value:
+                    if "Translation" in column_details.keys():
+                        if column_value in column_details["Translation"].keys():
+                            column_value = column_details["Translation"][column_value]
+                    cum_df_unique.insert(0,column_name,[column_value])
+
+
         if session_label is not None and not session_label == "":
             cum_df_unique.insert(0,"session_id",["ses-"+session_label])
         if participant_label is not None and not participant_label == "":
