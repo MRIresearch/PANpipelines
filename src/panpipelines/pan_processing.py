@@ -12,6 +12,7 @@ from functools import partial
 from panpipelines.version import __version__
 from panpipelines.single_subject import runSingleSubject
 from panpipelines.group_subjects import runGroupSubjects
+import shutil
 
 LOGGER = logger_setup("panpipelines", logging.DEBUG)
 logger_addstdout(LOGGER, logging.INFO)
@@ -30,6 +31,9 @@ def parse_params():
     parser.add_argument("--pipeline_match", nargs="+")
     parser.add_argument("--projects", nargs="+")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
+    parser.add_argument("--incremental", default="False")
+    parser.add_argument("--all_group", default="True")
+    parser.add_argument("--force_bids_download",default="False")
     parser.add_argument("--participant_exclusions", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
     parser.add_argument("--session_label", nargs="*", type=drop_ses, help="filter by session label (the ses- prefix can be removed).")
     parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=__version__))
@@ -136,6 +140,23 @@ def main():
         LOGGER.info(f"Downloading an initial set of TemplateFlow templates for spaces MNI152NLin2009cAsym and MNI152NLin6Asym to {TEMPLATEFLOW_HOME}.")
         initTemplateFlow(TEMPLATEFLOW_HOME) 
 
+    FORCE_BIDS_DOWNLOAD = isTrue(args.force_bids_download)
+    if FORCE_BIDS_DOWNLOAD:
+        panpipe_labels = updateParams(panpipe_labels,"FORCE_BIDS_DOWNLOAD","Y")
+        LOGGER.info(f"FORCE_BIDS_DOWNLOAD set to Y")
+
+
+    ALL_GROUP = isTrue(args.all_group)
+    INCREMENTAL = isTrue(args.incremental)
+    if INCREMENTAL:
+        LOGGER.info("Running panprocessing in incremental mode.")
+        if not os.path.exists(participants_file):
+            LOGGER.info(f"Participants file {participants_file} not present. Cannot run processing in incremental mode")
+            INCREMENTAL= False
+        else:
+            old_participants_file=newfile(assocfile=participants_file,suffix=datelabel)
+            shutil.move(participants_file,old_participants_file)
+
     # if participants file doesn't exist then lets download it
     if not os.path.exists(participants_file):
         LOGGER.info(f"Participants file not found at {participants_file} - retrieving from XNAT. Please wait.")
@@ -206,11 +227,30 @@ def main():
 
     LOGGER.info(f"Pipelines to be processed : {pipelines}")
 
+    if INCREMENTAL:
+        LOGGER.info("Running in incremental mode. Identifying participants to run")
+        df1 = pd.read_table(participants_file,sep="\t")
+        participants_list1 = df1["bids_participant_id"].tolist()
+        df2 = pd.read_table(old_participants_file,sep="\t")
+        participants_list2 = df2["bids_participant_id"].tolist()
+        participant_incremental = [ drop_sub(x) for x in list(set(participants_list1).difference(set(participants_list2)))]
+        LOGGER.info(f"Incremental participants found {participant_incremental}")
+        participant_label.extend(participant_incremental)
+        LOGGER.info(f"Participants to process {participant_label}")
+
+
     projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=participant_exclusions)
     participant_list = projectmap[0]
     project_list  = projectmap[1]
     session_list = projectmap[2]
     shared_project_list  = projectmap[3]
+
+    # obtain mappings for all subjects which will be handy for incremental
+    projectmap_all = get_projectmap(["ALL_SUBJECTS"],participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=participant_exclusions)
+    participant_list_all = projectmap_all[0]
+    project_list_all  = projectmap_all[1]
+    session_list_all = projectmap_all[2]
+    shared_project_list_all = projectmap_all[3]
 
     # take snapshot of the runtime labels for all pipelines
     runtime_labels = panpipe_labels.copy()
@@ -260,16 +300,16 @@ def main():
 
             if analysis_level == "group":
                 updateParams(panpipe_labels, "SLURM_TEMPLATE", getParams(panpipe_labels,"SLURM_GROUP_TEMPLATE"))
-                if participant_label:
-                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_label)
+                if participant_label and not ALL_GROUP:
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_list)
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT",project_list)
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT",shared_project_list)
                     updateParams(panpipe_labels,"GROUP_SESSION_LABEL",session_list)
                 else:
-                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL","*")
-                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT","*")
-                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT","*")
-                    updateParams(panpipe_labels,"GROUP_SESSION_LABEL","*")
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_list_all)
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT",project_list_all)
+                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT",shared_project_list_all)
+                    updateParams(panpipe_labels,"GROUP_SESSION_LABEL",session_list_all)
 
             else:
                 updateParams(panpipe_labels, "SLURM_TEMPLATE", getParams(panpipe_labels,"SLURM_PARTICIPANT_TEMPLATE"))
@@ -341,11 +381,18 @@ def main():
                                 session_label=None
                             runSingleSubject(participant_list[part_count], project_list[part_count], shared_project_list[part_count],session_label,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
                 else:
-                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_list)
-                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT",project_list)
-                    updateParams(panpipe_labels,"GROUP_SESSION_LABEL",session_list)
-                    updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT",shared_project_list)
-                    runGroupSubjects(participant_list, project_list,shared_project_list,session_list,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
+                    if ALL_GROUP:
+                        updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_list_all)
+                        updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT",project_list_all)
+                        updateParams(panpipe_labels,"GROUP_SESSION_LABEL",session_list_all)
+                        updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT",shared_project_list_all)
+                        runGroupSubjects(participant_list_all, project_list_all,shared_project_list_all,session_list_all,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
+                    else:
+                        updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_list)
+                        updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT",project_list)
+                        updateParams(panpipe_labels,"GROUP_SESSION_LABEL",session_list)
+                        updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT",shared_project_list)
+                        runGroupSubjects(participant_list, project_list,shared_project_list,session_list,pipeline=pipeline, pipeline_class=pipeline_class, pipeline_outdir=pipeline_outdir, panpipe_labels=panpipe_labels,bids_dir=bids_dir,cred_user=cred_user,cred_password=cred_password, execution_json=execution_json,analysis_level=analysis_level)
 
 
             except Exception as ex:
