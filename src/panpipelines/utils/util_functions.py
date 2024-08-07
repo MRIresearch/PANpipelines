@@ -532,10 +532,15 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
         if force_download and isTrue(force_download):
             FORCEDOWNLOAD=True
 
-        if not os.path.isdir(os.path.join(bids_dir,"sub-"+participant_label)) or FORCEDOWNLOAD:
-            UTLOGGER.info(f"BIDS folder for {participant_label} not present.")
+        bids_folder = os.path.join(bids_dir,"sub-"+participant_label)
+        if not os.path.isdir(bids_folder) or FORCEDOWNLOAD:
+            UTLOGGER.info(f"BIDS folder for {participant_label} will be downloaded")
+            if os.path.isdir(bids_folder):
+                UTLOGGER.info(f"BIDS folder for {participant_label} already exists. Deleting.")
+                shutil.rmtree(bids_folder)
+
             if IN_XNAT:
-                command_base, container = getContainer(labels_dict,nodename="process_fsl_glm",SPECIFIC="XNATDOWNLOAD_CONTAINER")
+                command_base, container = getContainer(labels_dict,nodename="Bids_download",SPECIFIC="XNATDOWNLOAD_CONTAINER")
 
                 UTLOGGER.info("Downloading started from XNAT.")
                 subject_id = getSubjectInfo(labels_dict,participant_label)
