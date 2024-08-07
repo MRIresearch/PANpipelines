@@ -18,6 +18,7 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     layout = BIDSLayout(bids_dir)
 
     subject="sub-"+participant_label
+    session="ses-"+session_label
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
     
@@ -112,6 +113,17 @@ def freesurfer_proc(labels_dict,bids_dir=""):
 
         else:
             pial_t2_string = f" -T2 {PialT2wfile} -T2pial"
+
+    if not T1wfile:
+        suffix=""
+        if session:
+            suffix = suffix + f"{session}"
+        if "reconstruction" in T1wLabel.keys():
+            suffix = suffix + "_rec-" + T1wLabel["reconstruction"]
+        if "suffix" in T1wLabel.keys():
+            suffix=suffix + "_" + T1wLabel["suffix"]
+
+        T1wfile = newfile(assocfile = os.path.join(bids_dir,subject,session,"anat",f"{subject}.nii.gz"),suffix = suffix)
 
     if not os.path.exists(os.path.join(subjects_dir,"sub-"+participant_label,"recon-all.log")):
         params="-all" \
