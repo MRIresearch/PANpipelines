@@ -480,11 +480,14 @@ def release_lock(lock_file):
         UTLOGGER.debug(f"problem closing lockfile {lock_file}.\n{e}")
 
 
-def getSubjectInfo(labels_dict, participant_label):
+def getSubjectInfo(labels_dict, participant_label,session_label=None):
     sessions_file = getParams(labels_dict,"SESSIONS_FILE")
     if sessions_file:
         sessions_df = pd.read_table(sessions_file,sep="\t")
-        search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant_label))]
+        if not session_label:
+            search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant_label))]
+        else:
+            search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant_label)) & (sessions_df["bids_session_id"] == "ses-" + drop_ses(session_label))]
         if search_df.empty:
             UTLOGGER.info(f"No Subject_ID values found for {participant_label} in {sessions_file}. Returning passed value.")
             return participant_label
@@ -501,7 +504,7 @@ def getSubjectInfo(labels_dict, participant_label):
 
 
 LOCK_SUFFIX=".lock"
-def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,password):
+def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,password,session_label=None):
 
     lock_path = os.path.join(getParams(labels_dict,"LOCK_DIR"),participant_label + LOCK_SUFFIX)
     lock_file = acquire_lock(lock_path)
@@ -533,18 +536,22 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
             FORCEDOWNLOAD=True
 
         bids_folder = os.path.join(bids_dir,"sub-"+participant_label)
-        if not os.path.isdir(bids_folder) or FORCEDOWNLOAD:
+        if session_label:
+            bids_session_folder = os.path.join(bids_dir,"sub-"+participant_label,"ses-"+session_label)
+        else:
+            bids_session_folder = bids_folder
+        if not os.path.isdir(bids_session_folder) or FORCEDOWNLOAD:
             UTLOGGER.info(f"BIDS folder for {participant_label} will be downloaded")
-            if os.path.isdir(bids_folder):
+            if os.path.isdir(bids_session_folder) and FORCEDOWNLOAD:
                 UTLOGGER.info(f"BIDS folder for {participant_label} already exists. Deleting.")
-                shutil.rmtree(bids_folder)
+                shutil.rmtree(bids_sessions_folder)
 
             if IN_XNAT:
                 command_base, container = getContainer(labels_dict,nodename="Bids_download",SPECIFIC="XNATDOWNLOAD_CONTAINER")
 
                 UTLOGGER.info("Downloading started from XNAT.")
-                subject_id = getSubjectInfo(labels_dict,participant_label)
-                getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password,subject_id=subject_id)
+                subject_id = getSubjectInfo(labels_dict,participant_label,session_label=session_label)
+                getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password,subject_id=subject_id,session_label=session_label)
             else:
                 UTLOGGER.info(f"IN_XNAT set to {IN_XNAT}. Do not have a means of obtaining data for {participant_label}. Please add this subject's data to {bids_dir}")
 
@@ -558,7 +565,7 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
         except Exception as e:
             pass
 
-def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,user,password,subject_id=None):
+def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,user,password,subject_id=None,session_label=None):
 
     import xnat
     with xnat.connect(server=host,user=user, password=password) as connection:
@@ -579,19 +586,27 @@ def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,us
                 tmpzip = os.path.join(tmpdir,subject_label + ".zip")
                 resource.download(tmpzip)
                 shutil.unpack_archive(tmpzip,tmpdir)
-                bidspath = glob.glob(os.path.join(tmpdir,f"*/resources/{resource_label}/files/sub*"))
+                if not session_label:
+                    bidspath = glob.glob(os.path.join(tmpdir,f"*/resources/{resource_label}/files/sub*"))
+                else:
+                    bidspath = glob.glob(os.path.join(tmpdir,f"*/resources/{resource_label}/files/sub*/ses-{session_label}"))
                 dataset_desc = glob.glob(os.path.join(tmpdir,f"*/resources/{resource_label}/files/dataset_description.json"))
                 if bidspath:
                     bidspath = bidspath[0]
-                    bidssubject = bidspath.split("/")[-1]
-                    shutil.copytree(bidspath,os.path.join(bids_dir,bidssubject), dirs_exist_ok=True)
+                    if not session_label:
+                        bidssubject = bidspath.split("/")[-1]
+                        shutil.copytree(bidspath,os.path.join(bids_dir,bidssubject), dirs_exist_ok=True)
+                    else:
+                        bidssubject = bidspath.split("/")[-2]
+                        bidssession = bidspath.split("/")[-1]
+                        shutil.copytree(bidspath,os.path.join(bids_dir,bidssubject,bidssession), dirs_exist_ok=True)                        
                     if dataset_desc:
                         target_dataset_desc =os.path.join(bids_dir,"dataset_description.json")
                         if not os.path.exists(target_dataset_desc):
                             shutil.copy(dataset_desc[0],target_dataset_desc)
                     shutil.rmtree(tmpdir)
                 else:
-                    UTLOGGER.info(f"Problem dowbloading data for {subject_label} using {resource_label} in {experiment.label}")
+                    UTLOGGER.info(f"Problem downloading data for {subject_label} using {resource_label} in {experiment.label}")
                     if subject_id:
                         UTLOGGER.info(f"{subject_id} used as key to access data")
 
