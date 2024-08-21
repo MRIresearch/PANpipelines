@@ -57,7 +57,7 @@ def runSingleSubject(participant_label, xnat_project, xnat_shared_project, sessi
     LOGGER.info(f"start logging to {LOGFILE}")
 
     
-    getSubjectBids(panpipe_labels,bids_dir,participant_label,xnat_project,cred_user,cred_password)
+    getSubjectBids(panpipe_labels,bids_dir,participant_label,xnat_project,cred_user,cred_password,session_label=session_label)
 
     panProcessor = panFactory.get_processflow(pipeline_class)
 
