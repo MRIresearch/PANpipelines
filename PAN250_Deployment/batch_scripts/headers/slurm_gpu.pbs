@@ -7,4 +7,4 @@
 #SBATCH --time=8:00:00
 #SBATCH --job-name=qsiprep
 #SBATCH --account=ryant
-#SBATCH --partition=standard
+#SBATCH --partition=gpu_standard
