@@ -1,4 +1,5 @@
 from nipype import Workflow, MapNode, Node
+from nipype.interfaces.io import DataSink
 
 import panpipelines.nodes.antstransform as antstransform
 import panpipelines.nodes.atlascreate as atlascreate
@@ -156,21 +157,44 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
         measures_transform_node = antstransform.create(labels_dict,name="measure_transform",trans_mat=measures_transform_mat,ref_file=measures_transform_ref,LOGGER=LOGGER)
         measures_transform_map_node = MapNode(measures_transform_node.interface,name="measure_transform_map",iterfield=['input_file'])
         measures_transform_map_node.inputs.input_file = measures_list
-        pan_workflow.connect(measures_transform_map_node,'out_file',roimean_map_node,'input_file')
-            
+        pan_workflow.connect(measures_transform_map_node,'out_file',roimean_map_node,'input_file')          
     else:
         roimean_map_node.inputs.input_file = measures_list
 
-
     if maskcreate_node:
         pan_workflow.connect(maskcreate_node,'atlas_file',roimean_map_node,'mask_file')
-    elif mask_templates:
-        roimean_map_node.inputs.mask_file = mask_templates
+    elif mask_list and MASK_TEMPLATE_EXISTS:
+        roimean_map_node.inputs.mask_file = mask_list
 
+    sinker_dir = getParams(labels_dict,"SINKDIR")
+    if sinker_dir:
+        sinker = Node(DataSink(),name='roiextract_sink')
+        sinker_basedir = os.path.dirname(sinker_dir)
+        sinker_folder = os.path.basename(sinker_dir)
+        if not os.path.exists(sinker_basedir):
+            os.makedirs(sinker_basedir)
+        sinker.inputs.base_directory = sinker_basedir
 
+        measure_count=0
+        substitutions=[]
+        for measure_name in measures_list:
+            measure_name_parts = os.path.basename(measure_name).split("_")
+            if len(measure_name_parts) > 1:
+                measure_name_stub = "_".join(measure_name_parts[-2:])
+            else:
+                measure_name_stub = measure_name_parts[-1]
+
+            measure_name_suffix = measure_name_stub.split(".")[0]
+            substitutions+=[("_subject_metrics_map" +str(measure_count),measure_name_suffix)]
+            measure_count = measure_count + 1 
+        if substitutions:
+            sinker.inputs.substitutions = substitutions
+
+        pan_workflow.connect( roimean_map_node,"roi_csv",sinker,f"{sinker_folder}")
+        pan_workflow.connect( roimean_map_node,"roi_csv_metadata",sinker,f"{sinker_folder}.@metadata")
+        pan_workflow.connect( roimean_map_node,"mask_file",sinker,f"{sinker_folder}.@maskfile")
 
     if createGraph:
          pan_workflow.write_graph(graph2use='flat')
-
 
     return pan_workflow

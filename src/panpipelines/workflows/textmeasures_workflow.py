@@ -1,4 +1,5 @@
 from nipype import Workflow, MapNode, Node
+from nipype.interfaces.io import DataSink
 
 import panpipelines.nodes.antstransform as antstransform
 import panpipelines.nodes.parse_textdata as parse_textdata
@@ -60,6 +61,33 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
     parsetextdata_map_node.inputs.textdata_type = measures_texttype_list
     parsetextdata_map_node.inputs.custom_prefix = measures_prefix_list
     pan_workflow.add_nodes([parsetextdata_map_node])
+
+    sinker_dir = getParams(labels_dict,"SINKDIR")
+    if sinker_dir:
+        sinker = Node(DataSink(),name='textmeasures_sink')
+        sinker_basedir = os.path.dirname(sinker_dir)
+        sinker_folder = os.path.basename(sinker_dir)
+        if not os.path.exists(sinker_basedir):
+            os.makedirs(sinker_basedir)
+        sinker.inputs.base_directory = sinker_basedir
+
+        measure_count=0
+        substitutions=[]
+        for measure_name in measures_list:
+            measure_name_parts = os.path.basename(measure_name).split("_")
+            if len(measure_name_parts) > 1:
+                measure_name_stub = measure_name_parts[-2]
+            else:
+                measure_name_stub = measure_name_parts[-1]
+
+            measure_name_suffix = measure_name_stub.split(".")[0]
+            substitutions+=[("_subject_text_map" + str(measure_count),measure_name_suffix)]
+            measure_count = measure_count + 1 
+        if substitutions:
+            sinker.inputs.substitutions = substitutions
+
+        pan_workflow.connect( parsetextdata_map_node,"roi_csv",sinker,f"{sinker_folder}")
+        pan_workflow.connect( parsetextdata_map_node,"roi_csv_metadata",sinker,f"{sinker_folder}.@metadata")
 
 
     if createGraph:

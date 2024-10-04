@@ -1,4 +1,5 @@
 from nipype import Workflow, MapNode, Node
+from nipype.interfaces.io import DataSink
 
 import panpipelines.nodes.antstransform as antstransform
 import panpipelines.nodes.collate_csv_group as collate_csv_group
@@ -38,7 +39,22 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
         measures_list2.extend([substitute_labels(meas_template,labels_dict, EXCEPTIONS)])
 
     collate_csv_groupnode = collate_csv_group.create(labels_dict, csv_list1=measures_list1, csv_list2=measures_list2, LOGGER=LOGGER)
-    pan_workflow.add_nodes([collate_csv_groupnode])
+
+    sinker_dir = getParams(labels_dict,"SINKDIR_GROUP")
+    if sinker_dir:
+        sinker = Node(DataSink(),name='collatecsvgroup_sink')
+        sinker_basedir = os.path.dirname(sinker_dir)
+        sinker_folder = os.path.basename(sinker_dir)
+        if not os.path.exists(sinker_basedir):
+            os.makedirs(sinker_basedir)
+        sinker.inputs.base_directory = sinker_basedir
+
+        pan_workflow.connect( collate_csv_groupnode,"roi_csv_inner",sinker,f"{sinker_folder}.@inner")
+        pan_workflow.connect( collate_csv_groupnode,"roi_csv_inner_metadata",sinker,f"{sinker_folder}.@inner_metadata")
+        pan_workflow.connect( collate_csv_groupnode,"roi_csv_outer",sinker,f"{sinker_folder}.@outer")
+        pan_workflow.connect( collate_csv_groupnode,"roi_csv_outer_metadata",sinker,f"{sinker_folder}.@outer_metadata")
+    else:
+        pan_workflow.add_nodes([collate_csv_groupnode])
 
 
     if createGraph:
