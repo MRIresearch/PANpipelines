@@ -14,6 +14,20 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 
 def pancontainergroup_proc(labels_dict):
 
+    cwd=os.getcwd()
+    labels_dict = updateParams(labels_dict,"CWD",cwd)
+
+    datelabel = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    labels_dict = updateParams(labels_dict,"DATELABEL",datelabel)
+
+    pipeline_config_loc= getParams(labels_dict,"PIPELINE_CONFIG_LOC")
+    if not pipeline_config_loc:
+        pipeline_config_loc = f"<CWD>/pipeline_config_file_{datelabel}.config"
+        labels_dict = updateParams(labels_dict,"PIPELINE_CONFIG_LOC",pipeline_config_loc)
+
+    pipeline_config_loc = substitute_labels(f"{pipeline_config_loc}",labels_dict)
+    export_labels(labels_dict,pipeline_config_loc)
+
     panFactory = Factory.getPANFactory()
     script_class= getParams(labels_dict,"SCRIPT_CLASS")
     script_file= getParams(labels_dict,"SCRIPT_FILE")
@@ -59,6 +73,7 @@ def pancontainergroup_proc(labels_dict):
     
     out_files=[]
     out_files.insert(0,script_file)
+    out_files.insert(1,pipeline_config_loc)
 
     return {
         "out_files":out_files

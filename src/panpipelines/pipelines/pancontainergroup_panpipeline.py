@@ -4,7 +4,7 @@ import os
 import glob
 import panpipelines.workflows.pancontainergroup_workflow as panworkflow
 
-TARGET_ANALYSIS_LEVEL=["group"]
+TARGET_ANALYSIS_LEVEL=["group","participant"]
 
 class pancontainergroup_panpipeline(panpipeline):
 
