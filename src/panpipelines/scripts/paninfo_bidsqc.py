@@ -11,6 +11,9 @@ import datetime
 import os
 from collections import OrderedDict
 import fnmatch
+from panpipelines.utils.util_functions import *
+
+INCLUDE_QC=False
 
 PAN_SCANTYPES = {
     "DWI":["DTI_MB_3SHELL_mono_TE91_ORIG","DTI_MB_3SHELL 0 1000 2000 mono te 91_ORIG","DTI_MB_3SHELL_0_1K_2K"],
@@ -62,69 +65,70 @@ TARGET_PROJECT="PAN_250_1"
 
 
 
-PAN_RELEASE="PAN_RELEASE"
-PAN_SITE="PAN_SITE"
-HMLID="HMLID"
-HMLID_REC="HMLID_REC"
-XNATID_ORIG="XNATID_ORIG"
-MCID="MCID"
-P2ID = "P2ID"
-P2SITE_ORIG="P2SITE_ORIG"
-ORIG_PROJECT="ORIG_PROJECT"
-GENDER = "GENDER"
-YOB = "YOB"
-SESSION_LABEL = "SESSION_LABEL"
-SESSION_MODALITY = "SESSION_MODALITY"
-SESSION_SCANDATE="SESSION_SCANDATE"
-SESSION_NOTES="SESSION_NOTES"
-BIDS_SUBJECT="BIDS_SUBJECT"
-BIDS_SESSION="BIDS_SESSION"
-CANDO_STRUCT = "CANDO_STRUCT"
-CANDO_DWI = "CANDO_DWI"
-CANDO_DWI_SDC = "CANDO_DWI_SDC"
-CANDO_PASL = "CANDO_PASL"
-CANDO_PASL_SDC = "CANDO_PASL_SDC"
-CANDO_PASL_SDC_FMRI= "CANDO_PASL_SDC_FMRI"
-CANDO_PASL_SDC_DWI= "CANDO_PASL_SDC_DWI"
-CANDO_PASLLEGACY = "CANDO_PASLLEGACY"
-CANDO_PASLLEGACY_SDC = "CANDO_PASLLEGACY_SDC"
-CANDO_PASLLEGACY_SDC_FMRI= "CANDO_PASLLEGACY_SDC_FMRI"
-CANDO_PASLLEGACY_SDC_DWI= "CANDO_PASLLEGACY_SDC_DWI"
-CANDO_PCASL = "CANDO_PCASL"
-CANDO_PCASL_SDC = "CANDO_PCASL_SDC"
-CANDO_PCASL_SDC_FMRI = "CANDO_PCASL_SDC_FMRI"
-CANDO_PCASL_SDC_DWI = "CANDO_PCASL_SDC_DWI"
-CANDO_RSFMRI = "CANDO_RSFMRI"
-CANDO_RSFMRI_SDC = "CANDO_RSFMRI_SDC"
-CANDO_RSFMRI_SDC_DWI = "CANDO_RSFMRI_SDC_DWI"
-MRI_SCAN_ORDER = "MRI_SCAN_ORDER"
-MRI_MISSING_SCANS = "MRI_MISSING_SCANS"
-MRI_PROBLEM_SCANS = "MRI_PROBLEM_SCANS"
-BIDS_AVAIL = "BIDS_AVAIL"
-BIDSQC_STATUS = "BIDSQC_STATUS"
-BIDSQC_FAIL = "BIDSQC_FAIL"
-MRIQC_AVAIL = "MRIQC_AVAIL"
-QSIPREP_AVAIL = "QSIPREP_AVAIL"
-EDDYQC_AVAIL = "EDDYQC_AVAIL"
-ASLPREP_AVAIL = "ASLPREP_AVAIL"
-FMRIPREP_AVAIL = "FMRIPREP_AVAIL"
-RADNORMAL = "RADNORMAL"
+PAN_RELEASE="pan_release"
+PAN_SITE="pan_site"
+SUBJECT_LABEL="xnat_subject_label"
+HMLID="hml_id"
+XNATID_ORIG="orig_xnat_subject_label"
+MCID="participant_id_parent"
+P2ID = "p2_id"
 
-CANDO_ASL = "CANDO_ASL"
-CANDO_ASL_SDC = "CANDO_ASL_SDC"
-CANDO_ASL_SDC_FMRI= "CANDO_ASL_SDC_FMRI"
-CANDO_ASL_SDC_DWI= "CANDO_ASL_SDC_DWI"
+ORIG_PROJECT="orig_pan_site"
+GENDER = "gender"
+YOB = "yob"
+SESSION_LABEL = "session_label"
+SESSION_MODALITY = "session_modality"
+SESSION_SCANDATE="session_scandate"
+SESSION_NOTES="session_notes"
+BIDS_SUBJECT="subject_id"
+BIDS_SESSION="session_id"
+CANDO_STRUCT = "cando_struct"
+CANDO_DWI = "cando_dwi"
+CANDO_DWI_SDC = "cando_dwi_sdc"
+CANDO_PASL = "cando_pasl"
+CANDO_PASL_SDC = "cando_pasl_sdc"
+CANDO_PASL_SDC_FMRI= "cando_pasl_sdc_fmri"
+CANDO_PASL_SDC_DWI= "cando_pasl_sdc_dwi"
+CANDO_PASLLEGACY = "cando_pasllegacy"
+CANDO_PASLLEGACY_SDC = "cando_pasllegacy_sdc"
+CANDO_PASLLEGACY_SDC_FMRI= "cando_pasllegacy_sdc_fmri"
+CANDO_PASLLEGACY_SDC_DWI= "cando_pasllegacy_sdc_dwi"
+CANDO_PCASL = "cando_pcasl"
+CANDO_PCASL_SDC = "cando_pcasl_sdc"
+CANDO_PCASL_SDC_FMRI = "cando_pcasl_sdc_fmri"
+CANDO_PCASL_SDC_DWI = "cando_pcasl_sdc_dwi"
+CANDO_RSFMRI = "cando_rsfmri"
+CANDO_RSFMRI_SDC = "cando_rsfmri_sdc"
+CANDO_RSFMRI_SDC_DWI = "cando_rsfmri_sdc_dwi"
+MRI_SCAN_ORDER = "mri_scan_order"
+MRI_MISSING_SCANS = "mri_missing_scans"
+MRI_PROBLEM_SCANS = "mri_problem_scans"
+BIDS_AVAIL = "bids_avail"
+BIDSQC_STATUS = "bidsqc_status"
+BIDSQC_FAIL = "bidsqc_fail"
+MRIQC_AVAIL = "mriqc_avail"
+QSIPREP_AVAIL = "qsiprep_avail"
+EDDYQC_AVAIL = "eddyqc_avail"
+ASLPREP_AVAIL = "aslprep_avail"
+FMRIPREP_AVAIL = "fmriprep_avail"
+RADNORMAL = "radnormal"
+
+CANDO_ASL = "cando_asl"
+CANDO_ASL_SDC = "cando_asl_sdc"
+CANDO_ASL_SDC_FMRI= "cando_asl_sdc_fmri"
+CANDO_ASL_SDC_DWI= "cando_asl_sdc_dwi"
+CREATION_DATE="row_creation_datetime"
 
 
 table_header = []
 table_header.append(PAN_RELEASE)
 table_header.append(PAN_SITE)
+table_header.append(SUBJECT_LABEL)
 table_header.append(HMLID)
-table_header.append(HMLID_REC)
 table_header.append(XNATID_ORIG)
 table_header.append(MCID)
 table_header.append(P2ID)
-table_header.append(P2SITE_ORIG)
+
 table_header.append(ORIG_PROJECT)
 table_header.append(GENDER)
 table_header.append(YOB)
@@ -163,36 +167,38 @@ table_header.append(QSIPREP_AVAIL)
 table_header.append(EDDYQC_AVAIL)
 table_header.append(ASLPREP_AVAIL)
 table_header.append(FMRIPREP_AVAIL)
+table_header.append(CREATION_DATE)
 
-mriqc_headers=[]
-mriqc_headers_t1w=["cjv","cnr","efc","fber","fwhm_avg","qi_1","qi_2","snr_total"]
-mriqc_t1w_label = "rec-defaced_T1w"
-mriqc_headers_t2w=["cjv","cnr","efc","fber","fwhm_avg","qi_1","qi_2","snr_total"]
-mriqc_t2w_label = "acq-hippo_T2w"
-mriqc_headers_bold=["efc","fber","fd_mean","gcor","gsr_x","gsr_y","snr","tsnr"]
-mriqc_bold_label = "task-rest_bold"            
-mriqc_headers.extend([f"MRIQC.{mriqc_t1w_label}.{x}" for x in mriqc_headers_t1w])
-mriqc_headers.extend([f"MRIQC.{mriqc_t2w_label}.{x}" for x in mriqc_headers_t2w])
-mriqc_headers.extend([f"MRIQC.{mriqc_bold_label}.{x}" for x in mriqc_headers_bold])
-table_header.extend(mriqc_headers)
+if INCLUDE_QC:
+    mriqc_headers=[]
+    mriqc_headers_t1w=["cjv","cnr","efc","fber","fwhm_avg","qi_1","qi_2","snr_total"]
+    mriqc_t1w_label = "rec-defaced_T1w"
+    mriqc_headers_t2w=["cjv","cnr","efc","fber","fwhm_avg","qi_1","qi_2","snr_total"]
+    mriqc_t2w_label = "acq-hippo_T2w"
+    mriqc_headers_bold=["efc","fber","fd_mean","gcor","gsr_x","gsr_y","snr","tsnr"]
+    mriqc_bold_label = "task-rest_bold"            
+    mriqc_headers.extend([f"MRIQC.{mriqc_t1w_label}.{x}" for x in mriqc_headers_t1w])
+    mriqc_headers.extend([f"MRIQC.{mriqc_t2w_label}.{x}" for x in mriqc_headers_t2w])
+    mriqc_headers.extend([f"MRIQC.{mriqc_bold_label}.{x}" for x in mriqc_headers_bold])
+    table_header.extend(mriqc_headers)
 
-qsiprepqc_headers=[]
-qsiprepqc_headers_imageQC=["mean_fd","max_fd","max_rotation","max_translation","raw_num_bad_slices","t1_num_bad_slices"]
-qsiprepqc_imageQC_label="desc-ImageQC_dwi"
-qsiprepqc_headers.extend([f"QSIPREPQC.{qsiprepqc_imageQC_label}.{x}" for x in qsiprepqc_headers_imageQC])
-table_header.extend(qsiprepqc_headers)
+    qsiprepqc_headers=[]
+    qsiprepqc_headers_imageQC=["mean_fd","max_fd","max_rotation","max_translation","raw_num_bad_slices","t1_num_bad_slices"]
+    qsiprepqc_imageQC_label="desc-ImageQC_dwi"
+    qsiprepqc_headers.extend([f"QSIPREPQC.{qsiprepqc_imageQC_label}.{x}" for x in qsiprepqc_headers_imageQC])
+    table_header.extend(qsiprepqc_headers)
 
-eddyqc_headers=[]
-eddyqc_headers_qc=["qc_mot_abs","qc_mot_rel","qc_outliers_tot","qc_cnr_avg"]
-eddyqc_qc_label="qc"            
-eddyqc_headers.extend([f"EDDYQC.{eddyqc_qc_label}.{x}" for x in eddyqc_headers_qc])
-table_header.extend(eddyqc_headers)
+    eddyqc_headers=[]
+    eddyqc_headers_qc=["qc_mot_abs","qc_mot_rel","qc_outliers_tot","qc_cnr_avg"]
+    eddyqc_qc_label="qc"            
+    eddyqc_headers.extend([f"EDDYQC.{eddyqc_qc_label}.{x}" for x in eddyqc_headers_qc])
+    table_header.extend(eddyqc_headers)
 
-aslprepqc_headers=[]
-aslprepqc_headers_cbf=["FD", "cbfQEI","GMmeanCBF","WMmeanCBF","Gm_Wm_CBF_ratio","NEG_CBF_PERC"]
-aslprepqc_cbf_label="desc-qualitycontrol_cbf"           
-aslprepqc_headers.extend([f"ASLPREPQC.{aslprepqc_cbf_label}.{x}" for x in aslprepqc_headers_cbf])
-table_header.extend(aslprepqc_headers)
+    aslprepqc_headers=[]
+    aslprepqc_headers_cbf=["FD", "cbfQEI","GMmeanCBF","WMmeanCBF","Gm_Wm_CBF_ratio","NEG_CBF_PERC"]
+    aslprepqc_cbf_label="desc-qualitycontrol_cbf"           
+    aslprepqc_headers.extend([f"ASLPREPQC.{aslprepqc_cbf_label}.{x}" for x in aslprepqc_headers_cbf])
+    table_header.extend(aslprepqc_headers)
 
 table_header.append(RADNORMAL)
 
@@ -275,8 +281,10 @@ def parse_params():
     PathExists = partial(_path_exists, parser=parser)
     parser.add_argument("csvout", type=Path, help="The directory where output files are stored")
     parser.add_argument("--projects", help="Projects", required=False, nargs='*')
+    parser.add_argument("--excluded_participants", help="Participants to exclude", required=False, nargs='*')
     parser.add_argument("--host", help="XNAT host", required=True)
     parser.add_argument("--credentials", type=PathExists, help="credential file")
+    parser.add_argument("--pipeline_config_file", type=Path, help="Pipeline Config File")
     return parser
 
 
@@ -462,7 +470,10 @@ def getSubjectCustomField(connection, subject, field):
         return  subject.fields[field]
     except:
         print(f"problem obtaining subject custom field : {field}")
-        return ""
+        if field == "hmlid":
+            return subject.label
+        else:
+            return ""
 
 def canProc(df):
     dfy = df == "Y"
@@ -487,8 +498,17 @@ def canProcList(dflist):
         return "N"
 
 
-def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
+def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFILE=None,pipeline_config_file=None):
   
+    labels_dict={}
+    if pipeline_config_file:
+        panpipeconfig_file=str(pipeline_config_file)
+        if os.path.exists(pipeline_config_file):
+           print(f"{pipeline_config_file} exists.")
+           with open(pipeline_config_file,'r') as infile:
+               labels_dict = json.load(infile)
+
+
     bidsqcOutdir=os.path.abspath(os.path.dirname(csvout))
 
     if not os.path.isdir(bidsqcOutdir):
@@ -503,6 +523,11 @@ def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
 
             if not projects:
                 projects = connection.projects
+            
+            if len(projects) == 1:
+                pan_release_t = projects[0]
+            else:
+                pan_release_t = "Latest"
 
             for PROJ in list(set(projects)):
                 project = connection.projects[PROJ]
@@ -523,24 +548,23 @@ def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
                     subject_row = []
 
                     table_row = initializeRow()
-                    loadParams(table_row,PAN_RELEASE,project_t)
-                    loadParams(table_row,PAN_SITE,getSite(project_t))
+                    loadParams(table_row,PAN_RELEASE,pan_release_t)
+                    loadParams(table_row,PAN_SITE,project_t)
 
                     subject = subjects[sub_index]
 
                     subject_t = subject.label
-                    loadParams(table_row,HMLID,subject_t)
+                    loadParams(table_row,SUBJECT_LABEL,subject_t)
 
                     gender_t = subject.demographics.gender
                     loadParams(table_row,GENDER,gender_t)
 
-                    loadParams(table_row,HMLID_REC,getSubjectCustomField(connection,subject,"hmlid"))
+                    loadParams(table_row,HMLID,getSubjectCustomField(connection,subject,"hmlid"))
                     loadParams(table_row,XNATID_ORIG,getSubjectCustomField(connection,subject,"xnatorigid"))
                     loadParams(table_row,MCID,getSubjectCustomField(connection,subject,"mcid"))
                     loadParams(table_row,P2ID,getSubjectCustomField(connection,subject,"p2id"))
                     orig_project = getSubjectCustomField(connection,subject,"site")
                     loadParams(table_row,ORIG_PROJECT,orig_project)
-                    loadParams(table_row,P2SITE_ORIG,getSite(orig_project))
 
                     yob_t = ""
                     dob = subject.demographics.dob
@@ -610,10 +634,12 @@ def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
 
 
                             # get blank mriqc measures for situations where MRIQC resource doesn't exist
-                            session_table_row = getQCMeasures([],mriqc_headers,session_table_row)
-                            session_table_row = getQCMeasuresCSV([],qsiprepqc_headers,session_table_row)
-                            session_table_row = getQCMeasures([],eddyqc_headers,session_table_row)
-                            session_table_row = getQCMeasuresCSV([],aslprepqc_headers,session_table_row)
+                            if INCLUDE_QC:
+                                session_table_row = getQCMeasures([],mriqc_headers,session_table_row)
+                                session_table_row = getQCMeasuresCSV([],qsiprepqc_headers,session_table_row)
+                                session_table_row = getQCMeasures([],eddyqc_headers,session_table_row)
+                                session_table_row = getQCMeasuresCSV([],aslprepqc_headers,session_table_row)
+
                             radread_t=""
                             assessors = experiment.assessors
                             for assessor_index in range(len(assessors)):
@@ -708,7 +734,8 @@ def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
                                 if resource.label == 'MRIQC-AACAZ' and resource.files is not None and len(resource.files) > 0:
                                     mriqc_t = "Y"
                                     loadParams(session_table_row,MRIQC_AVAIL,mriqc_t)
-                                    session_table_row = getQCMeasures(resource.files,mriqc_headers,session_table_row)
+                                    if INCLUDE_QC:
+                                        session_table_row = getQCMeasures(resource.files,mriqc_headers,session_table_row)
 
                                 fmriprep_t = "N"
                                 if resource.label == 'FMRIPREP-AACAZ' and resource.files is not None and len(resource.files) > 0:
@@ -719,19 +746,22 @@ def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
                                 if resource.label == 'QSIPREP-AACAZ' and resource.files is not None and len(resource.files) > 0:
                                     qsiprep_t = "Y"
                                     loadParams(session_table_row,QSIPREP_AVAIL,qsiprep_t)
-                                    session_table_row = getQCMeasuresCSV(resource.files,qsiprepqc_headers,session_table_row)
+                                    if INCLUDE_QC:
+                                        session_table_row = getQCMeasuresCSV(resource.files,qsiprepqc_headers,session_table_row)
 
                                 eddyqc_t = "N"
                                 if resource.label == 'EDDYQC-AACAZ' and resource.files is not None and len(resource.files) > 0:
                                     eddyqc_t = "Y"
                                     loadParams(session_table_row,EDDYQC_AVAIL,eddyqc_t)
-                                    session_table_row = getQCMeasures(resource.files,eddyqc_headers,session_table_row)
+                                    if INCLUDE_QC:
+                                        session_table_row = getQCMeasures(resource.files,eddyqc_headers,session_table_row)
 
                                 aslprep_t = "N"
                                 if resource.label == 'ASLPREP-AACAZ' and resource.files is not None and len(resource.files) > 0:
                                     aslprep_t = "Y"
                                     loadParams(session_table_row,ASLPREP_AVAIL,aslprep_t)
-                                    session_table_row= getQCMeasuresCSV(resource.files,aslprepqc_headers,session_table_row)
+                                    if INCLUDE_QC:
+                                        session_table_row= getQCMeasuresCSV(resource.files,aslprepqc_headers,session_table_row)
 
                             # address problem scans and analysis possibility
                             loadParams(session_table_row,MRI_PROBLEM_SCANS,"|".join(problemscans))
@@ -752,7 +782,7 @@ def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
                         if getParams(session_table_row,SESSION_MODALITY) == "MR":
                             struct_sessions[experiment_t] = cando_proc(CANDO_STRUCT_REQS,scan_sequence,missing_scans,problemscans=problemscans,struct_sessions=struct_sessions)
 
-
+                        
                         subject_row.append(session_table_row)
 
                     for session_row in subject_row:
@@ -815,8 +845,10 @@ def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
                             pcasl_dwi_sdc_poss = cando_proc(CANDO_PCASLSDC_DWI_REQS,session_sequence,session_missing,problemscans=session_problem,struct_sessions=struct_sessions)
                             loadParams(session_row,CANDO_PCASL_SDC_DWI,pcasl_dwi_sdc_poss)
 
-                                
-                    table_data = appendTableRows(subject_row, table_data)
+                        loadParams(session_row,CREATION_DATE,get_datetimestring_utc())
+
+                    if not subject_t in excluded_participants:
+                        table_data = appendTableRows(subject_row, table_data)
 
 
             bidsqc_df = pd.DataFrame(table_data, columns=table_header)
@@ -835,7 +867,7 @@ def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
 
             #subject_core_df = subject_core_df.drop_duplicates()
 
-            subject_proc_df = bidsqc_df.groupby(["HMLID"]).apply(lambda s: pd.Series( { 
+            subject_proc_df = bidsqc_df.groupby([HMLID]).apply(lambda s: pd.Series( { 
                 "SUBJECT_" + CANDO_STRUCT : canProc(s[CANDO_STRUCT]),
                 "SUBJECT_" +CANDO_DWI : canProc(s[CANDO_DWI]),
                 "SUBJECT_" +CANDO_DWI_SDC : canProc(s[CANDO_DWI_SDC]),
@@ -867,11 +899,37 @@ def getBidsQC(host,user,password,projects,csvout,LOGFILE=None):
             consolidated_df.to_csv(subject_csvout,index=False) 
 
             for header in consolidated_df.columns:
-                if header.startswith("MRIQC.") or header.startswith("EDDYQC.") or header.startswith("ASLPREPQC.") or header.startswith("QSIPREPQC.") or '_AVAIL' in header:
+                if header.upper().startswith("MRIQC.") or header.upper().startswith("EDDYQC.") or header.upper().startswith("ASLPREPQC.") or header.upper().startswith("QSIPREPQC.") or '_AVAIL' in header.upper():
                     consolidated_df.pop(header) 
 
             subject_reduced_csvout = os.path.splitext(csvout)[0] + "_reduced_subjectproc.csv"
-            consolidated_df.to_csv(subject_reduced_csvout,index=False) 
+            consolidated_df.to_csv(subject_reduced_csvout,index=False)
+
+            pan_mri_info_csvout = os.path.join(os.path.dirname(csvout),"pan_mri_info.csv")
+            search_df = consolidated_df[(consolidated_df[SESSION_MODALITY]=="MR")]
+
+            for header in search_df.columns:
+                if 'CANDO' in header.upper() or 'RADNORMAL' in header.upper() or "MODALITY" in header.upper():
+                    search_df.pop(header) 
+
+            cols=list(search_df.columns.values)
+            cols.pop(cols.index(HMLID))
+            cols.pop(cols.index(BIDS_SUBJECT))
+            cols.pop(cols.index(BIDS_SESSION))
+            newdf=search_df[[HMLID] + [BIDS_SUBJECT] + [BIDS_SESSION] + cols]
+            sorted_df = newdf.sort_values(by = [HMLID], ascending = [True])
+            sorted_df.reset_index(drop=True,inplace=True)
+            sorted_df.to_csv(pan_mri_info_csvout,sep=",", index=False)
+            pan_mri_info_csvout_metadata = create_metadata(pan_mri_info_csvout,None, metadata = {"Script":"paninfo_bidsqc.py","Description":"Information about missing scans and scan issues"})
+
+            if labels_dict and "SINKDIR_GROUP" in labels_dict.keys():
+                sinkdir_groupdir = getParams(labels_dict,"SINKDIR_GROUP")
+                if not os.path.exists(sinkdir_groupdir):
+                    os.makedirs(sinkdir_groupdir)
+                pan_mri_info_csvout_sink = os.path.join(sinkdir_groupdir,os.path.basename(pan_mri_info_csvout))    
+                shutil.copy(pan_mri_info_csvout,pan_mri_info_csvout_sink)
+                pan_mri_info_csvout_metadata_sink = os.path.join(sinkdir_groupdir,os.path.basename(pan_mri_info_csvout_metadata))    
+                shutil.copy(pan_mri_info_csvout_metadata,pan_mri_info_csvout_metadata_sink)
 
 
     except Exception as e:
@@ -890,6 +948,17 @@ def main():
         projects = args.projects
     else:
         projects = []
+
+    if args.excluded_participants:
+        excluded_participants = args.excluded_participants
+    else:
+        excluded_participants = []
+
+    pipeline_config_file = None
+    if args.pipeline_config_file:
+        if Path(args.pipeline_config_file).exists():
+            pipeline_config_file = str(args.pipeline_config_file)
+
 
     credentials = args.credentials
     user=None
@@ -913,7 +982,7 @@ def main():
         user = input("User: ")
         password = getpass.getpass()
 
-    getBidsQC(host,user,password,projects,csvout)
+    getBidsQC(host,user,password,projects,csvout,excluded_participants=excluded_participants,pipeline_config_file=pipeline_config_file)
 
 
 # This is the standard boilerplate that calls the main() function.
