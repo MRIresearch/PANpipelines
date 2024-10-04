@@ -303,7 +303,8 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
         table_columns.insert(0,"subject_id")
 
         df2.columns = table_columns
-        df2.to_csv(roi_csv,sep=",",header=True, index=False)
+        last_df = df2
+
     else:
         flat_vals=[]
         flat_tablecolumns=[]
@@ -320,14 +321,15 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
         newdf.insert(0,"subject_id",["sub-"+participant_label])
         flat_tablecolumns.insert(0,"subject_id")
         newdf.columns = flat_tablecolumns
-        newdf.to_csv(roi_csv,sep=",",header=True, index=False)
+        last_df = newdf
 
+    created_datetime = get_datetimestring_utc()
+    last_df.insert(len(last_df.columns),"row_creation_datetime",[created_datetime for x in range(len(last_df))])
+    last_df.to_csv(roi_csv,sep=",",header=True, index=False)
 
     metadata = {}
-    roi_json = os.path.join(roi_output_dir,'{}.json'.format(csv_basename))
     metadata = updateParams(metadata,"Title","roi_extract")
     metadata = updateParams(metadata,"Description","Extract Measures from Image file using provided atlas.")
-    metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
     metadata = updateParams(metadata,"Atlas File",atlas_file)
     metadata = updateParams(metadata,"Atlas Labels",atlas_index)
     metadata = updateParams(metadata,"Input File",input_file)
@@ -336,20 +338,22 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
         metadata = updateParams(metadata,"Mask",mask_inverse_file)
     if metadata_comments:
         metadata = updateParams(metadata,"Comments",metadata_comments)
-
-    export_labels(metadata,roi_json)
+    roi_csv_json = create_metadata(roi_csv, created_datetime, metadata = metadata)
 
 
     out_files=[]
     out_files.insert(0,roi_csv)
+    out_files.insert(1,roi_csv_json)
+    out_files.insert(2,mask_inverse_file)
 
     return {
         "roi_csv":roi_csv,
+        "roi_csv_metadata":roi_csv_json,
+        "mask_file" : mask_inverse_file,
         "roi_output_dir":roi_output_dir,
         "output_dir":output_dir,
         "out_files":out_files
     }
-
 
 
 class roi_extractInputSpec(BaseInterfaceInputSpec):
@@ -361,6 +365,8 @@ class roi_extractInputSpec(BaseInterfaceInputSpec):
 
 class roi_extractOutputSpec(TraitedSpec):
     roi_csv = File(desc='CSV file of results')
+    roi_csv_metadata = File(desc='metadata of CSV file of results')
+    mask_file = File(desc='mask file used for results')
     roi_output_dir = traits.String(desc='roi output dir')
     output_dir = traits.String(desc='output dir')
     out_files = traits.List(desc='list of files')

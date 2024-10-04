@@ -1,4 +1,5 @@
 from nipype import Workflow, MapNode, Node
+from nipype.interfaces.io import DataSink
 
 import panpipelines.nodes.antstransform as antstransform
 import panpipelines.nodes.collate_csv_single as collate_csv
@@ -30,7 +31,22 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
 
 
     collate_csv_node = collate_csv.create(labels_dict, csv_list1=measures_list1, LOGGER=LOGGER)
-    pan_workflow.add_nodes([collate_csv_node])
+
+
+    sinker_dir = getParams(labels_dict,"SINKDIR")
+    if sinker_dir:
+        sinker = Node(DataSink(),name='collatecsv_sink')
+        sinker_basedir = os.path.dirname(sinker_dir)
+        sinker_folder = os.path.basename(sinker_dir)
+        if not os.path.exists(sinker_basedir):
+            os.makedirs(sinker_basedir)
+        sinker.inputs.base_directory = sinker_basedir
+
+        pan_workflow.connect( collate_csv_node,"roi_csv",sinker,f"{sinker_folder}")
+        pan_workflow.connect( collate_csv_node,"roi_csv_metadata",sinker,f"{sinker_folder}.@metadata")
+
+    else:
+        pan_workflow.add_nodes([collate_csv_node])
 
     if createGraph:
          pan_workflow.write_graph(graph2use='flat')

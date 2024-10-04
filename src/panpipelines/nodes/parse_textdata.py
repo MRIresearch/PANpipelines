@@ -114,6 +114,7 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type,custom_prefix, add_
         df = get_freesurfer_subregionstats(textdata,prefix=prefix, participant_label=participant_label,session_label=session_label)
     elif "brainstemSsLabelsbeta" in basefile_name or textdata_type=="brainstembeta":
         extra_prefix= extra_prefix + "brainstembeta"
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
         df = get_freesurfer_subregionstats(textdata,prefix=prefix, participant_label=participant_label,session_label=session_label)
     elif "bold.json" in basefile_name or textdata_type=="mriqc_bold":
         extra_prefix= extra_prefix + "bold" 
@@ -169,6 +170,10 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type,custom_prefix, add_
 
 
     if df is not None:
+        # Add creation date
+        created_datetime = get_datetimestring_utc()
+        df.insert(len(df.columns),"row_creation_datetime",[created_datetime for x in range(len(df))])
+
         if NOSESSION:
             roi_csv = os.path.join(roi_output_dir,'{}_{}_{}.csv'.format("sub-"+participant_label,creating_pipeline,prefix))
         else:
@@ -177,20 +182,18 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type,custom_prefix, add_
         out_files.insert(0,roi_csv)
 
         metadata = {}
-        roi_csv_json = os.path.splitext(roi_csv)[0] + ".json"
         metadata = updateParams(metadata,"Title","parse_textdata.py")
         metadata = updateParams(metadata,"Description","Parse textdata from existing tables into csv using predefined approaches. Freesurfer stat files are supported.")
-        metadata = updateParams(metadata,"MetadataFile",f"{roi_csv_json}")
-        metadata = updateParams(metadata,"FileCreated",f"{roi_csv}")
-        metadata = updateParams(metadata,"DateCreated",datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f"))
         metadata = updateParams(metadata,"Pipeline",f"{current_pipeline}")
         metadata = updateParams(metadata,"Prefix",f"{prefix}")
         metadata = updateParams(metadata,"InputFile",f"{textdata}")
         metadata = updateParams(metadata,"InputFilePipeline",f"{creating_pipeline}")
-        export_labels(metadata,roi_csv_json)
+        roi_csv_json = create_metadata(roi_csv, created_datetime, metadata = metadata)
+
 
     return {
         "roi_csv":roi_csv,
+        "roi_csv_metadata":roi_csv_json,
         "roi_output_dir":roi_output_dir,
         "output_dir":output_dir,
         "out_files":out_files
@@ -207,6 +210,7 @@ class parse_textdataInputSpec(BaseInterfaceInputSpec):
 
 class parse_textdataOutputSpec(TraitedSpec):
     roi_csv = File(desc='CSV file of results')
+    roi_csv_metadata = File(desc='Metadata CSV file of results')
     roi_output_dir = traits.String(desc='roi output dir')
     output_dir = traits.String(desc='output dir')
     out_files = traits.List(desc='list of files')
