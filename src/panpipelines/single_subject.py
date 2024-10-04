@@ -83,6 +83,11 @@ def runSingleSubject(participant_label, xnat_project, xnat_shared_project, sessi
     LOGGER.debug("\n------  environment dump -----------")
     LOGGER.debug(os.environ)
 
+    ipaddr = get_ip()
+    LOGGER.debug(f"\nIP Address of node")
+    LOGGER.debug("-----------------------")
+    LOGGER.debug(f"{ipaddr}")
+
 def parse_params():
     parser = ArgumentParser(description="Pan pipelines")
     PathExists = partial(path_exists, parser=parser)
