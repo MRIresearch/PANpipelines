@@ -15,6 +15,7 @@ from panpipelines.group_subjects import runGroupSubjects
 import shutil
 
 LOGGER = logger_setup("panpipelines", logging.DEBUG)
+LOGGER.propagate = False
 logger_addstdout(LOGGER, logging.INFO)
 
 PROCESSING_OPTIONS=["slurm", "local"]
@@ -29,6 +30,7 @@ def parse_params():
     parser.add_argument("--sessions_file", type=PathExists, help="Comprehensive list of participants and sessions")
     parser.add_argument("--pipelines", nargs="+")
     parser.add_argument("--pipeline_match", nargs="+")
+    parser.add_argument("--pipeline_exclude", nargs="+")
     parser.add_argument("--projects", nargs="+")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
     parser.add_argument("--incremental", default="False")
@@ -164,7 +166,16 @@ def main():
         targetdir = os.path.dirname(participants_file)
         if not os.path.exists(targetdir):
             os.makedirs(targetdir)
-        getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",targetdir,demographics=False)
+
+        SHARED_PROJECT_LIST = getParams(panpipe_labels,"SHARED_PROJECT_LIST")
+        if not SHARED_PROJECT_LIST:
+            SHARED_PROJECT_LIST=["001_HML","002_HML","003_HML","004_HML"]
+
+        PHANTOM_LIST= getParams(panpipe_labels,"PHANTOM_LIST")
+        if not PHANTOM_LIST:
+            PHANTOM_LIST=[]
+
+        getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",targetdir,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST)
 
     sessions_file = args.sessions_file
     if args.sessions_file is not None:
@@ -184,6 +195,7 @@ def main():
         pipelines = getParams(panpipe_labels,"PIPELINES")
 
     pipeline_match=args.pipeline_match
+    pipeline_exclude=args.pipeline_exclude
 
     if not pipelines:
         LOGGER.info("No pipelines specified at command line.")
@@ -196,6 +208,10 @@ def main():
             pipelines = pipeline_select
         else:
             LOGGER.info("All pipelines in configuration file will be run.")
+
+    if pipeline_exclude and pipelines:
+        LOGGER.info(f"Excluding pipelines {pipeline_exclude} from this run.")
+        pipelines = list(set(pipelines) - set(pipeline_exclude))
 
     # Remove duplicates in pipeline list
     pipelines = list(set(pipelines))
@@ -215,7 +231,7 @@ def main():
     participant_exclusions = args.participant_exclusions
     if not participant_exclusions:
         participant_exclusions = []
-
+    
     session_label = args.session_label
     if args.session_label is not None:
         label_key="SESSION_LABEL"
@@ -223,6 +239,9 @@ def main():
         panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
     else:
         session_label = getParams(panpipe_labels,"SESSION_LABEL")
+        if not session_label:
+            session_label="ALL_SESSIONS"
+            panpipe_labels = updateParams(panpipe_labels, "SESSION_LABEL",session_label)
 
 
     LOGGER.info(f"Pipelines to be processed : {pipelines}")
@@ -238,24 +257,34 @@ def main():
         participant_label.extend(participant_incremental)
         LOGGER.info(f"Participants to process {participant_label}")
 
-
-    projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=participant_exclusions)
-    participant_list = projectmap[0]
-    project_list  = projectmap[1]
-    session_list = projectmap[2]
-    shared_project_list  = projectmap[3]
-
-    # obtain mappings for all subjects which will be handy for incremental
-    projectmap_all = get_projectmap(["ALL_SUBJECTS"],participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=participant_exclusions)
-    participant_list_all = projectmap_all[0]
-    project_list_all  = projectmap_all[1]
-    session_list_all = projectmap_all[2]
-    shared_project_list_all = projectmap_all[3]
-
     # take snapshot of the runtime labels for all pipelines
     runtime_labels = panpipe_labels.copy()
 
     for pipeline in pipelines:
+
+        subject_exclusions=[]
+        subject_exclusions.extend(participant_exclusions)
+
+        pipeline_exclusions = getParams(panpipe_labels,"PIPELINE_EXCLUSIONS")
+        if not pipeline_exclusions:
+            pipeline_exclusions=[]
+        subject_exclusions.extend(pipeline_exclusions) 
+        panpipe_labels = updateParams(panpipe_labels,"EXCLUDED_PARTICIPANTS",subject_exclusions)
+
+        projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+        participant_list = projectmap[0]
+        project_list  = projectmap[1]
+        session_list = projectmap[2]
+        shared_project_list  = projectmap[3]
+
+        # obtain mappings for all subjects which will be handy for incremental
+        projectmap_all = get_projectmap(["ALL_SUBJECTS"],participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+        participant_list_all = projectmap_all[0]
+        project_list_all  = projectmap_all[1]
+        session_list_all = projectmap_all[2]
+        shared_project_list_all = projectmap_all[3]
+
+
         LOGGER.info(f"Processing pipeline : {pipeline}")
         panpipe_labels = updateParams(panpipe_labels, "PIPELINE", pipeline)
         panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels,pipeline)

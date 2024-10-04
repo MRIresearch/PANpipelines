@@ -1,5 +1,6 @@
 from panpipelines.utils.util_functions import *
 from panpipelines.scripts.panscript import *
+import datetime
 
 
 class pancontainer_panscript(panscript):
@@ -20,7 +21,10 @@ class pancontainer_panscript(panscript):
             evaluated_command=substitute_labels(version_command, labels_dict)
             runCommand(evaluated_command,IFLOGGER)
 
-        
+        PKG_DIR = getParams(labels_dict,"PKG_DIR")
+        os.environ["PYTHONPATH"]=f"{PKG_DIR}:$PYTHONPATH"
+        os.environ["SINGULARITYENV_PYTHONPATH"]=translate_binding(command_base,f"{PKG_DIR}:$PYTHONPATH")
+
         self.command = command_base + " " + command
 
 
