@@ -43,6 +43,11 @@ def runGroupSubjects(participant_label, xnat_projects, xnat_shared_projects, ses
     LOGGER.debug(f"{panpipe_labels!r}")
     LOGGER.debug("\n------  environment dump -----------")
     LOGGER.debug(os.environ)
+    
+    ipaddr = get_ip()
+    LOGGER.debug(f"\nIP Address of node")
+    LOGGER.debug("-----------------------")
+    LOGGER.debug(f"{ipaddr}")
 
 def parse_params():
     parser = ArgumentParser(description="Pan pipelines")
