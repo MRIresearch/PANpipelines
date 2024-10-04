@@ -506,21 +506,29 @@ def getSubjectInfo(labels_dict, participant_label,session_label=None):
 LOCK_SUFFIX=".lock"
 def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,password,session_label=None):
 
-    lock_path = os.path.join(getParams(labels_dict,"LOCK_DIR"),participant_label + LOCK_SUFFIX)
+    import random
+    if getParams(labels_dict,"MAXLOCKS"):
+        MAXLOCKS = int(getParams(labels_dict,"MAXLOCKS"))
+    else:
+        MAXLOCKS=10
+
+    LOCKINT=random.randint(1,MAXLOCKS)
+
+    lock_path = os.path.join(getParams(labels_dict,"LOCK_DIR"),str(LOCKINT) + LOCK_SUFFIX)
     lock_file = acquire_lock(lock_path)
 
     xnat_host = getParams(labels_dict,"XNAT_HOST")
 
     count = 0
     # 6 minutes timeout - this should be enough!
-    TIMEOUT=360
+    #TIMEOUT=360
     while not lock_file:
         time.sleep(1)
         count = count + 1
         lock_file = acquire_lock(lock_path)
         # prevent indefinite loop; take our chance on a downstream error.
-        if count >= TIMEOUT:
-            break
+        #if count >= TIMEOUT:
+        #    break
 
     IN_XNAT =  getParams(labels_dict,"IN_XNAT")
     if IN_XNAT:
@@ -532,8 +540,15 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
 
         FORCEDOWNLOAD=False
         force_download = getParams(labels_dict,"FORCE_BIDS_DOWNLOAD")
+        dataset_description = getParams(labels_dict,"BIDS_DATASET_DESCRIPTION")
         if force_download and isTrue(force_download):
             FORCEDOWNLOAD=True
+
+        ONLY_DEFACED = getParams(labels_dict,"ONLY_DEFACED")
+        if not ONLY_DEFACED:
+            ONLY_DEFACED=True
+        else:
+            ONLY_DEFACED=isTrue(ONLY_DEFACED)
 
         bids_folder = os.path.join(bids_dir,"sub-"+participant_label)
         if session_label:
@@ -551,7 +566,7 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
 
                 UTLOGGER.info("Downloading started from XNAT.")
                 subject_id = getSubjectInfo(labels_dict,participant_label,session_label=session_label)
-                getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password,subject_id=subject_id,session_label=session_label)
+                getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password,subject_id=subject_id,session_label=session_label,dataset_description=dataset_description,labels_dict=labels_dict,only_defaced=ONLY_DEFACED)
             else:
                 UTLOGGER.info(f"IN_XNAT set to {IN_XNAT}. Do not have a means of obtaining data for {participant_label}. Please add this subject's data to {bids_dir}")
 
@@ -565,7 +580,7 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
         except Exception as e:
             pass
 
-def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,user,password,subject_id=None,session_label=None):
+def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,user,password,subject_id=None,session_label=None,dataset_description=None,labels_dict={},only_defaced=True):
 
     import xnat
     with xnat.connect(server=host,user=user, password=password) as connection:
@@ -591,24 +606,109 @@ def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,us
                 else:
                     bidspath = glob.glob(os.path.join(tmpdir,f"*/resources/{resource_label}/files/sub*/ses-{session_label}"))
                 dataset_desc = glob.glob(os.path.join(tmpdir,f"*/resources/{resource_label}/files/dataset_description.json"))
+                participantsTSV = glob.glob(os.path.join(tmpdir,f"*/resources/{resource_label}/files/participants.tsv"))
+
                 if bidspath:
+                    UTLOGGER.info(f"Found BIDS data for {subject_label} using {resource_label} in {experiment.label}")
+                    if subject_id:
+                        UTLOGGER.info(f"{subject_id} used as key to access data")
+                    if subject_id:
+                        UTLOGGER.info(f"{subject_id} used as key to access data")
                     bidspath = bidspath[0]
+
+                    if only_defaced:
+                        DEFACE_ENTITY = getParams(labels_dict,"DEFACE_ENTITY")
+                        if not DEFACE_ENTITY:
+                            DEFACE_ENTITY  = {"reconstruction":"defaced"}
+                        tmp_bidsdir=bidspath.split("files/sub-")[0] + "files"
+                        layout = BIDSLayout(tmp_bidsdir)
+                        bidsfiles = layout.get(**DEFACE_ENTITY)
+                        for bids_file in bidsfiles:
+                            bids_entity = layout.parse_file_entities(bids_file.path)
+                            bids_entity["reconstruction"] = None
+                            undefaced_file = layout.get(return_type='file', invalid_filters='allow', **bids_entity)
+                            if undefaced_file:
+                                os.remove(undefaced_file[0])
+
                     if not session_label:
                         bidssubject = bidspath.split("/")[-1]
                         shutil.copytree(bidspath,os.path.join(bids_dir,bidssubject), dirs_exist_ok=True)
                     else:
                         bidssubject = bidspath.split("/")[-2]
                         bidssession = bidspath.split("/")[-1]
-                        shutil.copytree(bidspath,os.path.join(bids_dir,bidssubject,bidssession), dirs_exist_ok=True)                        
+                        shutil.copytree(bidspath,os.path.join(bids_dir,bidssubject,bidssession), dirs_exist_ok=True)
+
                     if dataset_desc:
                         target_dataset_desc =os.path.join(bids_dir,"dataset_description.json")
                         if not os.path.exists(target_dataset_desc):
-                            shutil.copy(dataset_desc[0],target_dataset_desc)
+                            if labels_dict:
+                                lock_path_dataset = os.path.join(getParams(labels_dict,"LOCK_DIR"),"dataset_description" + LOCK_SUFFIX)
+                            else:
+                                lock_path_dataset = os.path.join("/tmp","dataset_description" + LOCK_SUFFIX)
+
+                            lock_file_dataset = acquire_lock(lock_path_dataset)
+                            try:
+                                count=0
+                                while not lock_file_dataset:
+                                    time.sleep(1)
+                                    count = count + 1
+                                    lock_file_dataset= acquire_lock(lock_path_dataset)
+                                if dataset_description:
+                                    shutil.copy(dataset_description,target_dataset_desc)
+                                else:
+                                    shutil.copy(dataset_desc[0],target_dataset_desc)
+                            finally:
+                                release_lock(lock_file_dataset)
+                                try:
+                                    os.remove(lock_path_dataset)
+                                except Exception as e:
+                                    pass
+
+                    if participantsTSV:
+                        if labels_dict:
+                            lock_path_participant = os.path.join(getParams(labels_dict,"LOCK_DIR"),"participants_tsv" + LOCK_SUFFIX)
+                            PART_SORT_COLS = getParams(labels_dict,"PARTICIPANTTSV_SORT_COLS")
+                            if not PART_SORT_COLS:
+                                PART_SORT_COLS = ["participant_id", "session_id"]
+                        else:
+                            lock_path_participant = os.path.join("/tmp","participants_tsv" + LOCK_SUFFIX)
+                            PART_SORT_COLS=["participant_id", "session_id"]
+                        lock_file_participant = acquire_lock(lock_path_participant)
+                        try:
+                            count=0
+                            while not lock_file_participant:
+                                time.sleep(1)
+                                count = count + 1
+                                lock_file_participant= acquire_lock(lock_path_participant)
+
+                            target_participantsTSV =os.path.join(bids_dir,"participants.tsv")
+                            if os.path.exists(target_participantsTSV):
+                                df1 = pd.read_table(target_participantsTSV,sep="\t")
+                                df2 = pd.read_table(participantsTSV[0],sep="\t")
+                                new_df = pd.concat([df1,df2],join="inner").drop_duplicates()
+                                sorted_df = new_df.sort_values(by = PART_SORT_COLS, ascending = [True, True])
+                                sorted_df.reset_index(drop=True,inplace=True)
+                            else:
+                                sorted_df = pd.read_table(participantsTSV[0],sep="\t")
+
+                            sorted_df.to_csv(target_participantsTSV,sep="\t",index=False)
+
+                        finally:
+                            release_lock(lock_file_participant)
+                            try:
+                                os.remove(lock_path_participant)
+                            except Exception as e:
+                                pass
+
                     shutil.rmtree(tmpdir)
+                    UTLOGGER.info(f"Downloaded BIDS for {subject_label} using {resource_label} in {experiment.label}. Skipping other experiments.")
+                    break
+
                 else:
                     UTLOGGER.info(f"Problem downloading data for {subject_label} using {resource_label} in {experiment.label}")
                     if subject_id:
                         UTLOGGER.info(f"{subject_id} used as key to access data")
+                    shutil.rmtree(tmpdir)
 
 
 
@@ -930,6 +1030,78 @@ def create_array(participants, participants_file, projects_list = None, sessions
     else:
         return "1:" + str(len(df))
 
+def mask_excludedrows(df, subject_exclusions,columns):
+    for excluded in subject_exclusions:
+        excluded_list = excluded.split("_")
+        mask = None
+        if len(excluded_list) == 1:
+            subject = "sub-" + excluded_list[0]
+            mask=df[columns[0]]== subject
+        elif len(excluded_list) == 2:
+            subject = "sub-" + excluded_list[0]
+            session = excluded_list[1]
+            if not session == "*":
+                session = "ses-" + session
+                mask = (df[columns[0]] == subject) & (df[columns[1]] == session)
+            else:
+                mask=df[columns[0]]== subject
+        elif len(excluded_list) == 3:
+            subject = "sub-" + excluded_list[0]
+            session = excluded_list[1]
+            project = excluded_list[2]
+            if not session == "*" and not project == "*":
+                session = "ses-" + session
+                mask = (df[columns[0]] == subject) & (df[columns[1]] == session) & (df[columns[2]] == project)
+            elif session == "*" and not project == "*":
+                mask = (df[columns[0]] == subject) & (df[columns[2]] == project)
+            elif not session == "*" and project == "*":
+                session = "ses-" + session
+                mask = (df[columns[0]] == subject) & (df[columns[1]] == session)
+            else:
+                mask=df[columns[0]]== subject
+
+        df = df[~mask]
+
+    return df
+
+
+def process_exclusions(subject_exclusions=[]):
+    exclusion_list=[]
+    for excluded in subject_exclusions:
+        subject_list=excluded.split(";")
+        subject = drop_sub(subject_list[0])
+        if len(subject_list) > 1:
+            session_list=subject_list[1]
+            if len(subject_list)> 2:
+                project_list = subject_list[2]
+            else:
+                project_list=[]
+            if session_list:
+                session_list = session_list.split("^")
+                if "*" in session_list:
+                    if project_list and not "*" in project_list:
+                        project_list = project_list.split("^")
+                        for project in project_list:
+                            exclusion_list.append(f"{subject}_*_{project}") 
+                    else:
+                        exclusion_list.append(subject)
+                else:
+                    for session in session_list:
+                        session=drop_ses(session)
+                        if project_list and not "*" in project_list:
+                            project_list = project_list.split("^")
+                            for project in project_list:
+                                exclusion_list.append(f"{subject}_{session}_{project}") 
+                        else:
+                            exclusion_list.append(f"{subject}_{session}")                
+            else:
+                exclusion_list.append(subject)
+        else:
+            exclusion_list.append(subject)
+
+    return exclusion_list
+
+
 def get_projectmap(participants, participants_file,session_labels=[],sessions_file = None, subject_exclusions=[]):
 
     if participants_file is not None:
@@ -941,7 +1113,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
         participants = df["bids_participant_id"].tolist()
 
     # process exclusions
-    participants = list(set(participants).difference(set(subject_exclusions)))
+    exclusion_list  = process_exclusions(subject_exclusions)
 
     # sessions are defined and so we will use this as priority
     project_list=[]
@@ -955,30 +1127,46 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
             for participant in participants:
                 if session_labels[0]=="ALL_SESSIONS":
                     search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant))]
-                    ses=[drop_ses(ses) for ses in list(search_df.bids_session_id.values)]
-                    sessions_list.extend(ses)
-                    sub=[drop_sub(sub) for sub in list(search_df.bids_participant_id.values)]
-                    participant_list.extend(sub)
+                    ses=[drop_ses(ses) for ses in list(search_df.bids_session_id.values)]                 
+                    sub=[drop_sub(sub) for sub in list(search_df.bids_participant_id.values)]                   
                     proj=[proj for proj in list(search_df.project.values)]
-                    project_list.extend(proj)
+                    shared_proj=[]
                     if 'shared_projects' in df.columns:
                         shared_proj=[shared_proj for shared_proj in list(search_df.shared_projects.values)]
-                        shared_project_list.extend(shared_proj)
+                        
                 else: 
                     for session_label in session_labels:
                         search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant)) & (sessions_df["bids_session_id"].str.contains(session_label))]
                         if search_df.empty:
                             UTLOGGER.info(f"No values found for {participant} and {session_label} in {sessions_file}")
+                            sub=[]
+                            ses=[]
+                            proj=[]
+                            shared_proj=[]
                         else:
                             ses=[drop_ses(ses) for ses in list(search_df.bids_session_id.values)]
-                            sessions_list.extend(ses)
                             sub=[drop_sub(sub) for sub in list(search_df.bids_participant_id.values)]
-                            participant_list.extend(sub)
                             proj=[proj for proj in list(search_df.project.values)]
-                            project_list.extend(proj)
+                            shared_proj=[]
                             if 'shared_projects' in df.columns:
                                 shared_proj=[shared_proj for shared_proj in list(search_df.shared_projects.values)]
-                                shared_project_list.extend(shared_proj)
+
+                idx=0
+                for subx in sub:
+                    sesx = ses[idx]
+                    projx = proj[idx]
+                    if shared_proj:
+                        sharedx = shared_proj[idx]
+                    else:
+                        sharedx = None
+
+                    if not subx in exclusion_list or not f"{subx}_{sesx}" in exclusion_list or not f"{subx}_{sesx}_{projx}" in exclusion_list or not f"{subx}_*_{projx}" in exclusion_list:
+                        participant_list.append(subx)
+                        sessions_list.append(sesx)
+                        project_list.append(projx)
+                        shared_project_list.append(sharedx)
+                    idx=idx+1
+
         else:
             UTLOGGER.info(f"Cannot process pipelines. No participants have been specified")
     else:
@@ -989,6 +1177,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
                     shared_project_list.append(str(df[df["bids_participant_id"]==participant].shared_projects.values[0]))
                                 
             sessions_list=[None for proj in project_list]
+            participant_list.extend(participants)
         else:
             UTLOGGER.info(f"Cannot process pipelines. No participants have been specified")
 
@@ -1927,7 +2116,7 @@ def getSharedProjects(connection, subjectLabel,origProjectID,sharedProjectIDs):
     return sharedProjectString
 
 
-def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=True,shared_project_list=["001_HML","002_HML","003_HML","004_HML"]):
+def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=True,shared_project_list=[],phantom_list=[],suffix=""):
     import xnat
     from pydicom import dcmread
     import fnmatch
@@ -1937,11 +2126,15 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
 
     participantsTSV=os.path.join(outputdir,'participants.tsv')
     sessionsTSV=os.path.join(outputdir,'sessions.tsv')
+    if suffix:
+        participantsTSV = newfile(assocfile=participantsTSV,suffix=suffix)
+        sessionsTSV = newfile(assocfile=sessionsTSV,suffix=suffix)
 
-    participant_columns=['xnat_subject_id','xnat_subject_label','bids_participant_id','project','shared_projects','gender', 'age','scan_date','comments']
+
+    participant_columns=['hml_id','xnat_subject_id','xnat_subject_label','bids_participant_id','project','shared_projects','gender', 'age','scan_date','comments']
     participant_data=[]
 
-    session_columns=['xnat_session_id','xnat_session_label','xnat_subject_id','xnat_subject_label','bids_participant_id','bids_session_id', 'project', 'shared_projects','gender', 'age','scan_date','comments']
+    session_columns=['hml_id','xnat_session_id','xnat_session_label','xnat_subject_id','xnat_subject_label','bids_participant_id','bids_session_id', 'project', 'shared_projects','gender', 'age','scan_date','comments']
     session_data=[]
 
     scantest = os.path.join(outputdir,'scantest.dcm')
@@ -1973,6 +2166,7 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                     comments=""
                     scan_date=""
                     shared_projects=""
+                    hml_id=""
 
 
                     # _MR_ hack - some reason 003_HML MR session not storing modality 
@@ -1981,6 +2175,16 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                         xnat_session_label = experiment.label
                         xnat_subject_id = experiment.subject.id
                         xnat_subject_label = experiment.subject.label
+                        custom_fields = hml_id = connection.subjects[xnat_subject_id].fields
+                        if 'hmlid' in custom_fields.keys():
+                            hml_id = custom_fields['hmlid']
+                        else:
+                            hml_id = xnat_subject_label
+
+                        # completely ignore phantoms
+                        if xnat_subject_label in phantom_list or hml_id in phantom_list:
+                            continue
+
                         try:
                             if (experiment.resources[targetfolder]):
                                 files = experiment.resources[targetfolder].files
@@ -1999,6 +2203,12 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                                             bids_participant_id = file.path.split('/')[0]
                                             bids_session_id = ''
                                             break
+
+                                if not bids_participant_id:
+                                    comments="missing bids files"
+
+                            else:
+                                comments="missing bids files"
 
                             if demographics:
                                 scans = experiment.scans
@@ -2023,11 +2233,11 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
 
                         except Exception as e:
                             message = 'problem parsing resource : %s.' % targetfolder
-                            comments="missing bids files; " + comments
-                            print(message)
+                            comments="missing bids files"
+                            print(message + "; " + comments)
                             print(str(e))
 
-                        session_data.append([xnat_session_id,xnat_session_label,xnat_subject_id,xnat_subject_label,bids_participant_id,bids_session_id, project.id, shared_projects,gender, age,scan_date,comments])
+                        session_data.append([hml_id,xnat_session_id,xnat_session_label,xnat_subject_id,xnat_subject_label,bids_participant_id,bids_session_id, project.id, shared_projects,gender, age,scan_date,comments])
 
             except Exception as e:
                 message = 'problem parsing project :  %s.' % PROJ
@@ -2035,7 +2245,9 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                 print(str(e))
 
         df = pd.DataFrame(session_data, columns=session_columns)
-        df.to_csv(sessionsTSV,sep="\t", index=False)
+        sorted_df = df.sort_values(by = ['hml_id','xnat_session_label'], ascending = [True, True])
+        sorted_df.reset_index(drop=True,inplace=True)
+        sorted_df.to_csv(sessionsTSV,sep="\t", index=False)
 
         first=df.groupby('xnat_subject_id').first()
         subs_list=df['xnat_subject_id'].to_list()
@@ -2043,11 +2255,14 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
         first['xnat_subject_id'] = sorted(subs_set)
         cols=list(first.columns.values)
         cols.pop(cols.index('xnat_subject_id'))
+        cols.pop(cols.index('hml_id'))
         cols.pop(cols.index('xnat_session_id'))
         cols.pop(cols.index('xnat_session_label'))
         cols.pop(cols.index('bids_session_id'))
-        newdf=first[['xnat_subject_id'] + cols]
-        newdf.to_csv(participantsTSV,sep="\t", index=False)
+        newdf=first[['hml_id']+['xnat_subject_id'] + cols]
+        sorted_df = newdf.sort_values(by = ['hml_id'], ascending = [True])
+        sorted_df.reset_index(drop=True,inplace=True)
+        sorted_df.to_csv(participantsTSV,sep="\t", index=False)
 
         if os.path.exists(scantest):
             os.remove(scantest)
@@ -2457,3 +2672,41 @@ def demean_image(panpipe_labels, outim, maskim, tmpnm, percentile=50):
         " "+params
     evaluated_command=substitute_labels(command, panpipe_labels)
     results = runCommand(evaluated_command,UTLOGGER)
+
+def get_datetimestring_utc(datetime_string_from=None,strptime_format_from="",strftime_format_to="%Y-%m-%dT%H:%M:%S.%f%Z" ,timezone_from="MST",timezone_to="UTC"):
+    import pytz
+
+    datetimestring_to_utc = ""
+    try:
+        if not datetime_string_from:
+            datetime_from = datetime.datetime.now()
+        elif isinstance(datetime_string_from,datetime.datetime):
+            datetime_from = datetime_string_from
+        else:
+            datetime_from = datetime.datetime.strptime(datetime_string_from,strptime_format_from)
+        datetime_from_mtc = pytz.timezone(timezone_from).localize(datetime_from)
+        datetimestring_to_utc = datetime.datetime.strftime(datetime_from_mtc.astimezone(pytz.timezone(timezone_to)),strftime_format_to)
+    except Exception as e:
+        datetimestring_to_utc=datetime_string_from
+
+    return datetimestring_to_utc
+
+
+def create_metadata(file, date_created, metadata={}):
+    file_json = os.path.splitext(file)[0] + ".json"
+    metadata = updateParams(metadata,"MetadataFile",f"{file_json}")
+    metadata = updateParams(metadata,"FileCreated",f"{file}")
+    if not date_created:
+        date_created = get_datetimestring_utc()
+    metadata = updateParams(metadata,"DateCreated", date_created)
+
+    export_labels(metadata,file_json)
+    return file_json
+
+def get_ip():
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    ipaddr = s.getsockname()[0]
+    s.close()
+    return ipaddr
