@@ -8,7 +8,6 @@ import os
 import logging
 import sys
 import multiprocessing as mp
-from functools import partial
 from panpipelines.version import __version__
 from panpipelines.single_subject import runSingleSubject
 from panpipelines.group_subjects import runGroupSubjects
@@ -34,6 +33,7 @@ def parse_params():
     parser.add_argument("--projects", nargs="+")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
     parser.add_argument("--incremental", default="False")
+    parser.add_argument("--info_delta", default="False", help="what are the subjects that are left to process")
     parser.add_argument("--all_group", default="True")
     parser.add_argument("--force_bids_download",default="False")
     parser.add_argument("--participant_exclusions", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
@@ -111,6 +111,7 @@ def main():
     label_value=panpipeconfig_file
     panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
 
+    xnat_host = getParams(panpipe_labels,"XNAT_HOST")
     credentials = os.path.abspath(getParams(panpipe_labels,"CREDENTIALS"))
     if credentials is not None and os.path.exists(credentials):
         with open(credentials, 'r') as infile:
@@ -121,6 +122,14 @@ def main():
         cred_user = "dummy_user"
         cred_password = "dummy_password"
 
+    SHARED_PROJECT_LIST = getParams(panpipe_labels,"SHARED_PROJECT_LIST")
+    if not SHARED_PROJECT_LIST:
+        SHARED_PROJECT_LIST=["001_HML","002_HML","003_HML","004_HML"]
+
+    PHANTOM_LIST= getParams(panpipe_labels,"PHANTOM_LIST")
+    if not PHANTOM_LIST:
+        PHANTOM_LIST=[]
+
     participants_file = args.participants_file
     if args.participants_file is not None:
         participants_file=str(args.participants_file)
@@ -130,12 +139,44 @@ def main():
     else:
         participants_file = getParams(panpipe_labels,"PARTICIPANTS_FILE")
 
+    sessions_file = args.sessions_file
+    if args.sessions_file is not None:
+        sessions_file=str(args.sessions_file)
+        label_key="SESSIONS_FILE"
+        label_value=sessions_file
+        panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
+    else:
+        sessions_file = getParams(panpipe_labels,"SESSIONS_FILE")
+
     projects=args.projects
     if not projects:
         projects=["001_HML","002_HML","003_HML","004_HML"]
         LOGGER.info(f"--projects parameter not set. Using defaults {projects} to retrieve subjects and sessions from XNAT.")
     else:
         LOGGER.info(f"Retrieving subjects and sessions from XNAT project {projects}")
+
+    INFO_DELTA = isTrue(args.info_delta)
+    if INFO_DELTA:
+        new_targetdir=pipeline_outdir
+        info_delta_suffix = f"latest-{datelabel}"
+        LOGGER.info(f"Comparing latest participants file on XNAT with current participants file to determine subjects that require downloading.")
+        LOGGER.info(f"Downloading latest participants file to {new_targetdir} with suffix of {info_delta_suffix}")
+        getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",new_targetdir,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST,suffix=info_delta_suffix)
+        new_participants_file = newfile(outputdir= new_targetdir, assocfile=participants_file,suffix=info_delta_suffix )
+        df1 = pd.read_table(new_participants_file,sep="\t")
+        participants_list1 = df1["bids_participant_id"].tolist()
+        df2 = pd.read_table(participants_file,sep="\t")
+        participants_list2 = df2["bids_participant_id"].tolist()
+        participant_incremental = [ drop_sub(x) for x in list(set(participants_list1).difference(set(participants_list2)))]
+        LOGGER.info(f"Incremental participants found {participant_incremental}")
+        mask = df1["hml_id"].isin(participant_incremental)
+        incremental_df = df1[mask]
+        incremental_csv = newfile(outputdir= new_targetdir, assocfile=participants_file,suffix=info_delta_suffix + "-" + delta)
+        LOGGER.info(f"Saving delta participant information to {incremental_csv}.")
+        incremental_df.to_csv(incremental_csv,sep="\t",header=True, index=False)
+        LOGGER.info(f"Quitting.")
+        sys.exit(0)
+
 
     TEMPLATEFLOW_HOME=getParams(panpipe_labels,"TEMPLATEFLOW_HOME")
     if TEMPLATEFLOW_HOME:
@@ -147,9 +188,9 @@ def main():
         panpipe_labels = updateParams(panpipe_labels,"FORCE_BIDS_DOWNLOAD","Y")
         LOGGER.info(f"FORCE_BIDS_DOWNLOAD set to Y")
 
-
     ALL_GROUP = isTrue(args.all_group)
     INCREMENTAL = isTrue(args.incremental)
+
     if INCREMENTAL:
         LOGGER.info("Running panprocessing in incremental mode.")
         if not os.path.exists(participants_file):
@@ -158,33 +199,21 @@ def main():
         else:
             old_participants_file=newfile(assocfile=participants_file,suffix=datelabel)
             shutil.move(participants_file,old_participants_file)
+            old_sessions_file=newfile(assocfile=sessions_file,suffix=datelabel)
+            shutil.move(sessions_file,old_sessions_file)
+            bids_participant_file=os.path.join(getParams(panpipe_labels,"BIDS_DIR"),"participants.tsv")
+            backup_participant_file= newfile(assocfile=bids_participant_file,suffix=datelabel)
+            shutil.copy(bids_participant_file,backup_participant_file)
 
     # if participants file doesn't exist then lets download it
     if not os.path.exists(participants_file):
         LOGGER.info(f"Participants file not found at {participants_file} - retrieving from XNAT. Please wait.")
-        xnat_host = getParams(panpipe_labels,"XNAT_HOST")
         targetdir = os.path.dirname(participants_file)
         if not os.path.exists(targetdir):
             os.makedirs(targetdir)
 
-        SHARED_PROJECT_LIST = getParams(panpipe_labels,"SHARED_PROJECT_LIST")
-        if not SHARED_PROJECT_LIST:
-            SHARED_PROJECT_LIST=["001_HML","002_HML","003_HML","004_HML"]
-
-        PHANTOM_LIST= getParams(panpipe_labels,"PHANTOM_LIST")
-        if not PHANTOM_LIST:
-            PHANTOM_LIST=[]
-
         getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",targetdir,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST)
 
-    sessions_file = args.sessions_file
-    if args.sessions_file is not None:
-        sessions_file=str(args.sessions_file)
-        label_key="SESSIONS_FILE"
-        label_value=sessions_file
-        panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
-    else:
-        sessions_file = getParams(panpipe_labels,"SESSIONS_FILE")
 
     pipelines=args.pipelines
     if args.pipelines is not None:
