@@ -36,7 +36,11 @@ dependencies = [
   "pybids==0.16.4",
   "scipy==1.11.4",
   "sdcflows==2.8.0",
-  "mne[hdf]==1.1.0"
+  "mne[hdf]==1.1.0",
+  "beautifulsoup4==4.12.3",
+  "dominate=2.9.1",
+  "pysftp==0.2.9"
+
 ]
 
 [project.urls]

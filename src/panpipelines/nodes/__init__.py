@@ -15,10 +15,12 @@ __all__ = [
     "fslanat",
     "aslprep",
     "fmriprep",
-    "dummy_node",
+    "dummy",
     "atlascreate",
     "lst",
     "preproc",
     "mriqc",
-    "pancontainergroup"
+    "pancontainergroup",
+    "upload",
+    "reports"
 ]

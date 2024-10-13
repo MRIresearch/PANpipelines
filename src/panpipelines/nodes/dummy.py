@@ -14,9 +14,10 @@ def dummy_proc(labels_dict):
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
     dummy_file = os.path.join(cwd,f'sub-{participant_label}_ses-{participant_session}_log.txt')
+    
     with open(dummy_file,"w") as outfile:
-    	outfile.write(f"sub-{participant_label}_ses-{participant_session} finished")
-
+        outfile.write(f"sub-{participant_label}_ses-{participant_session} finished")
+        
     out_files=[]
     out_files.append(dummy_file)
 

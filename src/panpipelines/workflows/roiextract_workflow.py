@@ -193,6 +193,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
         pan_workflow.connect( roimean_map_node,"roi_csv",sinker,f"{sinker_folder}")
         pan_workflow.connect( roimean_map_node,"roi_csv_metadata",sinker,f"{sinker_folder}.@metadata")
         pan_workflow.connect( roimean_map_node,"mask_file",sinker,f"{sinker_folder}.@maskfile")
+        pan_workflow.connect( roimean_map_node,"html_file",sinker,f"{sinker_folder}.@htmlfile")
 
     if createGraph:
          pan_workflow.write_graph(graph2use='flat')

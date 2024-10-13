@@ -6,5 +6,6 @@ __all__ = [
     "sdcflows_fieldmap",
     "mne_make_surfaces",
     "paninfo_bidsqc",
-    "additional_transforms"
+    "additional_transforms",
+    "ftp_upload_pan"
 ]

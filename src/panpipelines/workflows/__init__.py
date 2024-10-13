@@ -15,5 +15,7 @@ __all__ = [
     "lst_workflow",
     "preproc_workflow",
     "mriqc_workflow",
-    "pancontainergroup_workflow"
+    "pancontainergroup_workflow",
+    "upload_workflow",
+    "reports_workflow"
 ]

@@ -16,5 +16,7 @@ __all__ = [
     "lst_panpipeline",
     "preproc_panpipeline",
     "mriqc_panpipeline",
-    "pancontainergroup_panpipeline"
+    "pancontainergroup_panpipeline",
+    "upload_panpipeline",
+    "reports_panpipeline"
 ]
