@@ -559,7 +559,7 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
             UTLOGGER.info(f"BIDS folder for {participant_label} will be downloaded")
             if os.path.isdir(bids_session_folder) and FORCEDOWNLOAD:
                 UTLOGGER.info(f"BIDS folder for {participant_label} already exists. Deleting.")
-                shutil.rmtree(bids_sessions_folder)
+                shutil.rmtree(bids_session_folder)
 
             if IN_XNAT:
                 command_base, container = getContainer(labels_dict,nodename="Bids_download",SPECIFIC="XNATDOWNLOAD_CONTAINER")
@@ -1032,35 +1032,35 @@ def create_array(participants, participants_file, projects_list = None, sessions
 
 def mask_excludedrows(df, subject_exclusions,columns):
     for excluded in subject_exclusions:
-        excluded_list = excluded.split("_")
-        mask = None
-        if len(excluded_list) == 1:
-            subject = "sub-" + excluded_list[0]
-            mask=df[columns[0]]== subject
-        elif len(excluded_list) == 2:
-            subject = "sub-" + excluded_list[0]
-            session = excluded_list[1]
-            if not session == "*":
-                session = "ses-" + session
-                mask = (df[columns[0]] == subject) & (df[columns[1]] == session)
-            else:
-                mask=df[columns[0]]== subject
-        elif len(excluded_list) == 3:
-            subject = "sub-" + excluded_list[0]
-            session = excluded_list[1]
-            project = excluded_list[2]
-            if not session == "*" and not project == "*":
-                session = "ses-" + session
-                mask = (df[columns[0]] == subject) & (df[columns[1]] == session) & (df[columns[2]] == project)
-            elif session == "*" and not project == "*":
-                mask = (df[columns[0]] == subject) & (df[columns[2]] == project)
-            elif not session == "*" and project == "*":
-                session = "ses-" + session
-                mask = (df[columns[0]] == subject) & (df[columns[1]] == session)
-            else:
-                mask=df[columns[0]]== subject
+        try:
+            excluded_list = excluded.split("_")
+            mask = None
+            if len(excluded_list) == 1:
+                subject = excluded_list[0]
+                mask=df[columns[0]].apply(lambda x:drop_sub(x)) == subject
+            elif len(excluded_list) == 2:
+                subject = excluded_list[0]
+                session = excluded_list[1]
+                if not session == "*":
+                    mask = (df[columns[0]].apply(lambda x:drop_sub(x)) == subject) & (df[columns[1]].apply(lambda x:drop_ses(x)) == session)
+                else:
+                    mask=df[columns[0]]== subject
+            elif len(excluded_list) == 3:
+                subject = excluded_list[0]
+                session = excluded_list[1]
+                project = excluded_list[2]
+                if not session == "*" and not project == "*":
+                    mask = (df[columns[0]].apply(lambda x:drop_sub(x)) == subject) & (df[columns[1]].apply(lambda x:drop_ses(x)) == session) & (df[columns[2]] == project)
+                elif session == "*" and not project == "*":
+                    mask = (df[columns[0]].apply(lambda x:drop_sub(x)) == subject) & (df[columns[2]] == project)
+                elif not session == "*" and project == "*":
+                    mask = (df[columns[0]].apply(lambda x:drop_sub(x)) == subject) & (df[columns[1]].apply(lambda x:drop_ses(x)) == session)
+                else:
+                    mask=df[columns[0]].apply(lambda x:drop_sub(x)) == subject
 
-        df = df[~mask]
+            df = df[~mask]
+        except Exception  as e:
+            UTLOGGER.info(f"Issues excluding subjects using {columns}. The right columns may need to be specified explicitly using COLLATE_NAME_LEFT or COLLATE_NAME_RIGHT")
 
     return df
 
@@ -2116,19 +2116,19 @@ def getSharedProjects(connection, subjectLabel,origProjectID,sharedProjectIDs):
     return sharedProjectString
 
 
-def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=True,shared_project_list=[],phantom_list=[],suffix=""):
+def getBidsTSV(host,user,password,projects,targetfolder,participantsTSV,demographics=True,shared_project_list=[],phantom_list=[],sessionsTSV=None):
     import xnat
     from pydicom import dcmread
     import fnmatch
 
+    outputdir = os.path.dirname(participantsTSV)
     if not os.path.isdir(outputdir):
-        os.mkdir(outputdir)
+        os.makedirs(outputdir)
 
-    participantsTSV=os.path.join(outputdir,'participants.tsv')
-    sessionsTSV=os.path.join(outputdir,'sessions.tsv')
-    if suffix:
-        participantsTSV = newfile(assocfile=participantsTSV,suffix=suffix)
-        sessionsTSV = newfile(assocfile=sessionsTSV,suffix=suffix)
+    if not sessionsTSV:
+        sessionsTSV=newfile(assocfile=participantsTSV,suffix="sessions")
+    elif not os.path.isdir(os.path.dirname(sessionsTSV)):
+        os.makedirs(os.path.dirname(sessionsTSV))
 
 
     participant_columns=['hml_id','xnat_subject_id','xnat_subject_label','bids_participant_id','project','shared_projects','gender', 'age','scan_date','comments']
@@ -2210,6 +2210,8 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                             else:
                                 comments="missing bids files"
 
+                            scan_date = get_datetimestring_utc(datetime.datetime(experiment.date.year,experiment.date.month,experiment.date.day))
+
                             if demographics:
                                 scans = experiment.scans
                                 for scan_index in range(len(scans)):
@@ -2245,7 +2247,7 @@ def getBidsTSV(host,user,password,projects,targetfolder,outputdir,demographics=T
                 print(str(e))
 
         df = pd.DataFrame(session_data, columns=session_columns)
-        sorted_df = df.sort_values(by = ['hml_id','xnat_session_label'], ascending = [True, True])
+        sorted_df = df.sort_values(by = ['scan_date','hml_id','xnat_session_label'], ascending = [True,True, True])
         sorted_df.reset_index(drop=True,inplace=True)
         sorted_df.to_csv(sessionsTSV,sep="\t", index=False)
 
@@ -2692,13 +2694,18 @@ def get_datetimestring_utc(datetime_string_from=None,strptime_format_from="",str
     return datetimestring_to_utc
 
 
-def create_metadata(file, date_created, metadata={}):
-    file_json = os.path.splitext(file)[0] + ".json"
+def create_metadata(file, date_created, metadata={},override_path=''):
+    if not override_path:
+        file_json = os.path.splitext(file)[0] + ".json"
+    else:
+        file_json = override_path
+
     metadata = updateParams(metadata,"MetadataFile",f"{file_json}")
     metadata = updateParams(metadata,"FileCreated",f"{file}")
     if not date_created:
         date_created = get_datetimestring_utc()
-    metadata = updateParams(metadata,"DateCreated", date_created)
+    if "DateCreated" not in metadata.keys():
+        metadata = updateParams(metadata,"DateCreated", date_created)
 
     export_labels(metadata,file_json)
     return file_json
