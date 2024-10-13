@@ -70,12 +70,33 @@ def pancontainergroup_proc(labels_dict):
     else: 
         panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,interactive=script_interactive,command=f"{main_command} {script_file}")
     panscript.run()
+
+    with open(pipeline_config_loc,"r") as infile:
+        pipeline_config_json = json.load(infile)
+
+    if pipeline_config_json and "METADATA_FILE" in pipeline_config_json.keys():
+        metadata_file = pipeline_config_json["METADATA_FILE"]
+    else:
+        metadata_file = os.path.join(cwd,f'{script_file}_metadata.json')
+        with open(metadata_file,"w") as outfile:
+            outfile.write(f"No metadata file created by script")
+
+    if pipeline_config_json and "OUTPUT_FILE" in pipeline_config_json.keys():
+        output_file = pipeline_config_json["OUTPUT_FILE"]
+    else:
+        output_file = os.path.join(cwd,f'{script_file}_output.json')
+        with open(output_file,"w") as outfile:
+            outfile.write(f"No output file created by script")
     
     out_files=[]
-    out_files.insert(0,script_file)
-    out_files.insert(1,pipeline_config_loc)
+    out_files.insert(0,output_file)
+    out_files.insert(1,metadata_file)
+    out_files.insert(2,script_file)
+    out_files.insert(3,pipeline_config_loc)
 
     return {
+        "output_file" : output_file,
+        "metadata_file" : metadata_file,
         "out_files":out_files
     }
 
@@ -84,6 +105,8 @@ class pancontainergroupInputSpec(BaseInterfaceInputSpec):
     labels_dict = traits.Dict({},mandatory=False,desc='labels', usedefault=True)
 
 class pancontainergroupOutputSpec(TraitedSpec):
+    output_file = File(desc='output file for upload')
+    metadata_file = File(desc='metadata file for upload')
     out_files = traits.List(desc='list of files')
     
 class pancontainergroup_pan(BaseInterface):
