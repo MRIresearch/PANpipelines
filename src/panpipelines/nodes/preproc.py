@@ -172,7 +172,7 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
 
     artefact_subdirname="asl_artefact"
     if getParams(labels_dict,'CHEMSHIFT_DIRNAME'):
-        artefact_subdirname = getParams(labels_dict,'CHEMSHIFT_DIRNAME')
+        artefact_subdirname = substitute_labels(getParams(labels_dict,'CHEMSHIFT_DIRNAME'),labels_dict)
 
     if not artefact_outputdir:
         artefact_outputdir = os.path.join(output_dir,artefact_subdirname, subject,session)
