@@ -148,6 +148,14 @@ def main():
     else:
         sessions_file = getParams(panpipe_labels,"SESSIONS_FILE")
 
+    if not participants_file:
+        participants_file = os.path.join(pipeline_outdir,"xnat_participants_list.tsv")
+        panpipe_labels = updateParams(panpipe_labels, "PARTICIPANTS_FILE",participants_file)
+
+    if not sessions_file:
+        sessions_file = os.path.join(pipeline_outdir,"xnat_participants_list.tsv")
+        panpipe_labels = updateParams(panpipe_labels, "SESSIONS_FILE",sessions_file)
+
     projects=args.projects
     if not projects:
         projects=["001_HML","002_HML","003_HML","004_HML"]
@@ -156,13 +164,37 @@ def main():
         LOGGER.info(f"Retrieving subjects and sessions from XNAT project {projects}")
 
     INFO_DELTA = isTrue(args.info_delta)
-    if INFO_DELTA:
-        new_targetdir=pipeline_outdir
+    ALL_GROUP = isTrue(args.all_group)
+    if not ALL_GROUP:
+        panpipe_labels = updateParams(panpipe_labels,"ALL_GROUP","N")
+    else:
+        panpipe_labels = updateParams(panpipe_labels,"ALL_GROUP","Y")       
+    INCREMENTAL = isTrue(args.incremental)
+
+    bids_incremental_dir = getParams(panpipe_labels,"BIDS_INCREMENTAL_DIR")
+    if not bids_incremental_dir:
+        sinkdir = substitute_labels(getParams(panpipe_labels,"SINKDIR_GROUP"),panpipe_labels)
+        if not sinkdir:
+            derivatives_dir = substitute_labels(getParams(panpipe_labels,"DERIVATIVES_DIR"),panpipe_labels)
+            if not derivatives_dir:
+                bids_incremental_dir = os.path.join(pipeline_outdir,"derivatives","output_tables","bids_incremental") 
+            else:
+                bids_incremental_dir = os.path.join(pipeline_outdir,"output_tables","bids_incremental") 
+        else:
+            bids_incremental_dir = os.path.join(os.path.dirname(sinkdir),"bids_incremental")
+    
+    if not os.path.exists(bids_incremental_dir):
+        os.makedirs(bids_incremental_dir)
+
+    if INFO_DELTA and not INCREMENTAL:
+        new_targetdir=bids_incremental_dir
         info_delta_suffix = f"latest-{datelabel}"
+        new_participants_file = newfile(outputdir=new_targetdir, assocfile=participants_file,suffix=info_delta_suffix )
+
         LOGGER.info(f"Comparing latest participants file on XNAT with current participants file to determine subjects that require downloading.")
         LOGGER.info(f"Downloading latest participants file to {new_targetdir} with suffix of {info_delta_suffix}")
-        getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",new_targetdir,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST,suffix=info_delta_suffix)
-        new_participants_file = newfile(outputdir= new_targetdir, assocfile=participants_file,suffix=info_delta_suffix )
+        getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",new_participants_file,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST)
+        
         df1 = pd.read_table(new_participants_file,sep="\t")
         participants_list1 = df1["bids_participant_id"].tolist()
         df2 = pd.read_table(participants_file,sep="\t")
@@ -171,9 +203,10 @@ def main():
         LOGGER.info(f"Incremental participants found {participant_incremental}")
         mask = df1["hml_id"].isin(participant_incremental)
         incremental_df = df1[mask]
-        incremental_csv = newfile(outputdir= new_targetdir, assocfile=participants_file,suffix=info_delta_suffix + "-" + delta)
-        LOGGER.info(f"Saving delta participant information to {incremental_csv}.")
-        incremental_df.to_csv(incremental_csv,sep="\t",header=True, index=False)
+        incremental_tsv = newfile(assocfile=new_participants_file,suffix="delta")
+        LOGGER.info(f"Saving delta participant information to {incremental_tsv}.")
+        incremental_df.to_csv(incremental_tsv,sep="\t",header=True, index=False)
+        panpipe_labels = updateParams(panpipe_labels,"INCREMENTAL_PARTICIPANTS_FILE",incremental_tsv)
         LOGGER.info(f"Quitting.")
         sys.exit(0)
 
@@ -188,8 +221,6 @@ def main():
         panpipe_labels = updateParams(panpipe_labels,"FORCE_BIDS_DOWNLOAD","Y")
         LOGGER.info(f"FORCE_BIDS_DOWNLOAD set to Y")
 
-    ALL_GROUP = isTrue(args.all_group)
-    INCREMENTAL = isTrue(args.incremental)
 
     if INCREMENTAL:
         LOGGER.info("Running panprocessing in incremental mode.")
@@ -206,13 +237,20 @@ def main():
             shutil.copy(bids_participant_file,backup_participant_file)
 
     # if participants file doesn't exist then lets download it
-    if not os.path.exists(participants_file):
-        LOGGER.info(f"Participants file not found at {participants_file} - retrieving from XNAT. Please wait.")
-        targetdir = os.path.dirname(participants_file)
-        if not os.path.exists(targetdir):
-            os.makedirs(targetdir)
+    if not os.path.exists(participants_file) or not os.path.exists(sessions_file):
+        if not os.path.exists(participants_file):
+            LOGGER.info(f"Participants file not found at {participants_file} - retrieving from XNAT. Please wait.")
+            targetdir = os.path.dirname(participants_file)
+            if not os.path.exists(targetdir):
+                os.makedirs(targetdir)
 
-        getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",targetdir,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST)
+        if not os.path.exists(sessions_file):
+            LOGGER.info(f"Sessions file not found at {sessions_file} - retrieving from XNAT. Please wait.")
+            targetdir = os.path.dirname(sessions_file)
+            if not os.path.exists(targetdir):
+                os.makedirs(targetdir)
+
+        getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",participants_file,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST,sessionsTSV=sessions_file)
 
 
     pipelines=args.pipelines
@@ -272,9 +310,6 @@ def main():
             session_label="ALL_SESSIONS"
             panpipe_labels = updateParams(panpipe_labels, "SESSION_LABEL",session_label)
 
-
-    LOGGER.info(f"Pipelines to be processed : {pipelines}")
-
     if INCREMENTAL:
         LOGGER.info("Running in incremental mode. Identifying participants to run")
         df1 = pd.read_table(participants_file,sep="\t")
@@ -283,11 +318,35 @@ def main():
         participants_list2 = df2["bids_participant_id"].tolist()
         participant_incremental = [ drop_sub(x) for x in list(set(participants_list1).difference(set(participants_list2)))]
         LOGGER.info(f"Incremental participants found {participant_incremental}")
+
+        new_targetdir=bids_incremental_dir
+        info_delta_suffix = f"latest-{datelabel}"
+        mask = df1["hml_id"].isin(participant_incremental)
+        incremental_df = df1[mask]
+        incremental_tsv = newfile(outputdir= new_targetdir, assocfile=participants_file,suffix=info_delta_suffix + "-" + "delta")
+        LOGGER.info(f"Saving delta participant information to {incremental_tsv}.")
+        incremental_df.to_csv(incremental_tsv,sep="\t",header=True, index=False)
+        panpipe_labels = updateParams(panpipe_labels,"INCREMENTAL_PARTICIPANTS_FILE",incremental_tsv)
+
         participant_label.extend(participant_incremental)
         LOGGER.info(f"Participants to process {participant_label}")
 
     # take snapshot of the runtime labels for all pipelines
     runtime_labels = panpipe_labels.copy()
+
+    if INCREMENTAL:
+        if not pipelines:
+            LOGGER.info(f"Running in incremental mode but no pipelines selected. Will run the dummy_panpipeline and ftp_upload_pan script")
+            pipelines.add("dummy")
+            pipelines.add("ftp_upload_bids")
+    else:
+        LOGGER.info(f"Not running in incremental mode - to avoid human error will drop ftp_upload_bids pipelines for now!")
+        pipelines = [x for x in pipelines if "ftp_upload_bids" not in x]
+
+        if "dummy" in pipelines:        
+            pipelines.remove("dummy")
+            
+    LOGGER.info(f"Pipelines to be processed : {pipelines}")
 
     for pipeline in pipelines:
 
@@ -313,10 +372,11 @@ def main():
         session_list_all = projectmap_all[2]
         shared_project_list_all = projectmap_all[3]
 
-
         LOGGER.info(f"Processing pipeline : {pipeline}")
         panpipe_labels = updateParams(panpipe_labels, "PIPELINE", pipeline)
         panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels,pipeline)
+
+        ALL_GROUP = isTrue(getParams(panpipe_labels,"ALL_GROUP"))
 
         analysis_level = getParams(panpipe_labels,"ANALYSIS_LEVEL")
         if analysis_level == "group":
@@ -358,7 +418,7 @@ def main():
 
             if analysis_level == "group":
                 updateParams(panpipe_labels, "SLURM_TEMPLATE", getParams(panpipe_labels,"SLURM_GROUP_TEMPLATE"))
-                if participant_label and not ALL_GROUP:
+                if participant_list and not ALL_GROUP:
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_LABEL",participant_list)
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_PROJECT",project_list)
                     updateParams(panpipe_labels,"GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT",shared_project_list)
