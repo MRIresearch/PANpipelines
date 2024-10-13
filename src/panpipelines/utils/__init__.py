@@ -1,4 +1,6 @@
 __all__ = [
     "util_functions",
-    "transformer"
+    "transformer",
+    "report_functions",
+    "upload_functions"
 ]
