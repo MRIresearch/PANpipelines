@@ -38,9 +38,14 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
     elif measures_list2:
         measures_list2.extend([substitute_labels(meas_template,labels_dict, EXCEPTIONS)])
 
+    sinker_dir = getParams(labels_dict,"SINKDIR_GROUP")
+    if sinker_dir:
+        last_output_files = glob.glob(os.path.join(sinker_dir,"*"))
+        if last_output_files:
+            labels_dict = updateParams(labels_dict,"LAST_OUTPUT_FILES",last_output_files)
+
     collate_csv_groupnode = collate_csv_group.create(labels_dict, csv_list1=measures_list1, csv_list2=measures_list2, LOGGER=LOGGER)
 
-    sinker_dir = getParams(labels_dict,"SINKDIR_GROUP")
     if sinker_dir:
         sinker = Node(DataSink(),name='collatecsvgroup_sink')
         sinker_basedir = os.path.dirname(sinker_dir)

@@ -7,6 +7,7 @@ from functools import partial
 import getpass
 import xnat
 from pydicom import dcmread
+from  pydicom.multival import MultiValue as MultiValue
 import datetime
 import os
 from collections import OrderedDict
@@ -31,7 +32,8 @@ PAN_SCANTYPES = {
     "T2SPACE" : ["Sagittal 3D T2 SPACE","3D_Brain_VIEW_T2"]
 }
 
-PAN_OPTIONAL = ["T2HIPPO","T2SPACE","PASL_LEGACY"]
+PAN_OPTIONAL = ["T2HIPPO"]
+PAN_LEGACY = ["T2SPACE","PASL_LEGACY"]
 PASL_OPTIONAL = ["PCASL","PCASL_M0"]
 PCASL_OPTIONAL = ["PASL","PASL_M0"]
 
@@ -102,6 +104,7 @@ CANDO_RSFMRI_SDC = "cando_rsfmri_sdc"
 CANDO_RSFMRI_SDC_DWI = "cando_rsfmri_sdc_dwi"
 MRI_SCAN_ORDER = "mri_scan_order"
 MRI_MISSING_SCANS = "mri_missing_scans"
+MRI_MISSING_OPTIONAL_SCANS = "mri_missing_optional_scans"
 MRI_PROBLEM_SCANS = "mri_problem_scans"
 BIDS_AVAIL = "bids_avail"
 BIDSQC_STATUS = "bidsqc_status"
@@ -117,6 +120,14 @@ CANDO_ASL = "cando_asl"
 CANDO_ASL_SDC = "cando_asl_sdc"
 CANDO_ASL_SDC_FMRI= "cando_asl_sdc_fmri"
 CANDO_ASL_SDC_DWI= "cando_asl_sdc_dwi"
+
+MANUFACTURER = "manufacturer"
+STATION_NAME="station_name"
+DEVICE_SERIAL_NUMBER="device_serial_number"
+SOFTWARE_VERSION="software_versions"
+MANUFACTURER_MODEL_NAME="manufacturer_model_name"
+IMPLEMENTATION_VERSION_NAME="implementation_version_Name"
+
 CREATION_DATE="row_creation_datetime"
 
 
@@ -158,6 +169,7 @@ table_header.append(CANDO_RSFMRI_SDC)
 table_header.append(CANDO_RSFMRI_SDC_DWI)
 table_header.append(MRI_SCAN_ORDER)
 table_header.append(MRI_MISSING_SCANS)
+table_header.append(MRI_MISSING_OPTIONAL_SCANS)
 table_header.append(MRI_PROBLEM_SCANS)
 table_header.append(BIDSQC_STATUS)
 table_header.append(BIDSQC_FAIL)
@@ -167,6 +179,12 @@ table_header.append(QSIPREP_AVAIL)
 table_header.append(EDDYQC_AVAIL)
 table_header.append(ASLPREP_AVAIL)
 table_header.append(FMRIPREP_AVAIL)
+table_header.append(MANUFACTURER)
+table_header.append(STATION_NAME)
+table_header.append(DEVICE_SERIAL_NUMBER)
+table_header.append(SOFTWARE_VERSION)
+table_header.append(MANUFACTURER_MODEL_NAME)
+table_header.append(IMPLEMENTATION_VERSION_NAME)
 table_header.append(CREATION_DATE)
 
 if INCLUDE_QC:
@@ -291,11 +309,20 @@ def parse_params():
 def getMissingScans(sequence,project=None):
     if project:
         if project == "004_HML":
-            return list(set(list(PAN_SCANTYPES.keys())).difference(sequence).difference(PAN_OPTIONAL).difference(PCASL_OPTIONAL))
+            return list(set(list(PAN_SCANTYPES.keys())).difference(sequence).difference(PAN_OPTIONAL).difference(PCASL_OPTIONAL).difference(PAN_LEGACY))
         else:
-            return list(set(list(PAN_SCANTYPES.keys())).difference(sequence).difference(PAN_OPTIONAL).difference(PASL_OPTIONAL))
+            return list(set(list(PAN_SCANTYPES.keys())).difference(sequence).difference(PAN_OPTIONAL).difference(PASL_OPTIONAL).difference(PAN_LEGACY))
     else: 
-        return list(set(list(PAN_SCANTYPES.keys())).difference(sequence).difference(PAN_OPTIONAL))
+        return list(set(list(PAN_SCANTYPES.keys())).difference(sequence).difference(PAN_OPTIONAL).difference(PAN_LEGACY))
+
+def getMissingOptionalScans(sequence,project=None):
+    if project:
+        if project == "004_HML":
+            return list(set(list(PAN_SCANTYPES.keys())).difference(sequence).difference(PCASL_OPTIONAL).difference(PAN_LEGACY).intersection(PAN_OPTIONAL))
+        else:
+            return list(set(list(PAN_SCANTYPES.keys())).difference(sequence).difference(PASL_OPTIONAL).difference(PAN_LEGACY).intersection(PAN_OPTIONAL))
+    else: 
+        return list(set(list(PAN_SCANTYPES.keys())).difference(sequence).difference(PAN_LEGACY).intersection(PAN_OPTIONAL))
 
 def findPANScanType(scantype):
     for pan_type, pan_val in PAN_SCANTYPES.items():
@@ -575,6 +602,13 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
                     experiment_t = 'None'
                     loadParams(table_row,SESSION_LABEL,experiment_t)
 
+                    Manufacturer_t=""
+                    StationName_t = ""
+                    DeviceSerialNumber_t = ""
+                    SoftwareVersions_t=""
+                    ManufacturerModelName_t=""
+                    ImplementationversionName_t=""
+
                     experiments = subject.experiments
 
                     if len(experiments) < 1:
@@ -606,27 +640,55 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
                             missing_scans = getMissingScans(scan_sequence,orig_project)
                             loadParams(session_table_row,MRI_MISSING_SCANS,"|".join(missing_scans))
 
+                            missing_optional_scans = getMissingOptionalScans(scan_sequence,orig_project)
+                            loadParams(session_table_row,MRI_MISSING_OPTIONAL_SCANS,"|".join(missing_optional_scans))
+
 
                             for scan_index in range(len(scans)):
                                 if "DICOM" in experiment.scans[scan_index].resources.keys():
-                                    experiment.scans[scan_index].resources['DICOM'].files[0].download(scantest)
-                                    ds = dcmread(scantest)
-                                    if not gender_t:
-                                        gender_t = ds.PatientSex
-                                        loadParams(session_table_row,GENDER,gender_t)
+                                    try:
+                                        experiment.scans[scan_index].resources['DICOM'].files[0].download(scantest)
+                                        ds = dcmread(scantest)
+                                        if not gender_t:
+                                            gender_t = ds.PatientSex
+                                            loadParams(session_table_row,GENDER,gender_t)
 
-                                    if not yob_t:
-                                        if ds.PatientBirthDate:
-                                            agedate=datetime.datetime.strptime(ds.PatientBirthDate,"%Y%m%d")
-                                            yob_t = datetime.datetime.strftime(agedate,"%Y")
-                                            loadParams(session_table_row,YOB,yob_t)
+                                        if not yob_t:
+                                            if ds.PatientBirthDate:
+                                                agedate=datetime.datetime.strptime(ds.PatientBirthDate,"%Y%m%d")
+                                                yob_t = datetime.datetime.strftime(agedate,"%Y")
+                                                loadParams(session_table_row,YOB,yob_t)
 
-                                    if not scandate_t:
-                                        dcm_scandate = ds.StudyDate
-                                        scandate = datetime.datetime.strptime(dcm_scandate,"%Y%m%d")
-                                        scandate_t = datetime.datetime.strftime(scandate,"%Y%m%d")
-                                        loadParams(session_table_row,SESSION_SCANDATE,scandate_t)
-                                    break
+                                        if not scandate_t:
+                                            dcm_scandate = ds.StudyDate
+                                            scandate = datetime.datetime.strptime(dcm_scandate,"%Y%m%d")
+                                            scandate_t = datetime.datetime.strftime(scandate,"%Y%m%d")
+                                            loadParams(session_table_row,SESSION_SCANDATE,scandate_t)
+
+                                        if not Manufacturer_t:
+                                            Manufacturer_t=ds.Manufacturer
+                                            loadParams(session_table_row,MANUFACTURER,Manufacturer_t) 
+                                        if not StationName_t:
+                                            StationName_t = ds.StationName
+                                            loadParams(session_table_row,STATION_NAME,StationName_t) 
+                                        if not DeviceSerialNumber_t:
+                                            DeviceSerialNumber_t = ds.DeviceSerialNumber
+                                            loadParams(session_table_row,DEVICE_SERIAL_NUMBER,DeviceSerialNumber_t) 
+                                        if not SoftwareVersions_t:
+                                            SoftwareVersions_t = ds.SoftwareVersions 
+                                            if isinstance(SoftwareVersions_t,MultiValue):
+                                                SoftwareVersions_t = list(SoftwareVersions_t)[0]
+                                            loadParams(session_table_row,SOFTWARE_VERSION,SoftwareVersions_t) 
+                                        if not ManufacturerModelName_t:
+                                            ManufacturerModelName_t = ds.ManufacturerModelName
+                                            loadParams(session_table_row,MANUFACTURER_MODEL_NAME,ManufacturerModelName_t) 
+                                        if not ImplementationversionName_t:
+                                            ImplementationversionName_t = ds.file_meta.ImplementationVersionName
+                                            loadParams(session_table_row,IMPLEMENTATION_VERSION_NAME,ImplementationversionName_t) 
+                                        break
+
+                                    except e as Exception:
+                                        pass
 
 
                             notes_t = experiment.note
@@ -905,7 +967,12 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
             subject_reduced_csvout = os.path.splitext(csvout)[0] + "_reduced_subjectproc.csv"
             consolidated_df.to_csv(subject_reduced_csvout,index=False)
 
-            pan_mri_info_csvout = os.path.join(os.path.dirname(csvout),"pan_mri_info.csv")
+            bidsqc_table_name = "xnat_mri_sessions.csv"
+            if labels_dict and "BIDSQC_TABLENAME" in labels_dict.keys():
+                bidsqc_table_name = getParams(labels_dict,"BIDSQC_TABLENAME")
+
+
+            pan_mri_info_csvout = os.path.join(os.path.dirname(csvout),bidsqc_table_name)
             search_df = consolidated_df[(consolidated_df[SESSION_MODALITY]=="MR")]
 
             for header in search_df.columns:
@@ -922,14 +989,10 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
             sorted_df.to_csv(pan_mri_info_csvout,sep=",", index=False)
             pan_mri_info_csvout_metadata = create_metadata(pan_mri_info_csvout,None, metadata = {"Script":"paninfo_bidsqc.py","Description":"Information about missing scans and scan issues"})
 
-            if labels_dict and "SINKDIR_GROUP" in labels_dict.keys():
-                sinkdir_groupdir = getParams(labels_dict,"SINKDIR_GROUP")
-                if not os.path.exists(sinkdir_groupdir):
-                    os.makedirs(sinkdir_groupdir)
-                pan_mri_info_csvout_sink = os.path.join(sinkdir_groupdir,os.path.basename(pan_mri_info_csvout))    
-                shutil.copy(pan_mri_info_csvout,pan_mri_info_csvout_sink)
-                pan_mri_info_csvout_metadata_sink = os.path.join(sinkdir_groupdir,os.path.basename(pan_mri_info_csvout_metadata))    
-                shutil.copy(pan_mri_info_csvout_metadata,pan_mri_info_csvout_metadata_sink)
+            if labels_dict:
+                labels_dict["METADATA_FILE"]=pan_mri_info_csvout_metadata 
+                labels_dict["OUTPUT_FILE"]=pan_mri_info_csvout
+                export_labels(labels_dict,pipeline_config_file)
 
 
     except Exception as e:

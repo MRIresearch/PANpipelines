@@ -15,6 +15,7 @@ from nipype import logging as nlogging
 from nilearn.maskers import NiftiLabelsMasker
 from nilearn.maskers import NiftiMapsMasker
 from nilearn import image
+from panpipelines.utils.report_functions import createRoiExtractReport
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
@@ -341,15 +342,27 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
     roi_csv_json = create_metadata(roi_csv, created_datetime, metadata = metadata)
 
 
+    html_file_dir = os.path.join(os.path.basename(roi_output_dir),"html_report")
+    html_file = newfile(outputdir=html_file_dir, assocfile = roi_csv, suffix="htmlreport",extension="html")
+    html_file = createRoiExtractReport(labels_dict,html_file, metadata)
+
     out_files=[]
     out_files.insert(0,roi_csv)
     out_files.insert(1,roi_csv_json)
     out_files.insert(2,mask_inverse_file)
+    out_files.insert(3,html_file)
+    out_files.insert(4,input_file)
+    out_files.insert(5,atlas_file)
+    out_files.insert(6,atlas_index)
 
     return {
         "roi_csv":roi_csv,
         "roi_csv_metadata":roi_csv_json,
         "mask_file" : mask_inverse_file,
+        "html_file" : html_file,
+        "measure_file" : input_file,
+        "atlas_file" : atlas_file,
+        "atlas_index" : atlas_index,
         "roi_output_dir":roi_output_dir,
         "output_dir":output_dir,
         "out_files":out_files
@@ -367,6 +380,10 @@ class roi_extractOutputSpec(TraitedSpec):
     roi_csv = File(desc='CSV file of results')
     roi_csv_metadata = File(desc='metadata of CSV file of results')
     mask_file = File(desc='mask file used for results')
+    html_file = File(desc='html file used for results')
+    measure_file = File(desc='measure file containing statistics')
+    atlas_file = File(desc='atlas file used for roi parcellation')
+    atlas_index = File(desc='atlas index used to identify rois')
     roi_output_dir = traits.String(desc='roi output dir')
     output_dir = traits.String(desc='output dir')
     out_files = traits.List(desc='list of files')
