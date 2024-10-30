@@ -170,6 +170,9 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type,custom_prefix, add_
 
 
     if df is not None:
+        #process extra columns
+        df = processExtraColumns(df, labels_dict)
+
         # Add creation date
         created_datetime = get_datetimestring_utc()
         df.insert(len(df.columns),"row_creation_datetime",[created_datetime for x in range(len(df))])

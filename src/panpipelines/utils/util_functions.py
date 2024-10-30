@@ -632,11 +632,19 @@ def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,us
 
                     if not session_label:
                         bidssubject = bidspath.split("/")[-1]
-                        shutil.copytree(bidspath,os.path.join(bids_dir,bidssubject), dirs_exist_ok=True)
+                        target_bidspath = os.path.join(bids_dir,bidssubject)
+                        if os.path.exists(target_bidspath):
+                            shutil.rmtree(target_bidspath)
+
+                        shutil.copytree(bidspath,target_bidspath, dirs_exist_ok=True)
                     else:
                         bidssubject = bidspath.split("/")[-2]
                         bidssession = bidspath.split("/")[-1]
-                        shutil.copytree(bidspath,os.path.join(bids_dir,bidssubject,bidssession), dirs_exist_ok=True)
+                        target_bidspath = os.path.join(bids_dir,bidssubject,bidssession)
+                        if os.path.exists(target_bidspath):
+                            shutil.rmtree(target_bidspath)
+
+                        shutil.copytree(bidspath,target_bidspath,dirs_exist_ok=True)
 
                     if dataset_desc:
                         target_dataset_desc =os.path.join(bids_dir,"dataset_description.json")
@@ -685,6 +693,15 @@ def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,us
                             if os.path.exists(target_participantsTSV):
                                 df1 = pd.read_table(target_participantsTSV,sep="\t")
                                 df2 = pd.read_table(participantsTSV[0],sep="\t")
+
+                                if len(PART_SORT_COLS) == 1:
+                                    mask = (df1[PART_SORT_COLS[0]] == df2.iloc[0][PART_SORT_COLS[0]])
+                                    df1 = df1[~mask]
+                                                        
+                                elif len(PART_SORT_COLS)==2:
+                                    mask = (df1[PART_SORT_COLS[0]] == df2.iloc[0][PART_SORT_COLS[0]]) & (df1[PART_SORT_COLS[1]]==df2.iloc[0][PART_SORT_COLS[1]])
+                                    df1 = df1[~mask]
+
                                 new_df = pd.concat([df1,df2],join="inner").drop_duplicates()
                                 sorted_df = new_df.sort_values(by = PART_SORT_COLS, ascending = [True, True])
                                 sorted_df.reset_index(drop=True,inplace=True)
@@ -2315,6 +2332,26 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     if iteration == total: 
         print()
 
+def get_dependent_pipelines(json_dict,pipelines,ALL_PIPELINES):
+    pipe_list=[]
+    for pipeline in pipelines:
+        pipe_list.append(pipeline)
+        pipe_list = recurse_dependencies(pipeline,json_dict,ALL_PIPELINES,pipe_list)
+    
+    return list(set(pipe_list))
+
+def recurse_dependencies(target_pipeline,json_dict,ALL_PIPELINES,pipe_list):
+    for check_pipe in ALL_PIPELINES:
+        if "DEPENDENCY" in json_dict[check_pipe]:
+            dependency = json_dict[check_pipe]["DEPENDENCY"]
+            if not isinstance(dependency,list):
+                dependency = [dependency]
+            if target_pipeline in dependency:
+                pipe_list.append(check_pipe)
+                pipe_list = recurse_dependencies(check_pipe,json_dict,ALL_PIPELINES,pipe_list)
+    return pipe_list
+
+    
 def arrangePipelines(jsondict,pipelines=[]):
     # build up dictionary of pipelines and dependencies
     pipeline_dict={}
@@ -2717,3 +2754,163 @@ def get_ip():
     ipaddr = s.getsockname()[0]
     s.close()
     return ipaddr
+
+def getVersion(Process,ProcessFile=None,ProcessCommand=None,labels_dict=None):
+
+    ProcessFile = getGlob(substitute_labels(ProcessFile,labels_dict))
+    proc_dict={}
+    if Process == "freesurfer":
+        if ProcessFile and os.path.exists(ProcessFile):
+            VERTOKEN="VERSION"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            versionstring = [x for x in lines if VERTOKEN in x]
+            if versionstring:
+                if len(versionstring[-1].split(VERTOKEN)) > 1:
+                    VER =  versionstring[-1].split(VERTOKEN)[1].replace("\n",'').strip()
+                    proc_dict[f"{Process}_version"]=VER
+
+            DATETOKEN="END_TIME"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            datestring = [x for x in lines if DATETOKEN in x]
+            if datestring:
+                if len(datestring[-1].split(DATETOKEN)) > 1:
+                    DATEPROC =  datestring[-1].split(DATETOKEN)[1].replace("\n",'').strip()
+                    proc_dict[f"{Process}_date_processed"]=DATEPROC
+
+    elif Process == "basil":
+        if ProcessFile and os.path.exists(ProcessFile):
+            VERTOKEN="Version:"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            versionstring = [x for x in lines if VERTOKEN in x]
+            if versionstring:
+                if len(versionstring[-1].split(VERTOKEN)) > 1:
+                    VER = versionstring[-1].split(VERTOKEN)[1].replace("\n",'').strip()
+                    proc_dict[f"{Process}_version"]=VER
+
+            timestamp = os.path.getmtime(ProcessFile)
+            datetime_object = datetime.datetime.fromtimestamp(timestamp)
+            proc_dict[f"{Process}_date_processed"] = formatted_date = datetime_object.strftime("%Y-%m-%d %H:%M:%S")
+
+    elif Process == "qsiprep":
+        if ProcessFile and os.path.exists(ProcessFile):
+            VERTOKEN="qsiprep version:"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            versionstring = [x for x in lines if VERTOKEN in x]
+            if versionstring:
+                if len(versionstring[-1].split(VERTOKEN)) > 1:
+                    VER = versionstring[-1].split(VERTOKEN)[1].replace("\n",'').replace("</li>",'').strip()
+                    proc_dict[f"{Process}_version"]=VER
+
+            #timestamp = os.path.getmtime(ProcessFile)
+            #datetime_object = datetime.datetime.fromtimestamp(timestamp)
+            #proc_dict[f"{Process}_date_processed"] = formatted_date = datetime_object.strftime("%Y-%m-%d %H:%M:%S")
+            DATETOKEN="Date preprocessed:"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            datestring = [x for x in lines if DATETOKEN in x]
+            if datestring:
+                if len(datestring[-1].split(DATETOKEN)) > 1:
+                    DATEPROC =  datestring[-1].split(DATETOKEN)[1].replace("\n",'').replace("</li>",'').strip()
+                    proc_dict[f"{Process}_date_processed"]=DATEPROC
+
+    elif Process == "tensor":
+        if ProcessFile and os.path.exists(ProcessFile):
+            VERTOKEN="== dwi2tensor"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            versionstring = [x for x in lines if VERTOKEN in x]
+            if versionstring:
+                if len(versionstring[-1].split(VERTOKEN)) > 1:
+                    VER  = versionstring[-1].split(VERTOKEN)[1].replace("\n",'').replace("==",'').strip()
+                    proc_dict[f"{Process}_version"]=f"mrtrix_{VER}"
+
+            DATETOKEN="Completed at:"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            datestring = [x for x in lines if DATETOKEN in x]
+            if datestring:
+                if len(datestring[-1].split(DATETOKEN)) > 1:
+                    DATEPROC =  datestring[-1].split(DATETOKEN)[1].replace("\n",'').strip()
+                    proc_dict[f"{Process}_date_processed"]=DATEPROC
+    
+    elif Process == "mriqc":
+        if ProcessFile and os.path.exists(ProcessFile):
+            VERTOKEN="Running MRIQC version"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            versionstring = [x for x in lines if VERTOKEN in x]
+            if versionstring:
+                if len(versionstring[-1].split(VERTOKEN)) > 1:
+                    VER  = versionstring[-1].split(VERTOKEN)[1].replace("\n",'').replace("==",'').strip()
+                    proc_dict[f"{Process}_version"]=f"{VER}"
+
+            DATETOKEN="Completed at:"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            datestring = [x for x in lines if DATETOKEN in x]
+            if datestring:
+                if len(datestring[-1].split(DATETOKEN)) > 1:
+                    DATEPROC =  datestring[-1].split(DATETOKEN)[1].replace("\n",'').strip()
+                    proc_dict[f"{Process}_date_processed"]=DATEPROC
+
+    elif Process == "aslprep":
+        if ProcessFile and os.path.exists(ProcessFile):
+            VERTOKEN="Running ASLPREP version"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            versionstring = [x for x in lines if VERTOKEN in x]
+            if versionstring:
+                if len(versionstring[-1].split(VERTOKEN)) > 1:
+                    VER  = versionstring[-1].split(VERTOKEN)[1].replace("\n",'').replace("==",'').strip()
+                    proc_dict[f"{Process}_version"]=f"{VER}"
+
+            DATETOKEN="Completed at:"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            datestring = [x for x in lines if DATETOKEN in x]
+            if datestring:
+                if len(datestring[-1].split(DATETOKEN)) > 1:
+                    DATEPROC =  datestring[-1].split(DATETOKEN)[1].replace("\n",'').strip()
+                    proc_dict[f"{Process}_date_processed"]=DATEPROC
+
+
+    return proc_dict
+
+
+def processExtraColumns(df, labels_dict):
+    collate_extratext = getParams(labels_dict,"COLLATE_EXTRATEXT")
+    extra_cols = {}
+    if collate_extratext:
+        for column_name, column_details in collate_extratext.items():
+            column_value = substitute_labels(column_details["Value"],labels_dict)
+
+            if "<macro" in column_name:
+                if column_value == "get_version_string":
+                    ProcessFile = column_details["ProcessFile"]
+                    Process = column_details["Process"]
+                    add_labels(getVersion(Process,ProcessFile=ProcessFile,labels_dict=labels_dict),extra_cols)
+            elif column_value:
+                if "Translation" in column_details.keys():
+                    if column_value in column_details["Translation"].keys():
+                        column_value = column_details["Translation"][column_value]
+                add_labels({column_name : column_value},extra_cols)
+
+    for itemkey,itemvalue in extra_cols.items():
+        df.insert(0,itemkey,[itemvalue])
+
+    return df
