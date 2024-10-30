@@ -21,6 +21,8 @@ def parse_params():
     parser.add_argument("--participants_file", type=PathExists, help="participants_file in tsv format")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
     parser.add_argument("--all_bids",default="False")
+    parser.add_argument("--replace",default="True")
+    parser.add_argument("--debug",default="False")
     parser.add_argument("--num_procs",type=int,default=5)
     parser.add_argument("--ftp_raw_path", help="participants_file in tsv format",default="/shared/PAN/PAN-Data/Core-E/Raw")
     parser.add_argument("--ftp_processed_path", help="participants_file in tsv format",default="/shared/PAN/PAN-Data/Core-E/Processed")
@@ -73,9 +75,14 @@ if __name__ == "__main__":
 
     participant_label = args.participant_label
     bids_dir = str(args.bids_dir)
-    participants_file = str(args.participants_file)
+    if args.participants_file:
+        participants_file = str(args.participants_file)
+    else:
+        participants_file = None
 
     ALLBIDS=isTrue(args.all_bids)
+    REPLACE=isTrue(args.replace)
+    DEBUG=isTrue(args.debug)
     PROCS=args.num_procs
 
     subject_list = glob.glob(os.path.join(bids_dir,"sub-*"))
@@ -99,11 +106,16 @@ if __name__ == "__main__":
     remote_path_list  = [os.path.join(raw_path,folder,os.path.basename(x)) for x in subject_dir_list]
 
     multiproc_zip = zip(subject_dir_list,remote_path_list)
-    par_upload_subbids=partial(ftp_upload_subjectbids, hostname=hostname,username=username,password=password,port=port)
-    with mp.Pool(PROCS) as pool:
-        completedlist = pool.starmap(par_upload_subbids,multiproc_zip)
-        pool.close()
-        pool.join()
+    if not DEBUG:
+        par_upload_subbids=partial(ftp_upload_subjectbids, hostname=hostname,username=username,password=password,port=port,replace=REPLACE)
+        with mp.Pool(PROCS) as pool:
+            completedlist = pool.starmap(par_upload_subbids,multiproc_zip)
+            pool.close()
+            pool.join()
+    else:
+        for i,(source_path,remote_path) in enumerate(multiproc_zip):
+            ftp_upload_subjectbids(source_path,remote_path,hostname=hostname,username=username,password=password,port=port,replace=REPLACE)
+
 
     remote_path = os.path.join(raw_path,folder)
     local_participantsTSV = os.path.join(bids_dir,"participants.tsv")
@@ -116,8 +128,8 @@ if __name__ == "__main__":
 
 
     metadata_init={}
-    local_participantsJSON = newfile(assocfile=local_participantsTSV,suffix="upload-metadata",extension="json")
-    remote_participantsJsonFile = newfile(assocfile=remote_participantsTSV,suffix="upload-metadata",extension="json")
+    remote_metadata_file = newfile(assocfile=os.path.dirname(remote_participantsTSV),suffix="upload-metadata",extension="json")
+    local_metadata_file = newfile(outputdir=cwd,assocfile=remote_metadata_file,extension="json")
 
     history={}
     history["SourceBIDS"]=f"{bids_dir}"
@@ -133,11 +145,11 @@ if __name__ == "__main__":
         history["Description"] =f"Incremental upload from {bids_dir} using {participant_source}. {len(subject_dir_list)} participants uploaded from {os.path.basename(subject_dir_list[0])} to {os.path.basename(subject_dir_list[-1])}"
 
 
-    upload_metadata(local_participantsJSON,remote_participantsJsonFile,local_participantsTSV,remote_participantsTSV,metadata=metadata_init,history=history,hostname=hostname,username=username,password=password, port=port)
+    upload_metadata(local_metadata_file,remote_metadata_file,local_participantsTSV,remote_participantsTSV,metadata=metadata_init,history=history,hostname=hostname,username=username,password=password, port=port)
 
 
     if labels_dict:
-        labels_dict["METADATA_FILE"]=local_participantsJSON
+        labels_dict["METADATA_FILE"]=local_metadata_file
         labels_dict["OUTPUT_FILE"]=local_participantsTSV
         export_labels(labels_dict,pipeline_config_file)
 
