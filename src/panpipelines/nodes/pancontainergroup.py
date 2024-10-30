@@ -65,26 +65,34 @@ def pancontainergroup_proc(labels_dict):
 
     CONTAINER_TO_USE = getParams(labels_dict,"CONTAINER_TO_USE")
     script_interactive= isTrue(getParams(labels_dict,"SCRIPT_INTERACTIVE"))
-    if CONTAINER_TO_USE:
-        panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,command=f"{main_command} {script_file}",interactive=script_interactive, container_img=CONTAINER_TO_USE)
-    else: 
-        panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,interactive=script_interactive,command=f"{main_command} {script_file}")
-    panscript.run()
+    try:
+        if CONTAINER_TO_USE:
+            panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,command=f"{main_command} {script_file}",interactive=script_interactive, container_img=CONTAINER_TO_USE)
+        else: 
+            panscript = pancontainer_script.pancontainer_panscript(labels_dict,params=params,interactive=script_interactive,command=f"{main_command} {script_file}")
+        panscript.run()
+    except Exception as e:
+        IFLOGGER.error(f"Exception thrown by {script_file} script {e}")
+
 
     with open(pipeline_config_loc,"r") as infile:
         pipeline_config_json = json.load(infile)
 
     if pipeline_config_json and "METADATA_FILE" in pipeline_config_json.keys():
         metadata_file = pipeline_config_json["METADATA_FILE"]
+    elif "METADATA_FILE" in labels_dict:
+        metadata_file = labels_dict["METADATA_FILE"]
     else:
-        metadata_file = os.path.join(cwd,f'{script_file}_metadata.json')
+        metadata_file = os.path.join(cwd,f'{os.path.basename(script_file)}_metadata.json')
         with open(metadata_file,"w") as outfile:
             outfile.write(f"No metadata file created by script")
 
     if pipeline_config_json and "OUTPUT_FILE" in pipeline_config_json.keys():
         output_file = pipeline_config_json["OUTPUT_FILE"]
+    elif "OUTPUT_FILE" in labels_dict:
+        output_file = labels_dict["OUTPUT_FILE"]
     else:
-        output_file = os.path.join(cwd,f'{script_file}_output.json')
+        output_file = os.path.join(cwd,f'{os.path.basename(script_file)}_output.json')
         with open(output_file,"w") as outfile:
             outfile.write(f"No output file created by script")
     
