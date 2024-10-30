@@ -19,9 +19,9 @@ INCLUDE_QC=False
 PAN_SCANTYPES = {
     "DWI":["DTI_MB_3SHELL_mono_TE91_ORIG","DTI_MB_3SHELL 0 1000 2000 mono te 91_ORIG","DTI_MB_3SHELL_0_1K_2K"],
     "DWI_RPE" : ["DTI_MB_3SHELL RPE_ORIG","DTI_MB_3SHELL_RPE"],
-    "MPRAGE" : ["Accelerated Sagittal MPRAGE","Sagittal 3D Accelerated MPRAGE"],
+    "MPRAGE" : ["Accelerated Sagittal MPRAGE","Sagittal 3D Accelerated MPRAGE","Accelerated Sagittal MPRAGE (MSV21)"],
     "RSFMRI" : ["RS-FMRI-MB-high_resolution","Axial fcMRI _EYES OPEN","Axial fcMRI _EYES_Open_plus"],
-    "FLAIR" : ["Sagittal 3D FLAIR","Sagittal 3D FLAIR"] ,
+    "FLAIR" : ["Sagittal 3D FLAIR","Sagittal 3D FLAIR","Sagittal 3D FLAIR (MSV21)"] ,
     "PCASL" : ["WIP SOURCE - Axial 3D PCASL"],
     "PCASL_M0" : ["Axial 3D M0"],
     "PASL" : ["PASL_PRODUCT_PLD-2750"],
@@ -126,23 +126,22 @@ STATION_NAME="station_name"
 DEVICE_SERIAL_NUMBER="device_serial_number"
 SOFTWARE_VERSION="software_versions"
 MANUFACTURER_MODEL_NAME="manufacturer_model_name"
-IMPLEMENTATION_VERSION_NAME="implementation_version_Name"
+IMPLEMENTATION_VERSION_NAME="implementation_version_name"
 
 CREATION_DATE="row_creation_datetime"
 
 
 table_header = []
-table_header.append(PAN_RELEASE)
+#table_header.append(PAN_RELEASE)
 table_header.append(PAN_SITE)
 table_header.append(SUBJECT_LABEL)
 table_header.append(HMLID)
-table_header.append(XNATID_ORIG)
-table_header.append(MCID)
-table_header.append(P2ID)
-
-table_header.append(ORIG_PROJECT)
-table_header.append(GENDER)
-table_header.append(YOB)
+#table_header.append(XNATID_ORIG)
+#table_header.append(MCID)
+#table_header.append(P2ID)
+#table_header.append(ORIG_PROJECT)
+#table_header.append(GENDER)
+#table_header.append(YOB)
 table_header.append(SESSION_LABEL)
 table_header.append(SESSION_MODALITY)
 table_header.append(SESSION_SCANDATE)
@@ -276,8 +275,8 @@ def loadParams(pardict, key, value, update=True):
         if key in pardict:
             if not pardict[key] or update:
                 pardict[key]=value
-        else:
-            pardict[key]=value
+    #    else:
+    #        pardict[key]=value
     return pardict
 
 def cleanServer(server):
@@ -687,7 +686,7 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
                                             loadParams(session_table_row,IMPLEMENTATION_VERSION_NAME,ImplementationversionName_t) 
                                         break
 
-                                    except e as Exception:
+                                    except Exception as e:
                                         pass
 
 
