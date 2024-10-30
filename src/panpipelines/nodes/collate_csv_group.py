@@ -195,6 +195,63 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         cum_df_outer_left = mask_excludedrows(cum_df_outer_left, subject_exclusions, collate_join_left)
         cum_df_outer_left.to_csv(roi_csv_outer_left,sep=",",header=True, index=False)
 
+        # Drop or rename columns as specififed by LEFT_DROP and LEFT_RENAME
+        left_inner_cols=list(cum_df_inner_left.columns.values)
+        left_outer_cols=list(cum_df_outer_left.columns.values)
+        LEFT_DROP = getParams(labels_dict,"LEFT_DROP")
+        if LEFT_DROP:
+            LEFT_COL_INNER=False
+            LEFT_COL_OUTER=False
+            if not isinstance(LEFT_DROP,list):
+                LEFT_DROP=[LEFT_DROP]
+            left_inner_cols=list(cum_df_inner_left.columns.values)
+            left_outer_cols=list(cum_df_outer_left.columns.values)
+            for col_drop in LEFT_DROP:
+                if col_drop in left_inner_cols:
+                    IFLOGGER.debug(f"about to drop {col_drop} from left_inner_cols")
+                    left_inner_cols.pop(left_inner_cols.index(col_drop))
+                    LEFT_COL_INNER = True
+
+                if col_drop in left_outer_cols:
+                    IFLOGGER.debug(f"about to drop {col_drop} from left_outer_cols")
+                    left_outer_cols.pop(left_outer_cols.index(col_drop))
+                    LEFT_COL_OUTER = True
+
+            if LEFT_COL_INNER:
+                cum_df_inner_left=cum_df_inner_left[left_inner_cols]
+                IFLOGGER.debug(f"Created cum_df_inner_left with columns {left_inner_cols}")
+
+            if LEFT_COL_OUTER:
+                cum_df_outer_left=cum_df_outer_left[left_outer_cols]
+                IFLOGGER.debug(f"Created cum_df_outer_left with columns {left_outer_cols}")
+
+        LEFT_RENAME = getParams(labels_dict,"LEFT_RENAME")
+        if LEFT_RENAME:
+            left_inner_dict={}
+            left_outer_dict={}
+            if isinstance(LEFT_RENAME,dict):
+                for itemkey,itemvalue in LEFT_RENAME.items():
+                    if itemkey in left_inner_cols:
+                        left_inner_dict[itemkey]=itemvalue
+                    else:
+                        IFLOGGER.debug(f"Column {itemkey} not found in left_inner_cols {left_inner_cols}. Skipping this rename {itemkey}:{itemvalue}")
+
+                    if itemkey in left_outer_cols:
+                        left_outer_dict[itemkey]=itemvalue
+                    else:
+                        IFLOGGER.debug(f"Column {itemkey} not found in left_inner_cols {left_outer_cols}. Skipping this rename {itemkey}:{itemvalue}")
+
+                if left_inner_dict:
+                    cum_df_inner_left = cum_df_inner_left.rename(columns=left_inner_dict)
+
+                if left_outer_dict:
+                    cum_df_outer_left = cum_df_outer_left.rename(columns=left_outer_dict)
+
+
+            else:
+                IFLOGGER.debug(f"LEFT_RENAME should be a dictionary of values but {LEFT_RENAME} passed")
+                
+
 
     roi_csv_inner_right = None
     roi_csv_outer_right = None
@@ -267,8 +324,72 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         cum_df_outer_right = mask_excludedrows(cum_df_outer_right, subject_exclusions, collate_join_right)
         cum_df_outer_right.to_csv(roi_csv_outer_right,sep=",",header=True, index=False)
 
+        # Drop or rename columns as specififed by RIGHT_DROP and RIGHT_RENAME
+        right_inner_cols=list(cum_df_inner_right.columns.values)
+        right_outer_cols=list(cum_df_outer_right.columns.values)
+        RIGHT_DROP = getParams(labels_dict,"RIGHT_DROP")
+        if RIGHT_DROP:
+            RIGHT_COL_INNER=False
+            RIGHT_COL_OUTER=False
+            if not isinstance(RIGHT_DROP,list):
+                RIGHT_DROP=[RIGHT_DROP]
+            right_inner_cols=list(cum_df_inner_right.columns.values)
+            right_outer_cols=list(cum_df_outer_right.columns.values)
+            for col_drop in RIGHT_DROP:
+                if col_drop in right_inner_cols:
+                    IFLOGGER.debug(f"about to drop {col_drop} from right_inner_cols")
+                    right_inner_cols.pop(right_inner_cols.index(col_drop))
+                    RIGHT_COL_INNER = True
+
+                if col_drop in right_outer_cols:
+                    IFLOGGER.debug(f"about to drop {col_drop} from right_outer_cols")
+                    right_outer_cols.pop(right_outer_cols.index(col_drop))
+                    RIGHT_COL_OUTER = True
+
+            if RIGHT_COL_INNER:
+                cum_df_inner_right=cum_df_inner_right[right_inner_cols]
+                IFLOGGER.debug(f"Created cum_df_inner_right with columns {right_inner_cols}")
+
+            if RIGHT_COL_OUTER:
+                cum_df_outer_right=cum_df_outer_right[right_outer_cols]
+                IFLOGGER.debug(f"Created cum_df_outer_right with columns {right_outer_cols}")
+
+        RIGHT_RENAME = getParams(labels_dict,"RIGHT_RENAME")
+        if RIGHT_RENAME:
+            right_inner_dict={}
+            right_outer_dict={}
+            if isinstance(RIGHT_RENAME,dict):
+                for itemkey,itemvalue in RIGHT_RENAME.items():
+                    if itemkey in right_inner_cols:
+                        right_inner_dict[itemkey]=itemvalue
+                    else:
+                        IFLOGGER.debug(f"Column {itemkey} not found in right_inner_cols {right_inner_cols}. Skipping this rename {itemkey}:{itemvalue}")
+
+                    if itemkey in right_outer_cols:
+                        right_outer_dict[itemkey]=itemvalue
+                    else:
+                        IFLOGGER.debug(f"Column {itemkey} not found in right_inner_cols {right_outer_cols}. Skipping this rename {itemkey}:{itemvalue}")
+
+                if right_inner_dict:
+                    cum_df_inner_right = cum_df_inner_right.rename(columns=right_inner_dict)
+
+                if right_outer_dict:
+                    cum_df_outer_right = cum_df_outer_right.rename(columns=right_outer_dict)
+
+
+            else:
+                IFLOGGER.debug(f"RIGHT_RENAME should be a dictionary of values but {RIGHT_RENAME} passed")
+
 
     if not cum_df_inner_right.empty and not cum_df_inner_left.empty:
+
+        # if a column is duplicated in left and right then quick hack is to just remove it from the right table, except for the join columns
+        left_inner_cols=list(cum_df_inner_left.columns.values)
+        right_inner_cols=list(cum_df_inner_right.columns.values)
+        right_inner_cols_to_drop = set(left_inner_cols).intersection(set(right_inner_cols)).difference(set(collate_join_right))
+        IFLOGGER.info(f"Dropping duplicated columns {right_inner_cols_to_drop} from right table")
+        cum_df_inner_right = cum_df_inner_right.drop(right_inner_cols_to_drop, axis=1)
+
         cum_df_inner = pd.merge(cum_df_inner_left, cum_df_inner_right,  how='left', left_on=collate_join_left, right_on =collate_join_right)
         roi_csv_inner = os.path.join(roi_output_dir,'{}_{}-{}_inner.csv'.format("final-group",collate_name_left,collate_name_right))
 
@@ -318,6 +439,14 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         roi_csv_inner_json = create_metadata(roi_csv_inner, created_datetime, metadata = metadata)
 
     if not cum_df_outer_right.empty and not cum_df_outer_left.empty:
+
+        # if a column is duplicated in left and right then quick hack is to just remove it from the right table, except for the join columns
+        left_outer_cols=list(cum_df_outer_left.columns.values)
+        right_outer_cols=list(cum_df_outer_right.columns.values)
+        right_outer_cols_to_drop = set(left_outer_cols).intersection(set(right_outer_cols)).difference(set(collate_join_right))
+        IFLOGGER.info(f"Dropping duplicated columns {right_outer_cols_to_drop} from right table")
+        cum_df_outer_right = cum_df_outer_right.drop(right_outer_cols_to_drop, axis=1)
+
         cum_df_outer = pd.merge(cum_df_outer_left, cum_df_outer_right,  how='left', left_on=collate_join_left, right_on =collate_join_right)
         roi_csv_outer = os.path.join(roi_output_dir,'{}_{}-{}_outer.csv'.format("final-group",collate_name_left,collate_name_right))
 
