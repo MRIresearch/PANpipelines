@@ -18,6 +18,7 @@ panFactory = Factory.getPANFactory()
 
 def runGroupSubjects(participant_label, xnat_projects, xnat_shared_projects, session_label, pipeline, pipeline_class, pipeline_outdir, panpipe_labels,bids_dir,cred_user,cred_password, execution_json,analysis_level="group",panlabel=None):
 
+    pipeline_start = datetime.datetime.now()
     # get parent directory
     if not panlabel:
         panlabel=os.path.basename(os.path.dirname(pipeline_outdir))
@@ -32,11 +33,24 @@ def runGroupSubjects(participant_label, xnat_projects, xnat_shared_projects, ses
 
     LOGGER.info(f"Pan Processing for group: Running {pipeline} pipeline")
     LOGGER.info(f"start logging to {LOGFILE}")
+    if "HOSTNAME" in os.environ.keys():
+        hostname = os.environ["HOSTNAME"]
+        LOGGER.info(f"Running on node: {hostname}")
+    ipaddr = get_ip()
+    LOGGER.info(f"IP Address of node: {ipaddr}")
+    LOGGER.info("---------------------------------------------------")
 
     panProcessor = panFactory.get_processflow(pipeline_class)
 
     PanProc = panProcessor(panpipe_labels,pipeline_outdir, participant_label, name=pipeline,LOGGER=LOGGER,execution=execution_json, analysis_level = analysis_level, participant_project=xnat_projects, participant_session=session_label)
     PanProc.run()
+    pipeline_end = datetime.datetime.now()
+    LOGGER.info("---------------------------------------------------------------------------------")
+    LOGGER.info(f"Group Processing Completed at: {str(pipeline_end)}")
+    LOGGER.info("---------------------------------------------------------------------------------")
+    pipeline_duration = pipeline_end - pipeline_start
+    LOGGER.info(f"Group Processing Duration: {str(pipeline_duration)}")
+    LOGGER.info("---------------------------------------------------------------------------------")
 
     LOGGER.debug(f"\nDump of configuration settings for group run of {pipeline}")
     LOGGER.debug("---------------------------------------------------------------------------------")

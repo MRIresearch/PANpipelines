@@ -27,6 +27,13 @@ def runSingleSubject(participant_label, xnat_project, xnat_shared_project, sessi
     LOGGER.info(f"Participant Shared Project: {xnat_shared_project}")
     LOGGER.info("---------------------------------------------------------------------------------")
 
+    if "HOSTNAME" in os.environ.keys():
+        hostname = os.environ["HOSTNAME"]
+        LOGGER.info(f"Running on node: {hostname}")
+    ipaddr = get_ip()
+    LOGGER.info(f"IP Address of node: {ipaddr}")
+    LOGGER.info("---------------------------------------------------")
+
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_LABEL",participant_label)
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_PROJECT",xnat_project)
     panpipe_labels = updateParams(panpipe_labels,"PARTICIPANT_XNAT_SHARED_PROJECT",xnat_shared_project)
