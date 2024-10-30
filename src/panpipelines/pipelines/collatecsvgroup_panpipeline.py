@@ -16,14 +16,7 @@ class collatecsvgroup_panpipeline(panpipeline):
                 LOGGER.error(f"pipeline {name} not defined for {analysis_level}")
                 raise ValueError(f"pipeline {name} not defined for {analysis_level}")
 
-        super().__init__(labels_dict,pipeline_dir, participant_label,name,createGraph,LOGGER,execution,analysis_level, participant_project,participant_session)
-
-    def proc(self):
-        workflow_dir = self.pipeline_dir
-        workflow_name = "{}_wf".format(self.name)
-
-        pan_workflow = panworkflow.create(workflow_name,workflow_dir,self.labels_dict,createGraph=self.createGraph,execution=self.execution,LOGGER=self.LOGGER)
-        pan_workflow.run()
+        super().__init__(labels_dict,pipeline_dir, participant_label,name,createGraph,LOGGER,execution,analysis_level, participant_project,participant_session,panworkflow)
 
 
 
