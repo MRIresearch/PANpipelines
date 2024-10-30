@@ -434,6 +434,12 @@ def createRoiExtractReport(panpipe_labels,html_file, metadata,analysis_level=Non
     stylesheet = getParams(panpipe_labels,"STYLESHEET")
     pipeline = getParams(panpipe_labels,"PIPELINE")
 
+    report_title = f"Html report for {pipeline}"
+    if analysis_level == "participant":
+        participant = getParams(panpipe_labels,"PARTICIPANT_LABEL")
+        session = getParams(panpipe_labels,"PARTICIPANT_SESSION")
+        report_title = f"Subject {participant}, Session {session} : " + report_title
+
     output_dir = os.path.dirname(html_file)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -447,7 +453,7 @@ def createRoiExtractReport(panpipe_labels,html_file, metadata,analysis_level=Non
     image_dir=os.path.join(output_dir, 'images')
 
     doc_dict={}
-    doc_dict["title"] = f"Html report for {pipeline}"
+    doc_dict["title"] = report_title
     doc_dict["stylesheet"] = f"{stylesheet}"
     doc_dict["image_dir"] = f"{image_dir}"
     doc_dict["output_dir"] = f"{output_dir}"
