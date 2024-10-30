@@ -6,7 +6,7 @@ import glob
 
 class panpipeline:
 
-    def __init__(self, labels_dict,pipeline_dir, participant_label, name='template_panpipeline', createGraph=True, LOGGER=None, execution={},analysis_level="participant", participant_project=None, participant_session=None):
+    def __init__(self, labels_dict,pipeline_dir, participant_label, name='template_panpipeline', createGraph=True, LOGGER=None, execution={},analysis_level="participant", participant_project=None, participant_session=None,panworkflow = None):
         self.labels_dict = labels_dict
         self.pipeline_dir = pipeline_dir
         self.participant_label = participant_label
@@ -17,6 +17,7 @@ class panpipeline:
         self.analysis_level = analysis_level
         self.participant_project = participant_project
         self.participant_session = participant_session
+        self.panworkflow = panworkflow
         self.results={}
 
 
@@ -40,7 +41,16 @@ class panpipeline:
             self.LOGGER.info(log_message)     
 
     def proc(self):
-        pass
+        workflow_dir = self.pipeline_dir
+        workflow_name = "{}_wf".format(self.name)
+
+        pan_workflow = self.panworkflow.create(workflow_name,workflow_dir,self.labels_dict,createGraph=self.createGraph,execution=self.execution, LOGGER=self.LOGGER)
+        if isTrue(getParams(self.labels_dict,"FORCE_RUN")):
+            if self.LOGGER:
+                self.LOGGER.info("Forced rerun of workflow selected ....")
+            pan_workflow.run(plugin="MultiProc", plugin_args={"overwrite": True})
+        else:
+            pan_workflow.run()
 
     def run(self):
 
