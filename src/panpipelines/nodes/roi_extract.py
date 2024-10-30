@@ -341,10 +341,11 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
         metadata = updateParams(metadata,"Comments",metadata_comments)
     roi_csv_json = create_metadata(roi_csv, created_datetime, metadata = metadata)
 
-
     html_file_dir = os.path.join(os.path.basename(roi_output_dir),"html_report")
     html_file = newfile(outputdir=html_file_dir, assocfile = roi_csv, suffix="htmlreport",extension="html")
-    html_file = createRoiExtractReport(labels_dict,html_file, metadata)
+
+    analysis_level = getParams(labels_dict,"ANALYSIS_LEVEL")
+    html_file = createRoiExtractReport(labels_dict,html_file, metadata,analysis_level=analysis_level)
 
     out_files=[]
     out_files.insert(0,roi_csv)
