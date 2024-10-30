@@ -67,9 +67,14 @@ def ftp_uploaddir_recursive(source_local_path, remote_path,hostname=None,usernam
         raise Exception(err)
 
 
-def ftp_upload_subjectbids(subject_dir, remote_path,hostname=None,username=None,password=None, port=None):
+def ftp_upload_subjectbids(subject_dir, remote_path,hostname=None,username=None,password=None, port=None, replace=True):
     subject = os.path.basename(subject_dir)
     print(f"uploading {subject} from {subject_dir} to {remote_path}.")
+    if ftp_exists(remote_path,hostname,username,password,port) and replace:
+        print(f"{remote_path} already exists. Will remove before uploading {subject}")
+        ftp_deletedir_recursive(remote_path,hostname,username,password,port)
+        print(f"{remote_path} successfully deleted.")
+        
     ftp_uploaddir_recursive(subject_dir, remote_path,hostname=hostname,username=username,password=password,port=port)
     print(f"{subject} successfully uploaded.")
 
