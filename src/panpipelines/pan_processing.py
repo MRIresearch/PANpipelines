@@ -36,6 +36,8 @@ def parse_params():
     parser.add_argument("--info_delta", default="False", help="what are the subjects that are left to process")
     parser.add_argument("--all_group", default="True")
     parser.add_argument("--force_bids_download",default="False")
+    parser.add_argument("--run_dependent_pipelines",default="False")
+    parser.add_argument("--force_run",default="False")
     parser.add_argument("--participant_exclusions", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
     parser.add_argument("--session_label", nargs="*", type=drop_ses, help="filter by session label (the ses- prefix can be removed).")
     parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=__version__))
@@ -186,7 +188,7 @@ def main():
     if not os.path.exists(bids_incremental_dir):
         os.makedirs(bids_incremental_dir)
 
-    if INFO_DELTA and not INCREMENTAL:
+    if INFO_DELTA:
         new_targetdir=bids_incremental_dir
         info_delta_suffix = f"latest-{datelabel}"
         new_participants_file = newfile(outputdir=new_targetdir, assocfile=participants_file,suffix=info_delta_suffix )
@@ -216,11 +218,17 @@ def main():
         LOGGER.info(f"Downloading an initial set of TemplateFlow templates for spaces MNI152NLin2009cAsym and MNI152NLin6Asym to {TEMPLATEFLOW_HOME}.")
         initTemplateFlow(TEMPLATEFLOW_HOME) 
 
+    RUN_DEPENDENT_PIPELINES = isTrue(args.run_dependent_pipelines)
+
     FORCE_BIDS_DOWNLOAD = isTrue(args.force_bids_download)
     if FORCE_BIDS_DOWNLOAD:
         panpipe_labels = updateParams(panpipe_labels,"FORCE_BIDS_DOWNLOAD","Y")
         LOGGER.info(f"FORCE_BIDS_DOWNLOAD set to Y")
 
+    FORCE_RUN = isTrue(args.force_run)
+    if FORCE_RUN:
+        panpipe_labels = updateParams(panpipe_labels,"FORCE_RUN","Y")
+        LOGGER.info(f"FORCE_RUN set to Y. All selected pipelines will be forced to rerun")
 
     if INCREMENTAL:
         LOGGER.info("Running panprocessing in incremental mode.")
@@ -264,9 +272,10 @@ def main():
     pipeline_match=args.pipeline_match
     pipeline_exclude=args.pipeline_exclude
 
+    ALL_PIPELINES=[p for p in panpipeconfig_json.keys() if p != "all_pipelines"]
     if not pipelines:
         LOGGER.info("No pipelines specified at command line.")
-        pipelines = [p for p in panpipeconfig_json.keys() if p != "all_pipelines"]
+        pipelines = ALL_PIPELINES
         if pipeline_match:
             LOGGER.info(f"All pipelines matching {str(pipeline_match)} in configuration file will be run.")
             pipeline_select=[]
@@ -282,6 +291,10 @@ def main():
 
     # Remove duplicates in pipeline list
     pipelines = list(set(pipelines))
+
+    if RUN_DEPENDENT_PIPELINES:
+        pipelines = get_dependent_pipelines(panpipeconfig_json,pipelines,ALL_PIPELINES)
+        panpipe_labels = updateParams(panpipe_labels, "RUN_DEPENDENT_PIPELINES","Y")
 
     LOGGER.info(f"About to arrange pipelines by dependency. Pipeline list is {pipelines}")    
     pipelines = arrangePipelines(panpipeconfig_json,pipelines=pipelines)
@@ -336,15 +349,12 @@ def main():
 
     if INCREMENTAL:
         if not pipelines:
-            LOGGER.info(f"Running in incremental mode but no pipelines selected. Will run the dummy_panpipeline and ftp_upload_pan script")
-            pipelines.add("dummy")
-            pipelines.add("ftp_upload_bids")
-    else:
-        LOGGER.info(f"Not running in incremental mode - to avoid human error will drop ftp_upload_bids pipelines for now!")
-        pipelines = [x for x in pipelines if "ftp_upload_bids" not in x]
-
-        if "dummy" in pipelines:        
-            pipelines.remove("dummy")
+            LOGGER.info(f"Running in incremental mode but no pipelines selected. Will run the dummy_panpipeline and ftp_upload_pan script if they are not explictly excluded")
+            if "dummy" not in pipeline_exclude:
+                pipelines.add("dummy")
+            
+            if "ftp_upload_bids" not in pipeline_exclude:
+                pipelines.add("ftp_upload_bids")
             
     LOGGER.info(f"Pipelines to be processed : {pipelines}")
 
@@ -353,7 +363,7 @@ def main():
         subject_exclusions=[]
         subject_exclusions.extend(participant_exclusions)
 
-        pipeline_exclusions = getParams(panpipe_labels,"PIPELINE_EXCLUSIONS")
+        pipeline_exclusions = getParams(panpipe_labels,"PARTICIPANT_PIPELINE_EXCLUSIONS")
         if not pipeline_exclusions:
             pipeline_exclusions=[]
         subject_exclusions.extend(pipeline_exclusions) 
