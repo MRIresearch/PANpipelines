@@ -461,6 +461,9 @@ def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljso
 
 def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
+    if not bids_dir:
+        bids_dir = substitute_labels(labels_dict,"<BIDS_DIR>")
+
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
     command_base, container = getContainer(labels_dict,nodename="basil",SPECIFIC="BASIL_CONTAINER",LOGGER=IFLOGGER)
@@ -496,7 +499,25 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
-    
+    participant_project = getParams(labels_dict,"PARTICIPANT_XNAT_PROJECT")
+
+    UM_EXCEPTION = False
+    if participant_project == "002_HML":
+        part_df = pd.read_csv(os.path.join(bids_dir,"participants.tsv"),sep="\t")
+        search_df = part_df[(part_df["participant_id"]=="sub-" + drop_sub(participant_label)) & (part_df["session_id"] == "ses-" + drop_ses(participant_session))]
+        if not search_df.empty:
+            scantime = search_df.iloc[0]["mri_scan_datetime"]
+            if datetime.datetime.strptime(scantime,"%Y-%m-%dT%H:%M:%S.%f%Z") > datetime.datetime(2024,10,21):
+                UM_EXCEPTION = True
+
+    if UM_EXCEPTION:
+        new_bids_dir = os.path.join(cwd,"bids_dir")
+        copytree(os.path.join(bids_dir,f"sub-{participant_label}"),os.path.join(new_bids_dir,f"sub-{participant_label}"))
+        copy(os.path.join(bids_dir,"participants.tsv"),os.path.join(new_bids_dir,"participants.tsv"))
+        copy(os.path.join(bids_dir,"dataset_description.json"),os.path.join(new_bids_dir,"dataset_description.json"))
+        bids_dir = new_bids_dir
+        process_um_exception(bids_dir, cwd, participant_label, participant_session,labels_dict)
+
     layout = BIDSLayout(bids_dir)
     asl=layout.get(subject=participant_label,session=participant_session,suffix='asl', extension='nii.gz')
 
