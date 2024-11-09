@@ -126,7 +126,10 @@ if __name__ == "__main__":
     remote_datasetDescription = os.path.join(remote_path,"dataset_description.json")
     ftp_upload(local_datasetDescription ,remote_datasetDescription,hostname,username,password,port)
 
-
+    if labels_dict:
+        cwd = getParams(labels_dict,"CWD")
+    else:
+        cwd = os.path.dirname(tempfile.mkstemp()[1])
     metadata_init={}
     remote_metadata_file = newfile(assocfile=os.path.dirname(remote_participantsTSV),suffix="upload-metadata",extension="json")
     local_metadata_file = newfile(outputdir=cwd,assocfile=remote_metadata_file,extension="json")
