@@ -14,6 +14,7 @@ import multiprocessing as mp
 import logging
 import nibabel as nib
 import shutil
+from shutil import copytree,copy
 from panpipelines.utils.transformer import *
 import sys
 from nipype import logging as nlogging
@@ -1177,7 +1178,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
                     else:
                         sharedx = None
 
-                    if not subx in exclusion_list or not f"{subx}_{sesx}" in exclusion_list or not f"{subx}_{sesx}_{projx}" in exclusion_list or not f"{subx}_*_{projx}" in exclusion_list:
+                    if not (subx in exclusion_list) and not (f"{subx}_{sesx}" in exclusion_list) and not (f"{subx}_{sesx}_{projx}" in exclusion_list) and not (f"{subx}_*_{projx}" in exclusion_list):
                         participant_list.append(subx)
                         sessions_list.append(sesx)
                         project_list.append(projx)
@@ -2914,3 +2915,66 @@ def processExtraColumns(df, labels_dict):
         df.insert(0,itemkey,[itemvalue])
 
     return df
+
+def row_translate(row,mapping):
+    if pd.isna(row):
+        if "NAN" in mapping.keys():
+            return mapping["NAN"]
+        else:
+            return np.nan
+
+    choice_exists = [x for x in mapping.keys() if x in row or x == row]
+    if choice_exists:
+        return mapping[choice_exists[0]]
+    elif not row:
+        if "NAN" in mapping.keys():
+            return mapping["NAN"]
+        else:
+            return np.nan
+
+    else:
+        return row
+
+def extractVolumes(input,command_base,work_dir,labels_dict,index="0",size="-1"):
+
+    new_input = newfile(outputdir=work_dir, assocfile=input)
+    params = f"{input}"\
+        f" {new_input}" \
+        f" {index}" \
+        f" {size}" 
+
+    command=f"{command_base} fslroi"\
+        " "+params
+
+    evaluated_command=substitute_labels(command, labels_dict)
+    runCommand(evaluated_command,UTLOGGER)
+
+    return new_input
+
+
+def process_um_exception(bids_dir, work_dir, participant_label, participant_session,labels_dict):
+
+    command_base, container = getContainer(labels_dict,nodename="process_um_exception",SPECIFIC="FSL_CONTAINER",LOGGER=UTLOGGER)
+
+    layout = BIDSLayout(bids_dir)
+    asl=layout.get(subject=participant_label,session=participant_session,suffix='asl', extension='nii.gz')
+    if len(asl) > 0:
+        asl_bidsfile=asl[0]
+        asl_file=asl_bidsfile.path
+        new_asl_file = extractVolumes(asl_file,command_base,work_dir,labels_dict,index="1",size="-1")
+        copy(new_asl_file,asl_file)
+
+        aslcontext= asl_file.split("asl.nii.gz")[0] + "aslcontext.tsv"
+        aslcont=pd.read_csv(aslcontext,sep="\t")
+        aslcont = aslcont.iloc[:-1]
+        aslcont.to_csv(aslcontext,sep="\t",index=False)
+
+        asljson=asl_bidsfile.get_metadata()
+        asl_entities = asl_bidsfile.get_entities()
+        m0_entities = asl_entities.copy()
+        m0_entities["suffix"]="m0scan"
+        m0  = layout.get(return_type='file', invalid_filters='allow', **m0_entities)
+        if len(m0) > 0:
+            m0_file=m0[0]
+            new_m0_file = extractVolumes(m0_file,command_base,work_dir,labels_dict,index="1",size="-1")
+            copy(new_m0_file,m0_file)
