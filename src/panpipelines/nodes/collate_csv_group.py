@@ -187,7 +187,6 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             index_col = cum_df_outer_left.pop(collate_join_left[index_col_num])
             cum_df_outer_left.insert(index_col_num,collate_join_left[index_col_num],index_col)
 
-
         # deal with excluded
         cum_df_inner_left = mask_excludedrows(cum_df_inner_left, subject_exclusions, collate_join_left)
         cum_df_inner_left.to_csv(roi_csv_inner_left,sep=",",header=True, index=False)
@@ -204,18 +203,22 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             LEFT_COL_OUTER=False
             if not isinstance(LEFT_DROP,list):
                 LEFT_DROP=[LEFT_DROP]
-            left_inner_cols=list(cum_df_inner_left.columns.values)
-            left_outer_cols=list(cum_df_outer_left.columns.values)
             for col_drop in LEFT_DROP:
                 if col_drop in left_inner_cols:
-                    IFLOGGER.debug(f"about to drop {col_drop} from left_inner_cols")
-                    left_inner_cols.pop(left_inner_cols.index(col_drop))
-                    LEFT_COL_INNER = True
+                    if col_drop in collate_join_left:
+                        IFLOGGER.debug(f"Cannot drop {col_drop} as it is a join column in {collate_join_left}")
+                    else:
+                        IFLOGGER.debug(f"about to drop {col_drop} from left_inner_cols")
+                        left_inner_cols.pop(left_inner_cols.index(col_drop))
+                        LEFT_COL_INNER = True
 
                 if col_drop in left_outer_cols:
-                    IFLOGGER.debug(f"about to drop {col_drop} from left_outer_cols")
-                    left_outer_cols.pop(left_outer_cols.index(col_drop))
-                    LEFT_COL_OUTER = True
+                    if col_drop in collate_join_left:
+                        IFLOGGER.debug(f"Cannot drop {col_drop} as it is a join column in {collate_join_left}")
+                    else:
+                        IFLOGGER.debug(f"about to drop {col_drop} from left_outer_cols")
+                        left_outer_cols.pop(left_outer_cols.index(col_drop))
+                        LEFT_COL_OUTER = True
 
             if LEFT_COL_INNER:
                 cum_df_inner_left=cum_df_inner_left[left_inner_cols]
@@ -225,6 +228,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
                 cum_df_outer_left=cum_df_outer_left[left_outer_cols]
                 IFLOGGER.debug(f"Created cum_df_outer_left with columns {left_outer_cols}")
 
+        left_inner_cols=list(cum_df_inner_left.columns.values)
+        left_outer_cols=list(cum_df_outer_left.columns.values)
         LEFT_RENAME = getParams(labels_dict,"LEFT_RENAME")
         if LEFT_RENAME:
             left_inner_dict={}
@@ -232,12 +237,20 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             if isinstance(LEFT_RENAME,dict):
                 for itemkey,itemvalue in LEFT_RENAME.items():
                     if itemkey in left_inner_cols:
-                        left_inner_dict[itemkey]=itemvalue
+                        if itemkey in collate_join_left:
+                            IFLOGGER.debug(f"Cannot rename {itemkey} as it is a join column in {collate_join_left}")
+                        else:
+                            left_inner_dict[itemkey]=itemvalue
+                            left_inner_cols.append(itemvalue)
                     else:
                         IFLOGGER.debug(f"Column {itemkey} not found in left_inner_cols {left_inner_cols}. Skipping this rename {itemkey}:{itemvalue}")
 
                     if itemkey in left_outer_cols:
-                        left_outer_dict[itemkey]=itemvalue
+                        if itemkey in collate_join_left:
+                            IFLOGGER.debug(f"Cannot rename {itemkey} as it is a join column in {collate_join_left}")
+                        else:
+                            left_outer_dict[itemkey]=itemvalue
+                            left_outer_cols.append(itemvalue)
                     else:
                         IFLOGGER.debug(f"Column {itemkey} not found in left_inner_cols {left_outer_cols}. Skipping this rename {itemkey}:{itemvalue}")
 
@@ -246,11 +259,51 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
                 if left_outer_dict:
                     cum_df_outer_left = cum_df_outer_left.rename(columns=left_outer_dict)
-
-
             else:
                 IFLOGGER.debug(f"LEFT_RENAME should be a dictionary of values but {LEFT_RENAME} passed")
-                
+
+        left_inner_cols=list(cum_df_inner_left.columns.values)
+        left_outer_cols=list(cum_df_outer_left.columns.values)
+        LEFT_COPY = getParams(labels_dict,"LEFT_COPY")
+        if LEFT_COPY:
+            if isinstance(LEFT_COPY,dict):
+                for itemkey,itemvalue in LEFT_COPY.items():
+                    if itemkey == itemvalue:
+                        IFLOGGER.debug(f"Column {itemkey}to copy from is the same as column to copy to {itemvalue}. Skipping this rename {itemkey}:{itemvalue}")
+                    else:
+                        if itemkey in left_inner_cols:
+                            cum_df_inner_left[itemvalue]=cum_df_inner_left[itemkey]
+                            left_inner_cols.append(itemvalue)
+                        else:
+                            IFLOGGER.debug(f"Column {itemkey} not found in left_inner_cols {left_inner_cols}. Skipping this copy {itemkey}:{itemvalue}")
+
+                        if itemkey in left_outer_cols:
+                            cum_df_outer_left[itemvalue]=cum_df_outer_left[itemkey]
+                            left_outer_cols.append(itemvalue)
+                        else:
+                            IFLOGGER.debug(f"Column {itemkey} not found in left_outer_cols {left_outer_cols}. Skipping this copy {itemkey}:{itemvalue}")
+
+            else:
+                IFLOGGER.debug(f"LEFT_COPY should be a dictionary of values but {LEFT_COPY} passed")
+
+        left_inner_cols=list(cum_df_inner_left.columns.values)
+        left_outer_cols=list(cum_df_outer_left.columns.values)
+        LEFT_TRANSLATE = getParams(labels_dict,"LEFT_TRANSLATE")
+        if LEFT_TRANSLATE:
+            if isinstance(LEFT_TRANSLATE,dict):
+                for itemkey,itemvalue in LEFT_TRANSLATE.items():
+                    if itemkey in left_inner_cols:
+                        cum_df_inner_left[itemkey] = cum_df_inner_left[itemkey].apply(lambda row :  row_translate(row,itemvalue))
+                    else:
+                        IFLOGGER.debug(f"Column {itemkey} not found in left_inner_cols {left_inner_cols}. Skipping this translation {itemkey}:{itemvalue}")
+
+                    if itemkey in left_outer_cols:
+                        cum_df_outer_left[itemkey] = cum_df_outer_left[itemkey].apply(lambda row :  row_translate(row,itemvalue))
+                    else:
+                        IFLOGGER.debug(f"Column {itemkey} not found in left_outer_cols {left_outer_cols}. Skipping this translation {itemkey}:{itemvalue}")
+
+            else:
+                IFLOGGER.debug(f"LEFT_TRANSLATE should be a dictionary of values but {LEFT_TRANSLATE} passed")          
 
 
     roi_csv_inner_right = None
@@ -333,18 +386,22 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             RIGHT_COL_OUTER=False
             if not isinstance(RIGHT_DROP,list):
                 RIGHT_DROP=[RIGHT_DROP]
-            right_inner_cols=list(cum_df_inner_right.columns.values)
-            right_outer_cols=list(cum_df_outer_right.columns.values)
             for col_drop in RIGHT_DROP:
                 if col_drop in right_inner_cols:
-                    IFLOGGER.debug(f"about to drop {col_drop} from right_inner_cols")
-                    right_inner_cols.pop(right_inner_cols.index(col_drop))
-                    RIGHT_COL_INNER = True
+                    if col_drop in collate_join_right:
+                        IFLOGGER.debug(f"Cannot drop {col_drop} as it is a join column in {collate_join_right}")
+                    else:
+                        IFLOGGER.debug(f"about to drop {col_drop} from right_inner_cols")
+                        right_inner_cols.pop(right_inner_cols.index(col_drop))
+                        RIGHT_COL_INNER = True
 
                 if col_drop in right_outer_cols:
-                    IFLOGGER.debug(f"about to drop {col_drop} from right_outer_cols")
-                    right_outer_cols.pop(right_outer_cols.index(col_drop))
-                    RIGHT_COL_OUTER = True
+                    if col_drop in collate_join_right:
+                        IFLOGGER.debug(f"Cannot drop {col_drop} as it is a join column in {collate_join_right}")
+                    else:
+                        IFLOGGER.debug(f"about to drop {col_drop} from right_outer_cols")
+                        right_outer_cols.pop(right_outer_cols.index(col_drop))
+                        RIGHT_COL_OUTER = True
 
             if RIGHT_COL_INNER:
                 cum_df_inner_right=cum_df_inner_right[right_inner_cols]
@@ -354,6 +411,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
                 cum_df_outer_right=cum_df_outer_right[right_outer_cols]
                 IFLOGGER.debug(f"Created cum_df_outer_right with columns {right_outer_cols}")
 
+        right_inner_cols=list(cum_df_inner_right.columns.values)
+        right_outer_cols=list(cum_df_outer_right.columns.values)
         RIGHT_RENAME = getParams(labels_dict,"RIGHT_RENAME")
         if RIGHT_RENAME:
             right_inner_dict={}
@@ -361,12 +420,20 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             if isinstance(RIGHT_RENAME,dict):
                 for itemkey,itemvalue in RIGHT_RENAME.items():
                     if itemkey in right_inner_cols:
-                        right_inner_dict[itemkey]=itemvalue
+                        if itemkey in collate_join_right:
+                            IFLOGGER.debug(f"Cannot rename {itemkey} as it is a join column in {collate_join_right}")
+                        else:
+                            right_inner_dict[itemkey]=itemvalue
+                            right_inner_cols.append(itemvalue)
                     else:
                         IFLOGGER.debug(f"Column {itemkey} not found in right_inner_cols {right_inner_cols}. Skipping this rename {itemkey}:{itemvalue}")
 
                     if itemkey in right_outer_cols:
-                        right_outer_dict[itemkey]=itemvalue
+                        if itemkey in collate_join_right:
+                            IFLOGGER.debug(f"Cannot rename {itemkey} as it is a join column in {collate_join_right}")
+                        else:
+                            right_outer_dict[itemkey]=itemvalue
+                            right_outer_cols.append(itemvalue)
                     else:
                         IFLOGGER.debug(f"Column {itemkey} not found in right_inner_cols {right_outer_cols}. Skipping this rename {itemkey}:{itemvalue}")
 
@@ -379,6 +446,50 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
             else:
                 IFLOGGER.debug(f"RIGHT_RENAME should be a dictionary of values but {RIGHT_RENAME} passed")
+
+        right_inner_cols=list(cum_df_inner_right.columns.values)
+        right_outer_cols=list(cum_df_outer_right.columns.values)
+        RIGHT_COPY = getParams(labels_dict,"RIGHT_COPY")
+        if RIGHT_COPY:
+            if isinstance(RIGHT_COPY,dict):
+                for itemkey,itemvalue in RIGHT_TRANSLATE.items():
+                    if itemkey == itemvalue:
+                        IFLOGGER.debug(f"Column {itemkey}to copy from is the same as column to copy to {itemvalue}. Skipping this rename {itemkey}:{itemvalue}")
+                    else:
+                        if itemkey in right_inner_cols:
+                            cum_df_inner_right[itemvalue]=cum_df_inner_right[itemkey]
+                            right_inner_cols.append(itemvalue)
+                        else:
+                            IFLOGGER.debug(f"Column {itemkey} not found in right_inner_cols {right_inner_cols}. Skipping this copy {itemkey}:{itemvalue}")
+
+                        if itemkey in right_outer_cols:
+                            cum_df_outer_right[itemvalue]=cum_df_outer_right[itemkey]
+                            right_outer_cols.append(itemvalue)
+                        else:
+                            IFLOGGER.debug(f"Column {itemkey} not found in right_outer_cols {right_outer_cols}. Skipping this copy {itemkey}:{itemvalue}")
+
+            else:
+                IFLOGGER.debug(f"RIGHT_COPY should be a dictionary of values but {RIGHT_COPY} passed")
+
+
+        right_inner_cols=list(cum_df_inner_right.columns.values)
+        right_outer_cols=list(cum_df_outer_right.columns.values)
+        RIGHT_TRANSLATE = getParams(labels_dict,"RIGHT_TRANSLATE")
+        if RIGHT_TRANSLATE:
+            if isinstance(RIGHT_TRANSLATE,dict):
+                for itemkey,itemvalue in RIGHT_COPY.items():
+                    if itemkey in right_inner_cols:
+                        cum_df_inner_right[itemkey] = cum_df_inner_right[itemkey].apply(lambda row :  row_translate(row,itemvalue))
+                    else:
+                        IFLOGGER.debug(f"Column {itemkey} not found in right_inner_cols {right_inner_cols}. Skipping this translation {itemkey}:{itemvalue}")
+
+                    if itemkey in right_outer_cols:
+                        cum_df_outer_right[itemkey] = cum_df_outer_right[itemkey].apply(lambda row :  row_translate(row,itemvalue))
+                    else:
+                        IFLOGGER.debug(f"Column {itemkey} not found in right_outer_cols {right_outer_cols}. Skipping this translation {itemkey}:{itemvalue}")
+
+            else:
+                IFLOGGER.debug(f"RIGHT_TRANSLATE should be a dictionary of values but {RIGHT_TRANSLATE} passed")   
 
 
     if not cum_df_inner_right.empty and not cum_df_inner_left.empty:
