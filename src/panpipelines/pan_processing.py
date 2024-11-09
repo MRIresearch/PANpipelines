@@ -285,16 +285,16 @@ def main():
         else:
             LOGGER.info("All pipelines in configuration file will be run.")
 
+    if RUN_DEPENDENT_PIPELINES:
+        pipelines = get_dependent_pipelines(panpipeconfig_json,pipelines,ALL_PIPELINES)
+        panpipe_labels = updateParams(panpipe_labels, "RUN_DEPENDENT_PIPELINES","Y")
+
     if pipeline_exclude and pipelines:
         LOGGER.info(f"Excluding pipelines {pipeline_exclude} from this run.")
         pipelines = list(set(pipelines) - set(pipeline_exclude))
 
     # Remove duplicates in pipeline list
     pipelines = list(set(pipelines))
-
-    if RUN_DEPENDENT_PIPELINES:
-        pipelines = get_dependent_pipelines(panpipeconfig_json,pipelines,ALL_PIPELINES)
-        panpipe_labels = updateParams(panpipe_labels, "RUN_DEPENDENT_PIPELINES","Y")
 
     LOGGER.info(f"About to arrange pipelines by dependency. Pipeline list is {pipelines}")    
     pipelines = arrangePipelines(panpipeconfig_json,pipelines=pipelines)

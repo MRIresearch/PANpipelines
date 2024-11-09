@@ -46,9 +46,14 @@ class panpipeline:
 
         pan_workflow = self.panworkflow.create(workflow_name,workflow_dir,self.labels_dict,createGraph=self.createGraph,execution=self.execution, LOGGER=self.LOGGER)
         if isTrue(getParams(self.labels_dict,"FORCE_RUN")):
+            MULTIPROC_NPROCS=getParams(self.labels_dict,"MULTIPROC_NPROCS")
+            if MULTIPROC_NPROCS:
+                MULTIPROC_NPROCS = int(MULTIPROC_NPROCS)
+            else:
+                MULTIPROC_NPROCS=1
             if self.LOGGER:
                 self.LOGGER.info("Forced rerun of workflow selected ....")
-            pan_workflow.run(plugin="MultiProc", plugin_args={"overwrite": True})
+            pan_workflow.run(plugin="MultiProc", plugin_args={"overwrite": True,'n_procs' : MULTIPROC_NPROCS})
         else:
             pan_workflow.run()
 
