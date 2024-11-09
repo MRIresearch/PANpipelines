@@ -105,6 +105,7 @@ def pancontainergroup_proc(labels_dict):
     return {
         "output_file" : output_file,
         "metadata_file" : metadata_file,
+        "pipeline_config" :pipeline_config_loc,
         "out_files":out_files
     }
 
@@ -115,6 +116,7 @@ class pancontainergroupInputSpec(BaseInterfaceInputSpec):
 class pancontainergroupOutputSpec(TraitedSpec):
     output_file = File(desc='output file for upload')
     metadata_file = File(desc='metadata file for upload')
+    pipeline_config = File(desc='pipeline_config')
     out_files = traits.List(desc='list of files')
     
 class pancontainergroup_pan(BaseInterface):

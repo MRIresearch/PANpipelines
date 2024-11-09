@@ -190,7 +190,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
             orig_trans_src_ori=""
                 
         TRANSLIT="from-MNI152NLin6Asym_to-MNI152NLin2009cAsym"
-        if TRANSLIT in str(transform):
+        if str(transform).startswith(TRANSLIT):
             # if ref file not defined then assume that user implies this as reference
             if not ref_file:
                 ref_file = TRANSLIT.split("_to-")[1]
@@ -198,7 +198,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
             transform = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",suffix="xfm",extension=[".h5"])
 
         TRANSLIT="from-MNI152NLin2009cAsym_to-MNI152NLin6Asym"
-        if TRANSLIT in str(transform):
+        if str(transform).startswith(TRANSLIT):
             # if ref file not defined then assume that user implies this as reference
             if not ref_file:
                 ref_file = TRANSLIT.split("_to-")[1]
@@ -206,20 +206,20 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
             transform = get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",suffix="xfm",extension=[".h5"])
 
         REFLIT="MNI152NLin2009cAsym_res-"
-        if REFLIT in str(trans_reference):
+        if str(trans_reference).startswith(REFLIT):
             resolution=int(trans_reference.split(REFLIT)[1])
             trans_reference=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
 
-        if REFLIT in str(trans_source):
+        if str(trans_source).startswith(REFLIT):
             resolution=int(trans_source.split(REFLIT)[1])
             trans_reference=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
 
         REFLIT="MNI152NLin6Asym_res-"
-        if REFLIT in str(trans_reference):
+        if str(trans_reference).startswith(REFLIT):
             resolution=int(trans_reference.split(REFLIT)[1])
             ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
 
-        if REFLIT in str(trans_source):
+        if str(trans_source).startswith(REFLIT):
             resolution=int(trans_source.split(REFLIT)[1])
             ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
 
@@ -338,12 +338,12 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     new_ref_file = newfile(work_dir,ref_file,suffix="desc-resample")
 
     REFLIT="MNI152NLin2009cAsym_res-"
-    if REFLIT in str(ref_file):
+    if str(ref_file).startswith(REFLIT):
         resolution=int(ref_file.split(REFLIT)[1])
         ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin2009cAsym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
 
     REFLIT="MNI152NLin6Asym_res-"
-    if REFLIT in str(ref_file):
+    if str(ref_file).startswith(REFLIT):
         resolution=int(ref_file.split(REFLIT)[1])
         ref_file=get_template_ref(TEMPLATEFLOW_HOME,"MNI152NLin6Asym",resolution=resolution,suffix="T1w",extension=[".nii.gz"])
 

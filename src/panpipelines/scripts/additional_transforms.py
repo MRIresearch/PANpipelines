@@ -34,7 +34,11 @@ def create_transforms(pipeline_config_file):
     try:
         
         t1w=getGlob(substitute_labels("<BIDS_DIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat/*_T1w.nii.gz",labels_dict))
-        qsianat=getParams(labels_dict,"QSIANAT")
+        # if we cant' find T1w then this must be a situation where we have to use the second session MPRAGE
+        if not t1w:
+            t1w=getGlob(substitute_labels("<BIDS_DIR>/sub-<PARTICIPANT_LABEL>/*/anat/*_T1w.nii*",labels_dict))
+        # use wildcard in QSIANAT
+        qsianat=getGlob(getParams(labels_dict,"QSIANAT"))
         t1w_t1acpc=getParams(labels_dict,"T1W_T1ACPC")
         command_base, container = getContainer(labels_dict,nodename="additional_transforms",SPECIFIC="DUMMY_CONTAINER",LOGGER=IFLOGGER)
         transform_complete=ants_registration_rigid(t1w,qsianat,t1w_t1acpc,command_base)
