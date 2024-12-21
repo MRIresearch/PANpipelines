@@ -12,6 +12,7 @@ from panpipelines.version import __version__
 from panpipelines.single_subject import runSingleSubject
 from panpipelines.group_subjects import runGroupSubjects
 import shutil
+import time
 
 LOGGER = logger_setup("panpipelines", logging.DEBUG)
 LOGGER.propagate = False
@@ -36,7 +37,8 @@ def parse_params():
     parser.add_argument("--info_delta", default="False", help="what are the subjects that are left to process")
     parser.add_argument("--all_group", default="True")
     parser.add_argument("--force_bids_download",default="False")
-    parser.add_argument("--run_dependent_pipelines",default="False")
+    parser.add_argument("--run_dependent_pipelines",nargs="+")
+    parser.add_argument("--run_interactive",default="True")
     parser.add_argument("--force_run",default="False")
     parser.add_argument("--participant_exclusions", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
     parser.add_argument("--session_label", nargs="*", type=drop_ses, help="filter by session label (the ses- prefix can be removed).")
@@ -216,9 +218,14 @@ def main():
     TEMPLATEFLOW_HOME=getParams(panpipe_labels,"TEMPLATEFLOW_HOME")
     if TEMPLATEFLOW_HOME:
         LOGGER.info(f"Downloading an initial set of TemplateFlow templates for spaces MNI152NLin2009cAsym and MNI152NLin6Asym to {TEMPLATEFLOW_HOME}.")
-        initTemplateFlow(TEMPLATEFLOW_HOME) 
+        initTemplateFlow(TEMPLATEFLOW_HOME)
 
-    RUN_DEPENDENT_PIPELINES = isTrue(args.run_dependent_pipelines)
+    RUN_INTERACTIVE=isTrue(args.run_interactive)
+    dependent_pipelines = args.run_dependent_pipelines
+    if dependent_pipelines:
+        RUN_DEPENDENT_PIPELINES = True
+    else:
+        RUN_DEPENDENT_PIPELINES = False
 
     FORCE_BIDS_DOWNLOAD = isTrue(args.force_bids_download)
     if FORCE_BIDS_DOWNLOAD:
@@ -286,7 +293,7 @@ def main():
             LOGGER.info("All pipelines in configuration file will be run.")
 
     if RUN_DEPENDENT_PIPELINES:
-        pipelines = get_dependent_pipelines(panpipeconfig_json,pipelines,ALL_PIPELINES)
+        pipelines.extend(get_dependent_pipelines(panpipeconfig_json,dependent_pipelines,ALL_PIPELINES))
         panpipe_labels = updateParams(panpipe_labels, "RUN_DEPENDENT_PIPELINES","Y")
 
     if pipeline_exclude and pipelines:
@@ -356,7 +363,18 @@ def main():
             if "ftp_upload_bids" not in pipeline_exclude:
                 pipelines.add("ftp_upload_bids")
             
+    LOGGER.info(f"participants to be processed: {participant_label}")
+    time.sleep(5)
     LOGGER.info(f"Pipelines to be processed : {pipelines}")
+    time.sleep(5)
+
+    key=""
+    if RUN_INTERACTIVE:
+        key=input("press c to continue, q to exit")
+    while RUN_INTERACTIVE and not key.upper() == "C":
+        if key.upper() == "Q":
+        	sys.exit()
+        key=input()
 
     for pipeline in pipelines:
 
