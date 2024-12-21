@@ -67,7 +67,7 @@ def upload_proc(labels_dict,source_path,remote_path, ftpcredentials):
             metadata_init = {}
             history={}
             if DEST_IS_DIR:
-                UPLOAD_SRC=os.path.dirname(source_path_dir)
+                UPLOAD_SRC=source_path_dir
                 UPLOAD_DEST=os.path.dirname(remote_path_dir )
             else:
                 UPLOAD_SRC = source_path_dir
