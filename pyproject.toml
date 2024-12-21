@@ -39,7 +39,9 @@ dependencies = [
   "mne[hdf]==1.1.0",
   "beautifulsoup4==4.12.3",
   "dominate==2.9.1",
-  "pysftp==0.2.9"
+  "pysftp==0.2.9",
+  "sqlalchemy==2.0.34",
+  "psycopg2-binary==2.9.10"
 
 ]
 
