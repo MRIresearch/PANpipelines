@@ -511,7 +511,7 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 UM_EXCEPTION = True
 
     if UM_EXCEPTION:
-        new_bids_dir = os.path.join(cwd,"bids_dir")
+        new_bids_dir = os.path.join(output_dir,"bids_dir")
         copytree(os.path.join(bids_dir,f"sub-{participant_label}"),os.path.join(new_bids_dir,f"sub-{participant_label}"))
         copy(os.path.join(bids_dir,"participants.tsv"),os.path.join(new_bids_dir,"participants.tsv"))
         copy(os.path.join(bids_dir,"dataset_description.json"),os.path.join(new_bids_dir,"dataset_description.json"))
