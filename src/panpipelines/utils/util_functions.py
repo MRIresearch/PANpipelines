@@ -142,12 +142,14 @@ def insertParams(pardict, key, value, postpone=False):
             pardict[key]=value
     return pardict 
 
-def updateParams(pardict, key, value, postpone=False):
+def updateParams(pardict, key, value, postpone=False,remove_if_none=False):
     if key is not None and pardict is not None and value is not None:
         if not postpone:
             pardict[key]=substitute_labels(value,pardict)
         else:
             pardict[key]=value
+    elif key is not None and pardict is not None and value is None and remove_if_none:
+        pardict = removeParam(pardict,key)
     return pardict 
 
 def removeParam(pardict,key):

@@ -75,13 +75,13 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
             labels_dict = updateParams(labels_dict,"COST_FUNCTION","NearestNeighbor")
             maskcreate_node = atlascreate.create(labels_dict,name=f"maskcreate_{mask_name}_node",roi_list=mask_list,roilabels_list=mask_index,LOGGER=LOGGER)
 
-            labels_dict = updateParams(labels_dict,"NEWATLAS_TRANSFORM_MAT",newatlas_transform_mat)
-            labels_dict = updateParams(labels_dict,"NEWATLAS_TRANSFORM_REF",newatlas_transform_ref)
-            labels_dict = updateParams(labels_dict,"NEWATLAS_TYPE",newatlas_type)
-            labels_dict = updateParams(labels_dict,"NEWATLAS_NAME",newatlas_name)
-            labels_dict = updateParams(labels_dict,"NEWATLAS_PROBTHRESH",newatlas_probthresh)
-            labels_dict = updateParams(labels_dict,"NEWATLAS_INVERTROI",newatlas_invertroi)
-            labels_dict = updateParams(labels_dict,"NEWATLAS_INDEXMODE",newatlas_indexmode)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_TRANSFORM_MAT",newatlas_transform_mat,remove_if_none=True)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_TRANSFORM_REF",newatlas_transform_ref,remove_if_none=True)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_TYPE",newatlas_type,remove_if_none=True)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_NAME",newatlas_name,remove_if_none=True)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_PROBTHRESH",newatlas_probthresh,remove_if_none=True)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_INVERTROI",newatlas_invertroi,remove_if_none=True)
+            labels_dict = updateParams(labels_dict,"NEWATLAS_INDEXMODE",newatlas_indexmode,remove_if_none=True)
         else:
             if LOGGER:
                 LOGGER.info(f"mask Template defined but valid template file not found. Ignoring mask Template.")

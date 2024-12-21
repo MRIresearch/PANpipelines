@@ -32,8 +32,9 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
         special_atlas_type="hcpmmp1aseg"
 
 
-    atlas_type = "3D"
     atlas_type = getParams(labels_dict,'NEWATLAS_TYPE')
+    if not atlas_type:
+        atlas_type = "3D"
 
     prob_thresh =  getParams(labels_dict,'NEWATLAS_PROBTHRESH')
     if prob_thresh:
