@@ -7,5 +7,6 @@ __all__ = [
     "mne_make_surfaces",
     "paninfo_bidsqc",
     "additional_transforms",
-    "ftp_upload_pan"
+    "ftp_upload_pan",
+    "pandb_download"
 ]
