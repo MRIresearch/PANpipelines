@@ -118,9 +118,17 @@ def qsiprep_proc(labels_dict,bids_dir=""):
             print(f"qsiprep tag {qsiprep_tag} not valid.") 
 
 
+    qsiprep_outdir=getParams(labels_dict,"QSIPREP_OUTDIR")
+    if not qsiprep_outdir:
+        qsiprep_outdir="<CWD>"
+    else:
+        qsiprep_outdir=substitute_labels(qsiprep_outdir,labels_dict)
+        os.makedirs(qsiprep_outdir,exist_ok=True)
+
+
     command=f"{command_base}"\
             " "+bids_dir +\
-            " <CWD>"\
+            " "+qsiprep_outdir+\
             " participant"\
             " " + params
 
