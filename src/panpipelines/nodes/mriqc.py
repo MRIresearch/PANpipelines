@@ -100,10 +100,10 @@ def mriqc_proc(labels_dict,bids_dir=""):
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
 
-    bold_rep = getGlob(os.path.join(cwd,'mriqcoutput','mriqc','sub-{}'.format(participant_label),'ses-*','func','*bold.json'))
-    t1w_rep = getGlob(os.path.join(cwd,'mriqcoutput','mriqc','sub-{}'.format(participant_label),'ses-*','anat','*T1w.json'))
-    t2w_rep= getGlob(os.path.join(cwd,'mriqcoutput','mriqc','sub-{}'.format(participant_label),'ses-*','anat','*T2w.json'))
-    dwi_rep = getGlob(os.path.join(cwd,'mriqcoutput','mriqc','sub-{}'.format(participant_label),'ses-*','dwi','*dwi.json'))
+    bold_rep = getGlob(os.path.join(cwd,'mriqcoutput','sub-{}'.format(participant_label),'ses-*','func','*bold.json'))
+    t1w_rep = getGlob(os.path.join(cwd,'mriqcoutput','sub-{}'.format(participant_label),'ses-*','anat','*T1w.json'))
+    t2w_rep= getGlob(os.path.join(cwd,'mriqcoutput','sub-{}'.format(participant_label),'ses-*','anat','*T2w.json'))
+    dwi_rep = getGlob(os.path.join(cwd,'mriqcoutput','sub-{}'.format(participant_label),'ses-*','dwi','*dwi.json'))
 
     output_dir = cwd
 
