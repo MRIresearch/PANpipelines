@@ -1124,13 +1124,13 @@ def process_exclusions(subject_exclusions=[]):
 
 def get_projectmap(participants, participants_file,session_labels=[],sessions_file = None, subject_exclusions=[]):
 
-    if participants_file is not None:
-        df = pd.read_table(participants_file,sep="\t")
-    else:
+    if sessions_file is not None:
         df = pd.read_table(sessions_file,sep="\t")
-
+    else:
+    	df = pd.read_table(participants_file,sep="\t")
+        
     if len(participants) == 1 and participants[0]=="ALL_SUBJECTS":
-        participants = df["bids_participant_id"].tolist()
+        participants = list(set(df["bids_participant_id"].tolist()))
 
     # process exclusions
     exclusion_list  = process_exclusions(subject_exclusions)
