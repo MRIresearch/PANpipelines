@@ -200,9 +200,9 @@ def main():
         getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",new_participants_file,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST)
         
         df1 = pd.read_table(new_participants_file,sep="\t")
-        participants_list1 = df1["bids_participant_id"].tolist()
+        participants_list1 = df1["hml_id"].tolist()
         df2 = pd.read_table(participants_file,sep="\t")
-        participants_list2 = df2["bids_participant_id"].tolist()
+        participants_list2 = df2["hml_id"].tolist()
         participant_incremental = [ drop_sub(x) for x in list(set(participants_list1).difference(set(participants_list2)))]
         LOGGER.info(f"Incremental participants found {participant_incremental}")
         mask = df1["hml_id"].isin(participant_incremental)
@@ -333,9 +333,9 @@ def main():
     if INCREMENTAL:
         LOGGER.info("Running in incremental mode. Identifying participants to run")
         df1 = pd.read_table(participants_file,sep="\t")
-        participants_list1 = df1["bids_participant_id"].tolist()
+        participants_list1 = df1["hml_id"].tolist()
         df2 = pd.read_table(old_participants_file,sep="\t")
-        participants_list2 = df2["bids_participant_id"].tolist()
+        participants_list2 = df2["hml_id"].tolist()
         participant_incremental = [ drop_sub(x) for x in list(set(participants_list1).difference(set(participants_list2)))]
         LOGGER.info(f"Incremental participants found {participant_incremental}")
 
@@ -373,9 +373,9 @@ def main():
         key=input("press c to continue, q to exit")
     while RUN_INTERACTIVE and not key.upper() == "C":
         if key.upper() == "Q":
-        	sys.exit()
+            sys.exit()
         key=input()
-
+        
     for pipeline in pipelines:
 
         subject_exclusions=[]
