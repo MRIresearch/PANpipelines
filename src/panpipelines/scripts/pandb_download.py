@@ -27,20 +27,17 @@ if __name__ == "__main__":
     query = " ".join([x.replace("\\","") for x in query])
     output = args.output
 
-    if labels_dict:
-        cwd = getParams(labels_dict,"CWD")
-    else:
-        cwd = os.path.dirname(tempfile.mkstemp()[1])
-
-    if not os.path.dirname(output):
-        output = os.path.join(cwd,output)
-
     cert = args.cert
     connargs = os.path.abspath(args.connargs)
     pipeline_config_file = None
     if args.pipeline_config_file:
         if Path(args.pipeline_config_file).exists():
             pipeline_config_file = str(args.pipeline_config_file)
+
+    with open(connargs,"r") as infile:
+        panargs = json.load(infile)
+
+    encoded_password = quote_plus(panargs['password'])
 
     labels_dict={}
     if pipeline_config_file:
@@ -50,11 +47,14 @@ if __name__ == "__main__":
            with open(pipeline_config_file,'r') as infile:
                labels_dict = json.load(infile)
 
-    with open(connargs,"r") as infile:
-        panargs = json.load(infile)
+    if labels_dict:
+        cwd = getParams(labels_dict,"CWD")
+    else:
+        cwd = os.path.dirname(tempfile.mkstemp()[1])
 
+    if not os.path.dirname(output):
+        output = os.path.join(cwd,output)
 
-    encoded_password = quote_plus(panargs['password'])
 
     # Create the connection URL
     db_url = (
