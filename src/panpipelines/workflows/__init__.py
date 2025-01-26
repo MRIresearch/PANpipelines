@@ -17,5 +17,6 @@ __all__ = [
     "mriqc_workflow",
     "pancontainergroup_workflow",
     "upload_workflow",
-    "reports_workflow"
+    "reports_workflow",
+    "mriqcgroup_workflow"
 ]

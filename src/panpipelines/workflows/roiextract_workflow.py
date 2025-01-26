@@ -19,10 +19,10 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
         pan_workflow.config = process_dict(pan_workflow.config,execution)
 
     # do we have  a mask to exclude?
+    mask_list=[]
     maskcreate_node = None
     mask_templates = getParams(labels_dict,"MASK_TEMPLATE")
     if mask_templates:
-        mask_list=[]
         mask_name = getParams(labels_dict,"MASK_NAME")
         if not mask_name:
             mask_name="mask"

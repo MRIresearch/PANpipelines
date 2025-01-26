@@ -18,5 +18,6 @@ __all__ = [
     "mriqc_panpipeline",
     "pancontainergroup_panpipeline",
     "upload_panpipeline",
-    "reports_panpipeline"
+    "reports_panpipeline",
+    "mriqcgroup_panpipeline"
 ]

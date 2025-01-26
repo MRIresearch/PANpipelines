@@ -362,8 +362,13 @@ def addRoiExtractProcReport(doc_dict):
             li(a('Measure Registration',href='#measureregistration'))
             nested=ul()
             with nested:
-                for i in ['mask_measure', 'atlas_measure','mask_atlas_measure']:
-                    li(a(i.title(), href='#%s' % i))
+                if mask:
+                    for i in ['mask_measure', 'atlas_measure','mask_atlas_measure']:
+                        li(a(i.title(), href='#%s' % i))
+                else:
+                    for i in ['atlas_measure']:
+                        li(a(i.title(), href='#%s' % i))
+
             li(a('Measures Info',href='#measuresinfo'))
             nested=ul()
             with nested:
@@ -374,14 +379,15 @@ def addRoiExtractProcReport(doc_dict):
     doc = create_section(doc, 'measureregistration', 'section', f"Registration")
     doc += hr()
 
-    reg1_dict={}
-    reg1_dict["image_list"] = [measure,mask]
-    reg1_dict["image_png"] = os.path.join(image_dir,'mask_measure.png')
-    reg1_dict["title"] = 'mask overlayed on measure'
-    reg1_dict["divid"] = 'mask_measure'
-    reg1_dict["divclass"] = 'img-caption'
-    doc = AddRegSection(doc, reg1_dict,levellist=[0.5,5,10,15])
-    doc += hr()
+    if mask:
+        reg1_dict={}
+        reg1_dict["image_list"] = [measure,mask]
+        reg1_dict["image_png"] = os.path.join(image_dir,'mask_measure.png')
+        reg1_dict["title"] = 'mask overlayed on measure'
+        reg1_dict["divid"] = 'mask_measure'
+        reg1_dict["divclass"] = 'img-caption'
+        doc = AddRegSection(doc, reg1_dict,levellist=[0.5,5,10,15])
+        doc += hr()
 
     reg1_dict={}
     reg1_dict["image_list"] = [measure,atlas]
@@ -392,14 +398,15 @@ def addRoiExtractProcReport(doc_dict):
     doc = AddRegSection(doc, reg1_dict,levellist=[0.5,5,10,15],colors = ['g','b','y','m','c'],roi_index=0)
     doc += hr()
 
-    reg1_dict={}
-    reg1_dict["image_list"] = [measure,mask,atlas]
-    reg1_dict["image_png"] = os.path.join(image_dir,'mask_atlas_measure.png')
-    reg1_dict["title"] = 'mask overlaid on atlas and measure'
-    reg1_dict["divid"] = 'mask_atlas_measure'
-    reg1_dict["divclass"] = 'img-caption'
-    doc = AddRegSection(doc, reg1_dict,levellist=[0.5,5,10,15],roi_index=1)
-    doc += hr()
+    if mask:
+        reg1_dict={}
+        reg1_dict["image_list"] = [measure,mask,atlas]
+        reg1_dict["image_png"] = os.path.join(image_dir,'mask_atlas_measure.png')
+        reg1_dict["title"] = 'mask overlaid on atlas and measure'
+        reg1_dict["divid"] = 'mask_atlas_measure'
+        reg1_dict["divclass"] = 'img-caption'
+        doc = AddRegSection(doc, reg1_dict,levellist=[0.5,5,10,15],roi_index=1)
+        doc += hr()
 
 
     doc += hr()
@@ -457,7 +464,10 @@ def createRoiExtractReport(panpipe_labels,html_file, metadata,analysis_level=Non
     doc_dict["stylesheet"] = f"{stylesheet}"
     doc_dict["image_dir"] = f"{image_dir}"
     doc_dict["output_dir"] = f"{output_dir}"
-    doc_dict["mask"] = metajson["Mask"]
+    if "Mask" in metajson.keys():
+        doc_dict["mask"] = metajson["Mask"]
+    else:
+        doc_dict["mask"] = ""
     doc_dict["atlas"] = metajson["Atlas File"]
     doc_dict["measure"] = metajson["Input File"]
     doc_dict["pipeline"] = f"{pipeline}"
