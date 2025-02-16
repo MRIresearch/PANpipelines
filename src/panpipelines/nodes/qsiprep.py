@@ -74,6 +74,8 @@ def qsiprep_proc(labels_dict,bids_dir=""):
     bids_filter_dict={}
     bids_filter_dict["dwi"] = {}
     bids_filter_dict["dwi"]["session"] =  participant_session
+    bids_filter_dict["t1w"] = {}
+    bids_filter_dict["t1w"]["session"] =  participant_session
     bids_filter_file = os.path.join(cwd,f"{participant_label}_{participant_session}_bids_filter_file.json")
     export_labels(bids_filter_dict,bids_filter_file)
     IFLOGGER.info(f"Specifying session filter: exporting {bids_filter_dict} to {bids_filter_file}")
@@ -132,8 +134,9 @@ def qsiprep_proc(labels_dict,bids_dir=""):
             " participant"\
             " " + params
 
+    interactive_run = isTrue(getParams(labels_dict,"INTERACTIVE_RUN"))
     evaluated_command=substitute_labels(command, labels_dict)
-    results = runCommand(evaluated_command,IFLOGGER)
+    results = runCommand(evaluated_command,IFLOGGER,interactive=interactive_run)
 
     dwi_preprocess = getGlob(os.path.join(cwd,'qsiprep','sub-{}'.format(participant_label),'ses-*','dwi','*preproc_dwi.nii.gz'))
     mat_t12mni = getGlob(os.path.join(cwd,'qsiprep','sub-{}'.format(participant_label),'anat','*from-T1w*mode-image_xfm.h5'))
