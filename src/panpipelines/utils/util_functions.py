@@ -3110,3 +3110,25 @@ def extract_roi_mean_4D(image_path, atlas_4D, mask_list=None):
 
     signals=np.array(roi_means)
     return signals.reshape(1,-1)
+
+def iterative_substitution(entity,panpipe_labels):
+    result=None
+    if isinstance(entity,dict):
+        result={}
+        for itemkey,itemvalue in entity.items():
+            new_value = substitute_labels(itemvalue,panpipe_labels)
+            result[itemkey]=new_value
+
+    elif isinstance(entity,str):
+        result= substitute_labels(itemvalue,panpipe_labels)
+
+    elif isinstance(entity,list):
+        result = []
+        for item in entity:
+            new_value = substitute_labels(itemvalue,panpipe_labels)
+            result.append(new_value)
+
+    if result:
+        return result
+    else:
+        return entity

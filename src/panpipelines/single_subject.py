@@ -95,8 +95,9 @@ def runSingleSubject(participant_label, xnat_project, xnat_shared_project, sessi
         filtered_args = {k: v for k, v in DIRECTPARAMS.items() if k in valid_args}
         DIRECTSTARTDIR = getParams(panpipe_labels,"DIRECTSTARTDIR")
         if DIRECTSTARTDIR:
-            if os.path.exists(DIRECTSTARTDIR):
-                os.chdir(DIRECTSTARTDIR)
+            if not os.path.exists(DIRECTSTARTDIR):
+                os.makedirs(DIRECTSTARTDIR,exist_ok=True)
+            os.chdir(DIRECTSTARTDIR)
 
         panProcessor(panpipe_labels,**filtered_args)
         os.chdir(curr_dir)
