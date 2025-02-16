@@ -43,13 +43,15 @@ def aslprep_proc(labels_dict,bids_dir=""):
             if datetime.datetime.strptime(scantime,"%Y-%m-%dT%H:%M:%S.%f%Z") > datetime.datetime(2024,10,21):
                 UM_EXCEPTION = True
 
+    
     if UM_EXCEPTION:
-        new_bids_dir = os.path.join(cwd,"bids_dir")
-        copytree(os.path.join(bids_dir,f"sub-{participant_label}"),os.path.join(new_bids_dir,f"sub-{participant_label}"))
-        copy(os.path.join(bids_dir,"participants.tsv"),os.path.join(new_bids_dir,"participants.tsv"))
-        copy(os.path.join(bids_dir,"dataset_description.json"),os.path.join(new_bids_dir,"dataset_description.json"))
-        bids_dir = new_bids_dir
-        process_um_exception(bids_dir, cwd, participant_label, participant_session,labels_dict)
+        IFLOGGER.info("Conversion to XA50 software at 002_HML added 1 extra volume to M0 and ASL scans. These have been removed from their BIDS files.")
+        #new_bids_dir = os.path.join(cwd,"bids_dir")
+        #copytree(os.path.join(bids_dir,f"sub-{participant_label}"),os.path.join(new_bids_dir,f"sub-{participant_label}"))
+        #copy(os.path.join(bids_dir,"participants.tsv"),os.path.join(new_bids_dir,"participants.tsv"))
+        #copy(os.path.join(bids_dir,"dataset_description.json"),os.path.join(new_bids_dir,"dataset_description.json"))
+        #bids_dir = new_bids_dir
+        #process_um_exception(bids_dir, cwd, participant_label, participant_session,labels_dict)
 
     aslprep_dict={}
     aslprep_dict = updateParams(aslprep_dict,"--participant_label","<PARTICIPANT_LABEL>")

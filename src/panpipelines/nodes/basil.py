@@ -490,12 +490,12 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
     
     output_dir=os.path.join(cwd,"basiloutput")
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        os.makedirs(output_dir,exist_ok=True)
     basil_dict = updateParams(basil_dict,ASL_OUTPUT,output_dir)
 
     work_dir=os.path.join(output_dir,"basilwork_pan")
     if not os.path.exists(work_dir):
-        os.makedirs(work_dir)
+        os.makedirs(work_dir,exist_ok=True)
 
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
@@ -511,12 +511,13 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 UM_EXCEPTION = True
 
     if UM_EXCEPTION:
-        new_bids_dir = os.path.join(output_dir,"bids_dir")
-        copytree(os.path.join(bids_dir,f"sub-{participant_label}"),os.path.join(new_bids_dir,f"sub-{participant_label}"))
-        copy(os.path.join(bids_dir,"participants.tsv"),os.path.join(new_bids_dir,"participants.tsv"))
-        copy(os.path.join(bids_dir,"dataset_description.json"),os.path.join(new_bids_dir,"dataset_description.json"))
-        bids_dir = new_bids_dir
-        process_um_exception(bids_dir, cwd, participant_label, participant_session,labels_dict)
+        IFLOGGER.info("Conversion to XA50 software at 002_HML added 1 extra volume to M0 and ASL scans. These have been removed from their BIDS files.")
+        #new_bids_dir = os.path.join(output_dir,"bids_dir")
+        #copytree(os.path.join(bids_dir,f"sub-{participant_label}"),os.path.join(new_bids_dir,f"sub-{participant_label}"))
+        #copy(os.path.join(bids_dir,"participants.tsv"),os.path.join(new_bids_dir,"participants.tsv"))
+        #copy(os.path.join(bids_dir,"dataset_description.json"),os.path.join(new_bids_dir,"dataset_description.json"))
+        #bids_dir = new_bids_dir
+        #process_um_exception(bids_dir, cwd, participant_label, participant_session,labels_dict)
 
     layout = BIDSLayout(bids_dir)
     asl=layout.get(subject=participant_label,session=participant_session,suffix='asl', extension='nii.gz')
