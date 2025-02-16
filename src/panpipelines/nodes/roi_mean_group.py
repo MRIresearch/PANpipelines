@@ -39,7 +39,7 @@ def roi_mean_group_proc(labels_dict,file_template,atlas_file,atlas_index):
     if not statsimagestring == "":
         stats_image_dir = os.path.join(cwd,'stats_image')
         if not os.path.isdir(stats_image_dir):
-            os.makedirs(stats_image_dir)
+            os.makedirs(stats_image_dir,exist_ok=True)
         stats_image = os.path.join(stats_image_dir,'stats_image_mni.nii.gz')
 
         params="-t" \
@@ -59,7 +59,7 @@ def roi_mean_group_proc(labels_dict,file_template,atlas_file,atlas_index):
     if everythingThere:
         roi_output_dir = os.path.join(cwd,'roi_output_dir')
         if not os.path.isdir(roi_output_dir):
-            os.makedirs(roi_output_dir)
+            os.makedirs(roi_output_dir,exist_ok=True)
 
         roi_raw_txt = os.path.join(roi_output_dir,'roi_raw.txt')
 

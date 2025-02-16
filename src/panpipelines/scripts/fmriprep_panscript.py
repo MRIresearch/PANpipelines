@@ -40,7 +40,7 @@ class fmriprep_panscript(panscript):
         print("Creating output directory")
         output_dir = getParams(self.labels_dict,"OUTPUT_DIR")
         if os.path.exists(output_dir):
-            os.makedirs(output_dir)
+            os.makedirs(output_dir,exist_ok=True)
     
     def post_run(self):
         print("post run")

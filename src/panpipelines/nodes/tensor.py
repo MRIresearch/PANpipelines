@@ -30,7 +30,7 @@ def tensor_proc(labels_dict,input_dir):
 
     tensor_dir = os.path.join(cwd,'tensors')
     if not os.path.isdir(tensor_dir):
-        os.makedirs(tensor_dir)
+        os.makedirs(tensor_dir,exist_ok=True)
 
     if not session_label:
         session_label=get_bidstag("ses",os.path.basename(dwi))
@@ -72,7 +72,7 @@ def tensor_proc(labels_dict,input_dir):
     # generate tensor metrics
     tensor_metrics_dir = os.path.join(cwd,'tensor_metrics')
     if not os.path.isdir(tensor_metrics_dir):
-        os.makedirs(tensor_metrics_dir)
+        os.makedirs(tensor_metrics_dir,exist_ok=True)
 
     if not session_label:
         session_label=get_bidstag("ses",os.path.basename(dwi))

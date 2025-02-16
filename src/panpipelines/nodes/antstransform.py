@@ -30,7 +30,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     if Path(input_file).suffix == ".mgz":
         mgzdir = os.path.join(cwd,'mgz_nii')
         if not os.path.isdir(mgzdir):
-            os.makedirs(mgzdir)
+            os.makedirs(mgzdir,exist_ok=True)
 
         fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
         input_file_nii = newfile(mgzdir,input_file,extension=".nii.gz")
@@ -42,7 +42,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
 
     work_dir = os.path.join(cwd,'{}_workdir'.format(participant_label))
     if not os.path.isdir(work_dir):
-        os.makedirs(work_dir)
+        os.makedirs(work_dir,exist_ok=True)
 
     if isinstance(trans_mat[0],list):
         trans_parts = substitute_labels(trans_mat[0][-1],labels_dict).split(":")
@@ -188,6 +188,17 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
                 orig_trans_src_ori = ""
         else:
             orig_trans_src_ori=""
+
+        # for situation where we are just using identity for 1 transform
+        if transform=="identity" and trans_num == 1:
+            if not transform_ori_ref:
+                transform_ori_ref="RAS"
+            if not transform_ori_src:
+                transform_ori_src="RAS"
+            if not transform_target_ori:
+                input_ori =  get_orientation_from_file(input_file,"image")
+                transform_target_ori=input_ori[0]
+
                 
         TRANSLIT="from-MNI152NLin6Asym_to-MNI152NLin2009cAsym"
         if str(transform).startswith(TRANSLIT):

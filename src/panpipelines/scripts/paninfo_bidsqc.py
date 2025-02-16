@@ -538,7 +538,7 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
     bidsqcOutdir=os.path.abspath(os.path.dirname(csvout))
 
     if not os.path.isdir(bidsqcOutdir):
-        os.makedirs(bidsqcOutdir)
+        os.makedirs(bidsqcOutdir,exist_ok=True)
 
     try:
         table_data = []

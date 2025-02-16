@@ -22,5 +22,7 @@ __all__ = [
     "mriqc",
     "pancontainergroup",
     "upload",
-    "reports"
+    "reports",
+    "tractseg",
+    "xdpd"
 ]

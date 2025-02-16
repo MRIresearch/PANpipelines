@@ -36,12 +36,12 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
         roi_output_dir = os.path.join(cwd,f"sub-{participant_label}_ses-{session_label}_roi_output_dir")
 
     if not os.path.isdir(roi_output_dir):
-        os.makedirs(roi_output_dir)
+        os.makedirs(roi_output_dir,exist_ok=True)
 
     if Path(atlas_file).suffix == ".mgz":
         mgzdir = os.path.join(cwd,'mgz_nii')
         if not os.path.isdir(mgzdir):
-            os.makedirs(mgzdir)
+            os.makedirs(mgzdir,exist_ok=True)
 
         fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
         atlas_file_nii = newfile(mgzdir,atlas_file,extension=".nii.gz")
@@ -51,7 +51,7 @@ def roi_mean_single_proc(labels_dict,input_file,atlas_file,atlas_index):
     if Path(input_file).suffix == ".mgz":
         mgzdir = os.path.join(cwd,'mgz_nii')
         if not os.path.isdir(mgzdir):
-            os.makedirs(mgzdir)
+            os.makedirs(mgzdir,exist_ok=True)
 
         fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
         input_file_nii = newfile(mgzdir,input_file,extension=".nii.gz")

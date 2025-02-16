@@ -155,7 +155,7 @@ def create(labels_dict,name="noddi_node",input_dir="", LOGGER=IFLOGGER):
     pan_node.inputs.labels_dict = labels_dict
 
     if input_dir is None or input_dir == "":
-        input_dir = substitute_labels("<QSIPREP_OUTPUT>", labels_dict)
+        input_dir = substitute_labels("<QSIPREP_OUTPUT_DIR>", labels_dict)
         
     pan_node.inputs.input_dir =  input_dir
 

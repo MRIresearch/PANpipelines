@@ -19,5 +19,7 @@ __all__ = [
     "pancontainergroup_panpipeline",
     "upload_panpipeline",
     "reports_panpipeline",
-    "mriqcgroup_panpipeline"
+    "mriqcgroup_panpipeline",
+    "tractseg_panpipeline",
+    "xcpd_panpipeline"
 ]

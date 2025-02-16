@@ -51,7 +51,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
         sinker_basedir = os.path.dirname(sinker_dir)
         sinker_folder = os.path.basename(sinker_dir)
         if not os.path.exists(sinker_basedir):
-            os.makedirs(sinker_basedir)
+            os.makedirs(sinker_basedir,exist_ok=True)
         sinker.inputs.base_directory = sinker_basedir
 
         pan_workflow.connect( collate_csv_groupnode,"roi_csv_inner",sinker,f"{sinker_folder}.@inner")

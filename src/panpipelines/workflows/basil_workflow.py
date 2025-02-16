@@ -92,11 +92,11 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
             
             sdcflows_workdir = os.path.dirname(SDCFLOWS_FMAP_DIR)
             if not os.path.exists(sdcflows_workdir):
-                os.makedirs(sdcflows_workdir)
+                os.makedirs(sdcflows_workdir,exist_ok=True)
 
             sdcflows_fmap_parentdir = os.path.dirname(SDCFLOWS_FMAP_DIR)
             if not os.path.exists(sdcflows_fmap_parentdir):
-                os.makedirs(sdcflows_fmap_parentdir)
+                os.makedirs(sdcflows_fmap_parentdir,exist_ok=True)
 
             sources=[]
             if sdcflows_fmap_mode == "phasediff":               
