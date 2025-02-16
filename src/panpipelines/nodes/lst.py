@@ -118,11 +118,11 @@ def lst_proc(labels_dict,bids_dir=""):
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     output_dir=os.path.join(cwd,'sub-' + participant_label,lst_type)
     if not os.path.isdir(output_dir):
-        os.makedirs(output_dir)
+        os.makedirs(output_dir,exist_ok=True)
 
     data_dir=os.path.join(output_dir,'data')
     if not os.path.isdir(data_dir):
-        os.makedirs(data_dir)
+        os.makedirs(data_dir,exist_ok=True)
 
     labels_dict = updateParams(labels_dict,"CWD",cwd)
     labels_dict = updateParams(labels_dict,"LST_OUTPUT_DIR",output_dir)

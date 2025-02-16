@@ -41,7 +41,7 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type,custom_prefix, add_
         roi_output_dir = os.path.join(cwd,'{}_{}_roi_output_dir'.format(participant_label,session_label))
 
     if not os.path.isdir(roi_output_dir):
-        os.makedirs(roi_output_dir)
+        os.makedirs(roi_output_dir,exist_ok=True)
 
     out_files=[]
     roi_csv = ""

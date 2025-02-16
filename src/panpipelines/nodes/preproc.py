@@ -159,7 +159,7 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
 
     work_dir=os.path.join(output_dir,"preproc_workdir")
     if not os.path.exists(work_dir):
-        os.makedirs(work_dir)
+        os.makedirs(work_dir,exist_ok=True)
 
     labels_dict = updateParams(labels_dict,"CWD",cwd)
 
@@ -549,7 +549,7 @@ def preproc_proc(labels_dict,bids_dir=""):
 
     work_dir=os.path.join(output_dir,"preproc_workdir")
     if not os.path.exists(work_dir):
-        os.makedirs(work_dir)
+        os.makedirs(work_dir,exist_ok=True)
 
     labels_dict = updateParams(labels_dict,"CWD",cwd)
 

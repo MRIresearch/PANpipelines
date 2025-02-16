@@ -764,7 +764,7 @@ def convMGZ2NII(mgz_in, nifti_out, COMMANDBASE):
     results = ut.runCommand(command)
     
 def disassembleTransforms(trans_in, trans_prefix, COMMANDBASE):
-    command=f"{COMMANDBASE} --homedir={os.getcwd()} CompositeTransformUtil --disassemble"\
+    command=f"{COMMANDBASE} --workdir={os.getcwd()} CompositeTransformUtil --disassemble"\
         f" {trans_in}"\
         f" {trans_prefix}"
     results = ut.runCommand(command)
@@ -774,7 +774,7 @@ def disassembleTransforms(trans_in, trans_prefix, COMMANDBASE):
 def assembleTransforms(trans_in, trans_filename, COMMANDBASE):
     if isinstance(trans_in,list):
         trans_string = " ".join(trans_in)
-        command=f"singularity run {COMMANDBASE} --homedir={os.getcwd()} CompositeTransformUtil --assemble"\
+        command=f"{COMMANDBASE} --workdir={os.getcwd()} CompositeTransformUtil --assemble"\
             f" {trans_filename}"\
             f" {trans_string}"
         results = ut.runCommand(command)
@@ -818,6 +818,15 @@ def invertAffine_FLIRT(fwd_affine, inv_affine, COMMANDBASE):
         f" -omat {inv_affine}"\
         f" -inverse"\
         f" {fwd_affine}"
+    results = ut.runCommand(command)
+
+# convert_xfm -omat AtoC.mat -concat BtoC.mat AtoB.mat
+def concatAffine_FLIRT(AB_affine,BC_affine, concat_AC_affine, COMMANDBASE):
+    command=f"{COMMANDBASE} convert_xfm"\
+        f" -omat {concat_AC_affine}"\
+        f" -concat"\
+        f" {BC_affine}"\
+        f" {AB_affine}"
     results = ut.runCommand(command)
 
 def invertAffine_ANTS(fwd_affine, inv_affine, moving, reference, COMMANDBASE):

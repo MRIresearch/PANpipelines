@@ -24,7 +24,7 @@ def freesurfer_proc(labels_dict,bids_dir=""):
     
     subjects_dir = os.path.join(cwd,'subjects_dir')
     if not os.path.isdir(subjects_dir):
-        os.makedirs(subjects_dir)
+        os.makedirs(subjects_dir,exist_ok=True)
     os.environ["SUBJECTS_DIR"]=subjects_dir
     os.environ["SINGULARITYENV_SUBJECTS_DIR"]=translate_binding(command_base,subjects_dir)
   

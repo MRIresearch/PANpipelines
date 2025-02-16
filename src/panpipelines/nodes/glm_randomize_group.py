@@ -44,7 +44,7 @@ def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_f
     if groupmaskdata is not None:
         group_mask_dir = os.path.join(cwd,'group_mask')
         if not os.path.isdir(group_mask_dir):
-            os.makedirs(group_mask_dir)
+            os.makedirs(group_mask_dir,exist_ok=True)
         group_mask = os.path.join(group_mask_dir,'group_mask_mni.nii.gz')
         groupmaskdata[groupmaskdata > 0] = 1
         save_image_to_disk(subject_mask,groupmaskdata,group_mask)
@@ -78,7 +78,7 @@ def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_f
     if not statsimagestring == "":
         stats_image_dir = os.path.join(cwd,'stats_image')
         if not os.path.isdir(stats_image_dir):
-            os.makedirs(stats_image_dir)
+            os.makedirs(stats_image_dir,exist_ok=True)
         stats_image = os.path.join(stats_image_dir,'stats_image_mni.nii.gz')
 
         params="-t" \
@@ -98,7 +98,7 @@ def mni3dglm_proc(labels_dict,file_template,mask_template,design_file,contrast_f
     if everythingThere:
         stats_output_dir = os.path.join(cwd,'stats_results')
         if not os.path.isdir(stats_output_dir):
-            os.makedirs(stats_output_dir)
+            os.makedirs(stats_output_dir,exist_ok=True)
 
         PERMS="50"
         params = " -i "+stats_image+ \

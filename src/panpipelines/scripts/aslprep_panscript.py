@@ -75,7 +75,7 @@ class aslprep_panscript(panscript):
         print("Creating output directory")
         output_dir = getParams(self.labels_dict,"OUTPUT_DIR")
         if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+            os.makedirs(output_dir,exist_ok=True)
 
         bids_dir = getParams(self.labels_dict,"BIDS_DIR")
         participant_label = getParams(self.labels_dict,"PARTICIPANT_LABEL")

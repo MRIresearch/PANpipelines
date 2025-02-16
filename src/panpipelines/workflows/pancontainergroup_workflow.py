@@ -24,7 +24,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
         sinker_basedir = os.path.dirname(sinker_dir)
         sinker_folder = os.path.basename(sinker_dir)
         if not os.path.exists(sinker_basedir):
-            os.makedirs(sinker_basedir)
+            os.makedirs(sinker_basedir,exist_ok=True)
         sinker.inputs.base_directory = sinker_basedir
         pan_workflow.connect( pancontainergroup_node,"output_file",sinker,f"{sinker_folder}.@output_file")
         pan_workflow.connect( pancontainergroup_node,"metadata_file",sinker,f"{sinker_folder}.@metadata_file")

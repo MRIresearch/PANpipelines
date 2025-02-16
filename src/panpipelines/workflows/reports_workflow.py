@@ -20,23 +20,23 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
 
 
     if analysis_level == 'participant':
-    	sinker_dir = getParams(labels_dict,"SINKDIR")
+        sinker_dir = getParams(labels_dict,"SINKDIR")
     else:
-    	sinker_dir = getParams(labels_dict,"SINKDIR_GROUP")
+        sinker_dir = getParams(labels_dict,"SINKDIR_GROUP")
 
     if sinker_dir:
         sinker = Node(DataSink(),name='reports_sink')
         sinker_basedir = os.path.dirname(sinker_dir)
         sinker_folder = os.path.basename(sinker_dir)
         if not os.path.exists(sinker_basedir):
-            os.makedirs(sinker_basedir)
+            os.makedirs(sinker_basedir,exist_ok=True)
         sinker.inputs.base_directory = sinker_basedir
         pan_workflow.connect( reports_node,"html_file",sinker,f"{sinker_folder}.@htmlfile")
     else:
-    	pan_workflow.add_nodes([reports_node])
+        pan_workflow.add_nodes([reports_node])
 
     if createGraph:
-         pan_workflow.write_graph(graph2use='flat')
+        pan_workflow.write_graph(graph2use='flat')
 
 
     return pan_workflow

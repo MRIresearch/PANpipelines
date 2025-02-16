@@ -32,7 +32,7 @@ def collate_csv_single_proc(labels_dict, csv_list1, add_prefix):
         roi_output_dir = os.path.join(cwd,f"{participant_label}_{session_label}_roi_output_dir")
 
     if not os.path.isdir(roi_output_dir):
-        os.makedirs(roi_output_dir)
+        os.makedirs(roi_output_dir,exist_ok=True)
 
     subject_project = getParams(labels_dict,'PARTICIPANT_XNAT_PROJECT')
     measures_prefixes = getParams(labels_dict,"MEASURES_PREFIXES")
@@ -46,6 +46,7 @@ def collate_csv_single_proc(labels_dict, csv_list1, add_prefix):
 
     out_files=[]
     roi_csv = None
+    custom_prefix=""
     if len(csv_list) > 0:
         cum_table_data = []
         cum_table_columns=[]

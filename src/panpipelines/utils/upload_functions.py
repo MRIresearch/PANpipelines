@@ -26,7 +26,7 @@ def ftp_download(remote_path, target_local_path,hostname,username,password,port)
         # Create the target directory if it does not exist
         if not os.path.isdir(os.path.dirname(target_local_path)):
             try:
-                os.makedirs(os.path.dirname(target_local_path))
+                os.makedirs(os.path.dirname(target_local_path),exist_ok=True)
             except Exception as err:
                 raise Exception(err)
         with pysftp.Connection(host=hostname,username=username,password=password,port=port) as connection:
@@ -40,7 +40,7 @@ def ftp_downloaddir_recursive(remote_path, target_local_path,hostname,username,p
         path, _ = os.path.split(target_local_path)
         if not os.path.isdir(path):
             try:
-                os.makedirs(path)
+                os.makedirs(path,exist_ok=True)
             except Exception as err:
                 raise Exception(err)
         with pysftp.Connection(host=hostname,username=username,password=password,port=port) as connection:
@@ -52,7 +52,7 @@ def ftp_upload(source_local_path, remote_path,hostname,username,password,port):
     try:
         with pysftp.Connection(host=hostname,username=username,password=password,port=port) as connection:
             if not connection.exists(os.path.dirname(remote_path)):
-                connection.makedirs(os.path.dirname(remote_path))
+                connection.makedirs(os.path.dirname(remote_path),exist_ok=True)
             connection.put(source_local_path, remote_path)
     except Exception as err:
         raise Exception(err)
@@ -61,7 +61,7 @@ def ftp_uploaddir_recursive(source_local_path, remote_path,hostname=None,usernam
     try:
         with pysftp.Connection(host=hostname,username=username,password=password,port=port) as connection:
             if not connection.exists(remote_path):
-                connection.makedirs(remote_path)
+                connection.makedirs(remote_path,exist_ok=True)
             connection.put_r(source_local_path, remote_path)
     except Exception as err:
         raise Exception(err)
