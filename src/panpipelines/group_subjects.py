@@ -40,10 +40,39 @@ def runGroupSubjects(participant_label, xnat_projects, xnat_shared_projects, ses
     LOGGER.info(f"IP Address of node: {ipaddr}")
     LOGGER.info("---------------------------------------------------")
 
-    panProcessor = panFactory.get_processflow(pipeline_class)
+    if "_proc"  in pipeline_class:
+        nodename = pipeline_class.split("_")[0]
+        panProcessor = panFactory.get_processflow(nodename,pipeline_class)
+    else:
+        panProcessor = panFactory.get_processflow(pipeline_class)
 
-    PanProc = panProcessor(panpipe_labels,pipeline_outdir, participant_label, name=pipeline,LOGGER=LOGGER,execution=execution_json, analysis_level = analysis_level, participant_project=xnat_projects, participant_session=session_label)
-    PanProc.run()
+    if "script" in panProcessor.__name__:
+        SCRIPTPARAMS = getParams(panpipe_labels,"SCRIPTPARAMS")
+        SCRIPTCOMMAND = getParams(panpipe_labels,"SCRIPTCOMMAND")
+                        
+        PanProc = panProcessor(panpipe_labels,params=SCRIPTPARAMS,command=SCRIPTCOMMAND)
+        PanProc.run()
+    elif "_proc" in panProcessor.__name__:
+        from inspect import signature
+        curr_dir = os.getcwd()
+        DIRECTPARAMS = getParams(panpipe_labels,"DIRECTPARAMS")
+        if DIRECTPARAMS:
+            DIRECTPARAMS = iterative_substitution(DIRECTPARAMS,panpipe_labels)
+        else:
+            DIRECTPARAMS={}
+        valid_args = signature(panProcessor).parameters
+        filtered_args = {k: v for k, v in DIRECTPARAMS.items() if k in valid_args}
+        DIRECTSTARTDIR = getParams(panpipe_labels,"DIRECTSTARTDIR")
+        if DIRECTSTARTDIR:
+            if os.path.exists(DIRECTSTARTDIR):
+                os.chdir(DIRECTSTARTDIR)
+
+        panProcessor(panpipe_labels,**filtered_args)
+        os.chdir(curr_dir)
+    else:
+        PanProc = panProcessor(panpipe_labels,pipeline_outdir, participant_label, name=pipeline,LOGGER=LOGGER,execution=execution_json, analysis_level = analysis_level, participant_project=xnat_projects, participant_session=session_label)
+        PanProc.run()
+
     pipeline_end = datetime.datetime.now()
     LOGGER.info("---------------------------------------------------------------------------------")
     LOGGER.info(f"Group Processing Completed at: {str(pipeline_end)}")
