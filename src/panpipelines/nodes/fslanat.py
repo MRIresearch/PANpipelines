@@ -23,8 +23,9 @@ def fslanat_proc(labels_dict,bids_dir=""):
     results = runCommand(evaluated_command,IFLOGGER)
 
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
+    participant_session= getParams(labels_dict,'PARTICIPANT_SESSION')
     layout = BIDSLayout(bids_dir)
-    T1w=layout.get(subject=participant_label,suffix='T1w', extension='nii.gz')
+    T1w=layout.get(subject=participant_label,session=participant_session,suffix='T1w', extension='nii.gz')
     if T1w:
         structin=T1w[0].path
         structout=os.path.join(cwd,"{}_struct".format(participant_label))
