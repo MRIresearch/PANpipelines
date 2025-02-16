@@ -21,7 +21,7 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
     atlas_name = getParams(labels_dict,'NEWATLAS_NAME')
     atlas_workdir = os.path.join(cwd,'{}_workdir'.format(atlas_name))
     if not os.path.isdir(atlas_workdir):
-        os.makedirs(atlas_workdir)
+        os.makedirs(atlas_workdir,exist_ok=True)
 
     atlas_file = newfile(cwd, atlas_name, prefix=f"sub-{participant_label}_ses-{participant_session}", extension="nii.gz")
     IFLOGGER.info(f"Creating new atlas {atlas_file}")
@@ -68,8 +68,10 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
     elif atlas_type == "3D_mask":
         roi_values = getParams(labels_dict,'MASK_ROIVALUE')
         create_3d_mask_from_rois(atlas_file, roi_list,labels_dict,roi_values=roi_values, prob_thresh=prob_thresh,explode3d=False,invert_roi=invert_roi)
-    elif atlas_type =="4D":
+    elif atlas_type =="4D_comprehensive":
         create_4d_atlas_from_rois(atlas_file, roi_list,labels_dict,low_thresh=prob_thresh)
+    elif atlas_type =="4D":
+        create_4d_atlas_from_rois(atlas_file, roi_list,labels_dict,low_thresh=prob_thresh,explode3d=False)
     else:
         create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict,prob_thresh=prob_thresh)
 
@@ -94,6 +96,23 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
                 atlas_dict,atlas_index_out=get_freesurferatlas_index_mode(roi_list[roi_num],lutfile,None,atlas_index_mode)
                 atlas_dict["Generator"]=roilabels_list
                 break
+            if roiname.split(":")[0] == "generate_from_file":
+                labelfile = substitute_labels(roiname.split(":")[1],labels_dict)
+                with open(labelfile,"r") as infile:
+                    atlas_index_out=infile.read()
+                break
+            elif roiname.split(":")[0] == "generate_from_rois":
+                atlas_index_out = atlas_index_out + "index\tlabel\n"
+
+                roi_num_x=0
+                for roiname_x in roi_list:
+                    if "tsv" in atlas_index_mode:
+                        atlas_index_out = atlas_index_out + f"{roi_num_x + 1}\t{roiname_x}\n"
+                    else:
+                        atlas_index_out = atlas_index_out  + roiname_x + "\n"
+                    roi_num_x=roi_num_x+1
+                break
+
             else:
                 if roi_num== 0 and "tsv" in atlas_index_mode:
                     atlas_index_out = atlas_index_out + "index\tlabel\n"

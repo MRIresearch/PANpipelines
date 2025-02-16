@@ -18,7 +18,7 @@ def reports_proc(labels_dict,analysis_level):
 
     html_file_dir = os.path.join(cwd,f"html_report")
     if not os.path.isdir(html_file_dir ):
-        os.makedirs(html_file_dir )
+        os.makedirs(html_file_dir,exist_ok=True)
 
 
     reports_source  = getParams(labels_dict,'REPORTS_SOURCE')

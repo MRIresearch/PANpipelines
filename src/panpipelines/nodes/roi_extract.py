@@ -54,12 +54,12 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
         roi_output_dir = os.path.join(cwd,f"sub-{participant_label}_ses-{session_label}_roi_output_dir")
 
     if not os.path.isdir(roi_output_dir):
-        os.makedirs(roi_output_dir)
+        os.makedirs(roi_output_dir,exist_ok=True)
 
     if Path(atlas_file).suffix == ".mgz":
         mgzdir = os.path.join(cwd,'mgz_nii')
         if not os.path.isdir(mgzdir):
-            os.makedirs(mgzdir)
+            os.makedirs(mgzdir,exist_ok=True)
 
         fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
         atlas_file_nii = newfile(mgzdir,atlas_file,extension=".nii.gz")
@@ -69,7 +69,7 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
     if Path(input_file).suffix == ".mgz":
         mgzdir = os.path.join(cwd,'mgz_nii')
         if not os.path.isdir(mgzdir):
-            os.makedirs(mgzdir)
+            os.makedirs(mgzdir,exist_ok=True)
 
         fs_command_base, fscontainer = getContainer(labels_dict,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER",LOGGER=IFLOGGER)
         input_file_nii = newfile(mgzdir,input_file,extension=".nii.gz")
@@ -130,18 +130,11 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
 
     if atlas_type == "4D":
         if mask_inverse_img:
-            NiftiMasker = NiftiMapsMasker(
-                atlas_img,
-                mask_img = mask_inverse_img,
-                Labels = labels_name_list,
-                standardize=False
-            )
+            signals = extract_roi_mean_4D(input_file, atlas_img, mask_list=[mask_inverse_img])
         else:
-            NiftiMasker = NiftiMapsMasker(
-                atlas_img,
-                Labels = labels_name_list,
-                standardize=False
-            )
+            signals = extract_roi_mean_4D(input_file, atlas_img, mask_list=None)
+        num_rows = signals.shape[0]
+
     else:
         if mask_inverse_img:
             NiftiMasker = NiftiLabelsMasker(
@@ -156,27 +149,39 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
                 Labels = labels_name_list,
                 standardize=False
             )
+        NiftiMasker.fit(input_file)
+        signals = NiftiMasker.transform(input_file)
+        num_rows = signals.shape[0]
 
     mask_inverse_file = None
     if mask_inverse_img:
         mask_inverse_file = newfile(roi_output_dir,input_file,prefix="nilearn-mask",suffix=MASK_NAME)
         nib.save(mask_inverse_img,mask_inverse_file)
+    else:
+        # find a better way e.g. by making the output spec non-mandatory
+        mask_inverse_file ="."
 
-    NiftiMasker.fit(input_file)
-    signals = NiftiMasker.transform(input_file)
-    num_rows = signals.shape[0]
-
-    # check that rois exist:
+    # check that rois exist and check size of rois
     missing_rois = []
     unknown_rois=[]
     reconciled_labels = labels_name_list.copy()
     reconciled_signals = signals.copy()
+
+    roi_sizes_list=[]
+    roi_sizes_list.append(f"sub-{participant_label}")
+    roi_sizes_list.append(f"ses-{session_label}")
+
+    roi_coverage_list=[]
+    roi_coverage_list.append(f"sub-{participant_label}")
+    roi_coverage_list.append(f"ses-{session_label}")
+
     if atlas_type == "3D":
         atlas_data = atlas_img.get_fdata()
  
         for index in labels_index_list:
             lbl_index = labels_index_list.index(index)
             roi_sum = np.sum(atlas_data == int(index))
+            roi_sizes_list.append(f"{str(roi_sum)}")
             if roi_sum == 0:               
                 UTLOGGER.warn(f"WARNING: Roi Number {index} is missing from atlas {atlas_file}. Have you provided the correct labels in {atlas_index} ?")
                 UTLOGGER.warn(f"WARNING: Roi Number {index} corresponds with ROI name : {labels_name_list[lbl_index]}")               
@@ -196,6 +201,8 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
             else:
                 check = measure_data[atlas_data == int(index),:]
             if len(check) < 1:
+                roi_coverage=0
+                roi_coverage_list.append(f"{str(roi_coverage)}")
                 UTLOGGER.warn(f"WARNING: Roi Number {index} does not have any values in the measures file  {input_file}.")
                 UTLOGGER.warn(f"WARNING: Roi Number {index} corresponds with ROI name : {labels_name_list[lbl_index]}")
                 if lbl_index not in missing_rois:
@@ -205,6 +212,9 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
                         reconciled_signals= np.insert(reconciled_signals, lbl_index,[insarr],axis=1)
                     else:
                         reconciled_signals = np.insert(reconciled_signals,lbl_index,np.nan)
+            else:
+                roi_coverage = np.sum(check != 0)
+                roi_coverage_list.append(f"{str(roi_coverage)}")
 
         # check for unknown rois, assume rous start from 1 and indexing starts from zero
         if check_unknown_rois:
@@ -241,23 +251,32 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
                     else:
                         reconciled_signals = np.insert(reconciled_signals,len(reconciled_signals[0]),np.nan)
 
-        atlas_index=0
+        atlas_index_chk=0
         for img in image.iter_img(atlas_img):
             atlas_data = img.get_fdata()
+            lbl_index = labels_index_list[atlas_index_chk]
+            roi_sum = np.sum(atlas_data > 0)
+            roi_sizes_list.append(f"{str(roi_sum)}")
             if measure_type == "3D":
                 check = measure_data[atlas_data > 0]               
             else:
                 check = measure_data[atlas_data > 0,:]
             if len(check) < 1:
-                print(f"WARNING: Atlas Roi Volume {atlas_index} does not have any values in the measures file {input_file}.")
-                missing_rois.insert(atlas_index,atlas_index+1)
+                roi_coverage=0
+                roi_coverage_list.append(f"{str(roi_coverage)}")
+                print(f"WARNING: Atlas Roi Volume {atlas_index_chk} does not have any values in the measures file {input_file}.")
+                missing_rois.insert(atlas_index_chk,atlas_index_chk+1)
                 if num_rows > 1:
                     insarr = np.array([np.nan for x in range(0,num_rows)])
-                    reconciled_signals= np.insert(reconciled_signals, atlas_index,[insarr],axis=1)
+                    reconciled_signals= np.insert(reconciled_signals, atlas_index_chk,[insarr],axis=1)
                 else:
-                    reconciled_signals = np.insert(reconciled_signals,atlas_index,np.nan)
+                    reconciled_signals = np.insert(reconciled_signals,atlas_index_chk,np.nan)
+            else:
+                roi_coverage = np.sum(check != 0)
+                roi_coverage_list.append(f"{str(roi_coverage)}")   
     
-            atlas_index = atlas_index + 1       
+            atlas_index_chk= atlas_index_chk + 1 
+   
 
     if len(reconciled_signals.shape) > 1:
         df2=pd.DataFrame(reconciled_signals,columns=reconciled_labels)
@@ -290,7 +309,7 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
     else:
         csv_basename  = f"sub-{participant_label}_ses-{session_label}" + "_" + csv_basename
 
-    roi_csv = newfile(outputdir=roi_output_dir,assocfile=csv_basename,extension="csv")
+    roi_csv = newfile(outputdir=roi_output_dir,assocfile=csv_basename,suffix="measures",extension="csv")
 
     if num_rows < 2:
         if session_label:
@@ -328,17 +347,28 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
     last_df.insert(len(last_df.columns),"row_creation_datetime",[created_datetime for x in range(len(last_df))])
     last_df.to_csv(roi_csv,sep=",",header=True, index=False)
 
+    roi_csv_sizes = newfile(outputdir=roi_output_dir,assocfile=csv_basename,suffix="roisizes",extension="csv")
+    sizes_df=pd.DataFrame([roi_sizes_list],columns=["subject_id","session_id"]+[f"{atlas_name}.{x}" for x in labels_name_list])
+    sizes_df.to_csv(roi_csv_sizes,sep=",",header=True, index=False)
+
+    roi_csv_coverage = newfile(outputdir=roi_output_dir,assocfile=csv_basename,suffix="roicoverage",extension="csv")
+    cov_df=pd.DataFrame([roi_coverage_list],columns=["subject_id","session_id"]+[f"{atlas_name}.{x}" for x in labels_name_list])
+    cov_df.to_csv(roi_csv_coverage,sep=",",header=True, index=False)
+
     metadata = {}
     metadata = updateParams(metadata,"Title","roi_extract")
     metadata = updateParams(metadata,"Description","Extract Measures from Image file using provided atlas.")
     metadata = updateParams(metadata,"Atlas File",atlas_file)
     metadata = updateParams(metadata,"Atlas Labels",atlas_index)
+    metadata = updateParams(metadata,"Atlas Name",atlas_name)
     metadata = updateParams(metadata,"Input File",input_file)
     metadata = updateParams(metadata,"Command","Nilearn NiftiMasker")
-    if mask_inverse_file:
+    if mask_inverse_img:
         metadata = updateParams(metadata,"Mask",mask_inverse_file)
     if metadata_comments:
         metadata = updateParams(metadata,"Comments",metadata_comments)
+    metadata = updateParams(metadata,"ROI Voxel Sizes",roi_csv_sizes)
+    metadata = updateParams(metadata,"ROI Coverage",roi_csv_coverage)
     roi_csv_json = create_metadata(roi_csv, created_datetime, metadata = metadata)
 
     html_file_dir = os.path.join(os.path.basename(roi_output_dir),"html_report")
@@ -355,6 +385,8 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
     out_files.insert(4,input_file)
     out_files.insert(5,atlas_file)
     out_files.insert(6,atlas_index)
+    out_files.insert(7,roi_csv_sizes)
+    out_files.insert(8,roi_csv_coverage)
 
     return {
         "roi_csv":roi_csv,
@@ -364,6 +396,8 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
         "measure_file" : input_file,
         "atlas_file" : atlas_file,
         "atlas_index" : atlas_index,
+        "roi_csv_sizes": roi_csv_sizes,
+        "roi_csv_coverage": roi_csv_coverage,
         "roi_output_dir":roi_output_dir,
         "output_dir":output_dir,
         "out_files":out_files
@@ -385,6 +419,8 @@ class roi_extractOutputSpec(TraitedSpec):
     measure_file = File(desc='measure file containing statistics')
     atlas_file = File(desc='atlas file used for roi parcellation')
     atlas_index = File(desc='atlas index used to identify rois')
+    roi_csv_sizes = traits.String(desc='roi_csv_sizes')
+    roi_csv_coverage = traits.String(desc='roi_csv_coverage')
     roi_output_dir = traits.String(desc='roi output dir')
     output_dir = traits.String(desc='output dir')
     out_files = traits.List(desc='list of files')

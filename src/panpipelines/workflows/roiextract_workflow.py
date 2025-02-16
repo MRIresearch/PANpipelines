@@ -44,7 +44,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
             if not os.path.exists(mask):
                 MASK_TEMPLATE_EXISTS = False
 
-        if mask_list and MASK_TEMPLATE_EXISTS and getParams(labels_dict,"MASK_TRANSFORM_MAT"):    
+        if mask_list and MASK_TEMPLATE_EXISTS:    
             # store and restore parameters used by both mask and newatlas
             newatlas_transform_mat = getParams(labels_dict,"NEWATLAS_TRANSFORM_MAT")
             newatlas_transform_ref = getParams(labels_dict,"NEWATLAS_TRANSFORM_REF")
@@ -53,6 +53,9 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
             newatlas_probthresh = getParams(labels_dict,"NEWATLAS_PROBTHRESH")
             newatlas_invertroi = getParams(labels_dict,"NEWATLAS_INVERTROI")
             newatlas_indexmode = getParams(labels_dict,"NEWATLAS_INDEXMODE")
+
+            if not getParams(labels_dict,"MASK_TRANSFORM_MAT"):
+                labels_dict = updateParams(labels_dict,"MASK_TRANSFORM_MAT",[["identity" for x in mask_list]])
 
             mask_transform_mat = getParams(labels_dict,"MASK_TRANSFORM_MAT")
             mask_transform_ref = getParams(labels_dict,"MASK_TRANSFORM_REF")
@@ -106,6 +109,10 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
                     newatlas_list.extend(glob.glob(evaluated_newatlas_template))
         else:
             newatlas_list.extend(glob.glob(newatlas_templates))
+
+        NEWATLAS_TEMPLATE_SORT = isTrue(getParams(labels_dict,"NEWATLAS_TEMPLATE_SORT"))
+        if NEWATLAS_TEMPLATE_SORT:
+            newatlas_list.sort()
             
         labels_dict = updateParams(labels_dict,"COST_FUNCTION","NearestNeighbor")
         atlascreate_node = atlascreate.create(labels_dict,name=f"atlascreate_{atlas_name}_node",roi_list=newatlas_list,roilabels_list=newatlas_index,LOGGER=LOGGER)
@@ -164,7 +171,11 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
     if maskcreate_node:
         pan_workflow.connect(maskcreate_node,'atlas_file',roimean_map_node,'mask_file')
     elif mask_list and MASK_TEMPLATE_EXISTS:
-        roimean_map_node.inputs.mask_file = mask_list
+        if len(mask_list) == 1 and not getParams(labels_dict,"MASK_TRANSFORM_MAT"):
+            roimean_map_node.inputs.mask_file = mask_list[0]
+        else:
+            LOGGER.warn(f"Something went wrong. Should not have mask list: {mask_list} with transform at this point")
+
 
     sinker_dir = getParams(labels_dict,"SINKDIR")
     if sinker_dir:
@@ -172,7 +183,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
         sinker_basedir = os.path.dirname(sinker_dir)
         sinker_folder = os.path.basename(sinker_dir)
         if not os.path.exists(sinker_basedir):
-            os.makedirs(sinker_basedir)
+            os.makedirs(sinker_basedir,exist_ok=True)
         sinker.inputs.base_directory = sinker_basedir
 
         measure_count=0
@@ -194,6 +205,8 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
         pan_workflow.connect( roimean_map_node,"roi_csv_metadata",sinker,f"{sinker_folder}.@metadata")
         pan_workflow.connect( roimean_map_node,"mask_file",sinker,f"{sinker_folder}.@maskfile")
         pan_workflow.connect( roimean_map_node,"html_file",sinker,f"{sinker_folder}.@htmlfile")
+        pan_workflow.connect( roimean_map_node,"roi_csv_sizes",sinker,f"{sinker_folder}.@roi_csv_sizes")
+        pan_workflow.connect( roimean_map_node,"roi_csv_coverage",sinker,f"{sinker_folder}.@roi_csv_coverage")
 
     if createGraph:
          pan_workflow.write_graph(graph2use='flat')

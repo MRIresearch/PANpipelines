@@ -295,7 +295,7 @@ def process_fsl_glm(panpipe_labels):
         df = pd.read_table(fsldesign_text,sep=",",header=None)
 
         if not os.path.isdir(outputdir):
-            os.makedirs(outputdir)
+            os.makedirs(outputdir,exist_ok=True)
 
         newfsldesign_text=os.path.join(designdir,os.path.basename(fsldesign_text).split(".")[0] + '.textmat')
         newfsldesign=os.path.join(outputdir,os.path.basename(fsldesign_text).split(".")[0] + '.mat')
@@ -559,19 +559,22 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
         else:
             bids_session_folder = bids_folder
         if not os.path.isdir(bids_session_folder) or FORCEDOWNLOAD:
-            UTLOGGER.info(f"BIDS folder for {participant_label} will be downloaded")
-            if os.path.isdir(bids_session_folder) and FORCEDOWNLOAD:
-                UTLOGGER.info(f"BIDS folder for {participant_label} already exists. Deleting.")
-                shutil.rmtree(bids_session_folder)
-
             if IN_XNAT:
+                UTLOGGER.info(f"BIDS folder for {participant_label} will be downloaded")
+                if os.path.isdir(bids_session_folder) and FORCEDOWNLOAD:
+                    UTLOGGER.info(f"BIDS folder for {participant_label} already exists. Deleting.")
+                    shutil.rmtree(bids_session_folder)
+
                 command_base, container = getContainer(labels_dict,nodename="Bids_download",SPECIFIC="XNATDOWNLOAD_CONTAINER")
 
                 UTLOGGER.info("Downloading started from XNAT.")
                 subject_id = getSubjectInfo(labels_dict,participant_label,session_label=session_label)
                 getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password,subject_id=subject_id,session_label=session_label,dataset_description=dataset_description,labels_dict=labels_dict,only_defaced=ONLY_DEFACED)
             else:
-                UTLOGGER.info(f"IN_XNAT set to {IN_XNAT}. Do not have a means of obtaining data for {participant_label}. Please add this subject's data to {bids_dir}")
+                if not os.path.isdir(bids_session_folder):
+                    UTLOGGER.info(f"IN_XNAT set to {IN_XNAT}. Do not have a means of obtaining data for {participant_label}. Please add this subject's data to {bids_dir}")
+                else:
+                    UTLOGGER.info(f"IN_XNAT set to {IN_XNAT}. Ignoring Forced Downloads as no means of obtaining up to date data for {participant_label}. Existing data in {bids_dir} will be used as is.")
 
         else:
             print(f"BIDS folder for {participant_label} already present. No need to retrieve")
@@ -1087,6 +1090,8 @@ def mask_excludedrows(df, subject_exclusions,columns):
 
 def process_exclusions(subject_exclusions=[]):
     exclusion_list=[]
+    if not subject_exclusions:
+        subject_exclusions=[]
     for excluded in subject_exclusions:
         subject_list=excluded.split(";")
         subject = drop_sub(subject_list[0])
@@ -1127,7 +1132,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
     if sessions_file is not None:
         df = pd.read_table(sessions_file,sep="\t")
     else:
-    	df = pd.read_table(participants_file,sep="\t")
+        df = pd.read_table(participants_file,sep="\t")
         
     if len(participants) == 1 and participants[0]=="ALL_SUBJECTS":
         participants = list(set(df["bids_participant_id"].tolist()))
@@ -1204,6 +1209,58 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
     return  [ participant_list, project_list, sessions_list, shared_project_list ]
 
 
+def get_projectmap_query(sessions_file, panquery,subject_exclusions=[]):
+
+    panquery_list = panquery.split(",")
+    df = pd.read_table(sessions_file,sep="\t")
+    df["scan_date"] = pd.to_datetime(df["scan_date"])
+
+    # sessions are defined and so we will use this as priority
+    project_list=[]
+    shared_project_list=[]
+    participant_list=[]
+    sessions_list=[]
+
+    # process exclusions
+    exclusion_list  = process_exclusions(subject_exclusions)
+
+    UTLOGGER.info(f"Attempting to apply {panquery} to search for participants")
+
+    query_df=pd.DataFrame()
+    for query in panquery_list:
+        if query_df.empty:
+            query_df = eval(f'df[({query})]')
+        else:
+            new_query_df = eval(f'df[({query})]')
+            query_df = query_df.merge(new_query_df,how='inner')
+
+    if not query_df.empty:
+        for dfnum in range(len(query_df)):
+            sub_pd = query_df.iloc[dfnum]["bids_participant_id"]
+            sub = drop_sub(sub_pd)
+            ses_pd = query_df.iloc[dfnum]["bids_session_id"]
+            ses = drop_ses(ses_pd)
+            proj = query_df.iloc[dfnum]["project"]
+            if 'shared_projects' in query_df.columns:
+                shared_proj=query_df.iloc[dfnum]["shared_projects"]
+            else:
+                shared_proj = None
+
+            if not sub or pd.isna(sub_pd) or not ses or pd.isna(ses_pd):
+                UTLOGGER.info(f"skipping {query_df.iloc[dfnum]} as invalid")
+            elif (sub in exclusion_list) or (f"{sub}_{ses}" in exclusion_list) or (f"{sub}_{ses}_{proj}" in exclusion_list) or (f"{sub}_*_{proj}" in exclusion_list):
+                UTLOGGER.info(f"skipping {sub}_{ses} in {proj} as excluded by pipeline")
+            else:
+                participant_list.append(sub)
+                sessions_list.append(ses)
+                project_list.append(proj)
+                shared_project_list.append(shared_proj)                        
+    else:
+        UTLOGGER.info(f"Cannot process pipelines. No participants have been specified")
+
+    return  [ participant_list, project_list, sessions_list, shared_project_list ]
+
+
 def create_script(header,template,panpipe_labels, script_file, LOGGER=UTLOGGER):
     with open(header,"r") as infile:
         headerlines=infile.readlines()
@@ -1267,7 +1324,7 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
         script_dir=os.path.join(getParams(panpipe_labels,"SLURM_SCRIPT_DIR"),script_base)
 
     if not os.path.exists(script_dir):
-        os.makedirs(script_dir)
+        os.makedirs(script_dir,exist_ok=True)
     script_file = os.path.join(script_dir,script_base + '.pbs')
     labels_file = os.path.join(script_dir,script_base + '.config')
     updateParams(panpipe_labels, "RUNTIME_CONFIG_FILE", labels_file)
@@ -1447,11 +1504,11 @@ def add_mask_roi(atlas_file, roi_in, panpipe_labels, high_thresh=None,prob_thres
 
     workdir = os.path.join(os.path.dirname(atlas_file),'roi_temp')
     if not os.path.isdir(workdir):
-        os.makedirs(workdir)
+        os.makedirs(workdir,exist_ok=True)
 
     trans_workdir = os.path.join(os.path.dirname(atlas_file),'roi_transformed')
     if not os.path.isdir(trans_workdir):
-        os.makedirs(trans_workdir)
+        os.makedirs(trans_workdir,exist_ok=True)
 
     if prob_thresh:
         PROBTHRESH=f" -thr {prob_thresh}"
@@ -1521,11 +1578,11 @@ def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, high_thresh=Non
 
     workdir = os.path.join(os.path.dirname(atlas_file),'roi_temp')
     if not os.path.isdir(workdir):
-        os.makedirs(workdir)
+        os.makedirs(workdir,exist_ok=True)
 
     trans_workdir = os.path.join(os.path.dirname(atlas_file),'roi_transformed')
     if not os.path.isdir(trans_workdir):
-        os.makedirs(trans_workdir)
+        os.makedirs(trans_workdir,exist_ok=True)
 
     if prob_thresh:
         PROBTHRESH=f" -thr {prob_thresh}"
@@ -1664,11 +1721,11 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
 
     workdir = os.path.join(os.path.dirname(atlas_file),'roi_temp')
     if not os.path.isdir(workdir):
-        os.makedirs(workdir)
+        os.makedirs(workdir,exist_ok=True)
 
     trans_workdir = os.path.join(os.path.dirname(atlas_file),'roi_transformed')
     if not os.path.isdir(trans_workdir):
-        os.makedirs(trans_workdir)
+        os.makedirs(trans_workdir,exist_ok=True)
 
     if high_thresh:
         HIGHTHRESH=f" -uthr {high_thresh}"
@@ -1720,7 +1777,7 @@ def merge_atlas_roi(atlas_file, roi_list, panpipe_labels, high_thresh=None,low_t
             os.chdir(CURRDIR)
             new_roi_transform_file=results['out_file']
         else:
-            new_roi_transform_file= newfile(trans_workdir, new_roi)
+            new_roi_transform_file= newfile(outputdir=trans_workdir, assocfile=roi_files[roi_num],suffix="unchanged")
             shutil.move(roi_files[roi_num], new_roi_transform_file)
         # make output file into int. This was initially don in ANTS above but had issues with rois that had value of 1
         command = f"{command_base} fslmaths"\
@@ -1769,10 +1826,29 @@ def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
     """
     workdir = os.path.join(out_dir,'roi_list_temp')
     if not os.path.isdir(workdir):
-        os.makedirs(workdir)
+        os.makedirs(workdir,exist_ok=True)
 
     roi_transform_list=[]
     newatlas_transform = getParams(panpipe_labels,"NEWATLAS_TRANSFORM_MAT")
+
+    # Turn transforms into a list of lists
+    if newatlas_transform and isinstance(newatlas_transform,list):
+        toplist=[]
+        for newatlas_transelem in newatlas_transform:
+            newlist=[]
+            if isinstance(newatlas_transelem,list):
+                toplist.append(newatlas_transelem)
+            else:
+                newlist.append(newatlas_transelem)
+                toplist.append(newlist)
+    elif newatlas_transform:
+        newlist=[]
+        newlist.append(newatlas_transform)
+        toplist=[]
+        toplist.append(newlist)
+        newatlas_transform = toplist
+
+
     new_roi_list = []
     roi_count = 0
 
@@ -1784,13 +1860,13 @@ def expand_rois(roi_list, out_dir, panpipe_labels,explode3d=True):
 
             mgzdir = os.path.join(out_dir,'roi_mgz_temp')
             if not os.path.isdir(mgzdir):
-                os.makedirs(mgzdir)
+                os.makedirs(mgzdir,exist_ok=True)
             fs_command_base, fscontainer = getContainer(panpipe_labels,nodename="convMGZ2NII",SPECIFIC="FREESURFER_CONTAINER")
             roi_nii = newfile(mgzdir,roi,extension=".nii.gz")
             convMGZ2NII(roi, roi_nii, fs_command_base)
             roi = roi_nii
 
-        roi_transform = None
+        roi_transform = None    
         if newatlas_transform and roi_count < len(newatlas_transform):
             roi_transform = newatlas_transform[roi_count]
 
@@ -1956,7 +2032,7 @@ def create_3d_hcpmmp1_aseg(atlas_file,roi_list,panpipe_labels):
     out_dir = os.path.dirname(atlas_file)
     workdir = os.path.join(out_dir,"hcpmmp1_workdir")
     if not os.path.isdir(workdir):
-        os.makedirs(workdir)
+        os.makedirs(workdir,exist_ok=True)
 
     command_base, container = getContainer(panpipe_labels,nodename="create_3d_hcppmmp1_aseg",SPECIFIC="NEURO_CONTAINER")
 
@@ -2143,12 +2219,12 @@ def getBidsTSV(host,user,password,projects,targetfolder,participantsTSV,demograp
 
     outputdir = os.path.dirname(participantsTSV)
     if not os.path.isdir(outputdir):
-        os.makedirs(outputdir)
+        os.makedirs(outputdir,exist_ok=True)
 
     if not sessionsTSV:
         sessionsTSV=newfile(assocfile=participantsTSV,suffix="sessions")
     elif not os.path.isdir(os.path.dirname(sessionsTSV)):
-        os.makedirs(os.path.dirname(sessionsTSV))
+        os.makedirs(os.path.dirname(sessionsTSV),exist_ok=True)
 
 
     participant_columns=['hml_id','xnat_subject_id','xnat_subject_label','bids_participant_id','project','shared_projects','gender', 'age','scan_date','comments']
@@ -2537,7 +2613,7 @@ def runCommand(command,LOGGER=UTLOGGER,suppress="",interactive=False):
             LOGGER.info(results.stdout)
             return results.stdout
         else:
-            results = subprocess.run(evaluated_command_args)
+            result = subprocess.run(evaluated_command_args)
 
 # this is a specific function here for sdcflows fieldmaps - should move and make more general
 def getAcquisition(bids_dir,participant_label,participant_session=None,suffix="asl",extension="nii.gz"):
@@ -2891,6 +2967,28 @@ def getVersion(Process,ProcessFile=None,ProcessCommand=None,labels_dict=None):
                     DATEPROC =  datestring[-1].split(DATETOKEN)[1].replace("\n",'').strip()
                     proc_dict[f"{Process}_date_processed"]=DATEPROC
 
+    elif Process == "tractseg":
+        OFFSET=3
+        if ProcessFile and os.path.exists(ProcessFile):
+            VERTOKEN="TractSeg --version"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            versionstring = [(i,x) for (i,x) in enumerate(lines) if VERTOKEN in x]
+            if versionstring:
+                versionindex = int(versionstring[-1][0])
+                VER  = lines[versionindex+OFFSET].replace("\n",'').strip()
+                proc_dict[f"{Process}_version"]=f"{VER}"
+
+            DATETOKEN="Completed at:"
+            lines=[]
+            with open(ProcessFile,"r") as infile:
+                lines = infile.readlines()
+            datestring = [x for x in lines if DATETOKEN in x]
+            if datestring:
+                if len(datestring[-1].split(DATETOKEN)) > 1:
+                    DATEPROC =  datestring[-1].split(DATETOKEN)[1].replace("\n",'').strip()
+                    proc_dict[f"{Process}_date_processed"]=DATEPROC
 
     return proc_dict
 
@@ -2980,3 +3078,35 @@ def process_um_exception(bids_dir, work_dir, participant_label, participant_sess
             m0_file=m0[0]
             new_m0_file = extractVolumes(m0_file,command_base,work_dir,labels_dict,index="1",size="-1")
             copy(new_m0_file,m0_file)
+    
+def extract_roi_mean_4D(image_path, atlas_4D, mask_list=None):
+
+    # Load image
+    img = nib.load(image_path)
+    img_data = img.get_fdata()
+
+    # Load and combine all atlas ROIs into a list
+    atlas_data = atlas_4D.get_fdata()
+    num_rois = atlas_data.shape[3]
+    rois = [atlas_data[...,i] for i in range(num_rois)]
+
+    # If additional masks are provided, compute the intersection
+    if mask_list:
+        masks = [mask_path.get_fdata() for mask_path in mask_list]
+        combined_mask = np.logical_and.reduce(masks)  # Intersection of all masks
+    else:
+        combined_mask = np.ones_like(img_data, dtype=bool)  # No additional masking
+
+    # Compute mean values for each ROI
+    roi_means = []
+    for roi in rois:
+        roi_mask = roi > 0  # Binary mask for ROI
+        final_mask = np.logical_and(roi_mask, combined_mask)  # Apply additional masks
+
+        # Extract and compute mean
+        roi_values = img_data[final_mask]
+        roi_mean =  roi_values.mean() if roi_values.size > 0 else np.nan
+        roi_means.append(roi_mean)
+
+    signals=np.array(roi_means)
+    return signals.reshape(1,-1)
