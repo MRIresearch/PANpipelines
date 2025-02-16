@@ -94,7 +94,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     
     roi_output_dir = os.path.join(cwd,'group_roi_output_dir')
     if not os.path.isdir(roi_output_dir):
-        os.makedirs(roi_output_dir)
+        os.makedirs(roi_output_dir,exist_ok=True)
 
     IFLOGGER.info(f"List of csv files (left) to collate: {csv_list_left}")
     IFLOGGER.info(f"List of csv files (right) to collate: {csv_list_right}")
@@ -203,7 +203,16 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             LEFT_COL_OUTER=False
             if not isinstance(LEFT_DROP,list):
                 LEFT_DROP=[LEFT_DROP]
-            for col_drop in LEFT_DROP:
+
+            LEFT_DROP_CANDIDATES=[]
+            for col_drop_candidate in LEFT_DROP:
+                if "*" not in col_drop_candidate:
+                    LEFT_DROP_CANDIDATES.append(col_drop_candidate)
+                else:
+                    left_drop_col_list = [ x for x in left_outer_cols if col_drop_candidate.replace("*","") in x]
+                    LEFT_DROP_CANDIDATES.extend(left_drop_col_list)
+
+            for col_drop in LEFT_DROP_CANDIDATES:
                 if col_drop in left_inner_cols:
                     if col_drop in collate_join_left:
                         IFLOGGER.debug(f"Cannot drop {col_drop} as it is a join column in {collate_join_left}")
@@ -386,7 +395,16 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             RIGHT_COL_OUTER=False
             if not isinstance(RIGHT_DROP,list):
                 RIGHT_DROP=[RIGHT_DROP]
-            for col_drop in RIGHT_DROP:
+
+            RIGHT_DROP_CANDIDATES=[]
+            for col_drop_candidate in RIGHT_DROP:
+                if "*" not in col_drop_candidate:
+                    RIGHT_DROP_CANDIDATES.append(col_drop_candidate)
+                else:
+                    right_drop_col_list = [ x for x in right_outer_cols if col_drop_candidate.replace("*","") in x]
+                    RIGHT_DROP_CANDIDATES.extend(right_drop_col_list)
+
+            for col_drop in RIGHT_DROP_CANDIDATES:
                 if col_drop in right_inner_cols:
                     if col_drop in collate_join_right:
                         IFLOGGER.debug(f"Cannot drop {col_drop} as it is a join column in {collate_join_right}")
@@ -491,6 +509,19 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             else:
                 IFLOGGER.debug(f"RIGHT_TRANSLATE should be a dictionary of values but {RIGHT_TRANSLATE} passed")   
 
+
+    # replace hyphens with underscores
+    if not cum_df_inner_right.empty:
+        cum_df_inner_right.columns =cum_df_inner_right.columns.str.replace("-", "_", regex=True)
+    
+    if not cum_df_inner_left.empty:
+        cum_df_inner_left.columns = cum_df_inner_left.columns.str.replace("-", "_", regex=True)
+
+    if not cum_df_outer_right.empty:
+        cum_df_outer_right.columns =cum_df_outer_right.columns.str.replace("-", "_", regex=True)
+    
+    if not cum_df_outer_left.empty:
+        cum_df_outer_left.columns = cum_df_outer_left.columns.str.replace("-", "_", regex=True)
 
     if not cum_df_inner_right.empty and not cum_df_inner_left.empty:
 
