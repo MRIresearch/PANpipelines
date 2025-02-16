@@ -34,13 +34,16 @@ class PANFactory:
         LOGGER.debug(f"Transforms: {self.transform_module}")
         LOGGER.debug(f"Atlases: {self.atlas_module}")
 
-    def get_node(self, name):
+    def get_node(self, name,subnode=None):
 
         try:
             # currently node and worfklow not defined as classes
             module = __import__(f"{self.node_module}.{name}",fromlist=[name])
             if module:
-                return module
+                if not subnode:
+                    return module
+                else:
+                    return getattr(module,subnode)
             else:
                 return None
         except Exception as ex:
@@ -112,7 +115,7 @@ class PANFactory:
         except Exception as ex:
             pass
 
-    def get_processflow(self, name):
+    def get_processflow(self, name,subnode=None):
         if "script" in name:
             processflow = self.get_script(name)
         elif "pipeline" in name:
@@ -120,7 +123,7 @@ class PANFactory:
         elif "workflow" in name:
             processflow = self.get_workflow(name)
         else:
-            processflow = self.get_node(name)
+            processflow = self.get_node(name,subnode)
 
         if not processflow:
             LOGGER.error(f"PAN object {name} not defined.")
@@ -129,13 +132,13 @@ class PANFactory:
         LOGGER.debug(f"PANfactory retrieving {processflow}")
         return processflow
 
-    def get_PANclass(self, name):
+    def get_PANclass(self, name,subnode=None):
         if "atlas" in name:
             panclass = self.get_atlas(name)
         elif "transform" in name:
             panclass = self.get_transform(name)
         else:
-            panclass = self.get_processflow(name)
+            panclass = self.get_processflow(name,subnode)
 
         if not panclass:
             raise ValueError(name)
