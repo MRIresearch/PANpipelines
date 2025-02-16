@@ -294,7 +294,7 @@ def writeContourImages(bg_img,contours, png_file, levellist=[0.5],colors=['r','g
             colorcount=colorcount+1
       
         if not os.path.exists(os.path.dirname(png_file)):
-            os.makedirs(os.path.dirname(png_file))
+            os.makedirs(os.path.dirname(png_file),exist_ok=True)
         mycanvas.savefig(png_file)
     
 
@@ -372,7 +372,7 @@ def addRoiExtractProcReport(doc_dict):
             li(a('Measures Info',href='#measuresinfo'))
             nested=ul()
             with nested:
-                for i in ['measures_table', 'measures_metadata']:
+                for i in ['measures_table', 'roi_sizes_table','roi_coverage','measures_metadata']:
                     li(a(i.title(), href='#%s' % i))
 
     doc += hr()
@@ -426,6 +426,30 @@ def addRoiExtractProcReport(doc_dict):
     doc += hr()
 
     reg1_dict={}
+    roi_sizes_table = metadata["ROI Voxel Sizes"]
+    df = pd.read_table(roi_sizes_table,sep=",")
+    reg1_dict["headers"] = df.columns.tolist()
+    reg1_dict["rows"] = df.values.tolist()
+    reg1_dict["title"] = "ROI Voxel Sizes"
+    reg1_dict["divid"] = 'roi_sizes_table'
+    reg1_dict["tabclass"] = 'data-table'
+    reg1_dict["divclass"] = 'table-caption'
+    doc = AddDataSection(doc, reg1_dict)
+    doc += hr()
+
+    reg1_dict={}
+    roi_sizes_table = metadata["ROI Coverage"]
+    df = pd.read_table(roi_sizes_table,sep=",")
+    reg1_dict["headers"] = df.columns.tolist()
+    reg1_dict["rows"] = df.values.tolist()
+    reg1_dict["title"] = "ROI Coverage"
+    reg1_dict["divid"] = 'roi_coverage_table'
+    reg1_dict["tabclass"] = 'data-table'
+    reg1_dict["divclass"] = 'table-caption'
+    doc = AddDataSection(doc, reg1_dict)
+    doc += hr()
+
+    reg1_dict={}
     reg1_dict["headers"] = ["Item", "Value"]
     reg1_dict["rows"] = [[k,metadata[k]] for k in metadata.keys()]
     reg1_dict["title"] = "Metadata"
@@ -449,7 +473,7 @@ def createRoiExtractReport(panpipe_labels,html_file, metadata,analysis_level=Non
 
     output_dir = os.path.dirname(html_file)
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        os.makedirs(output_dir,exist_ok=True)
 
     if isinstance(metadata,dict):
         metajson = metadata
@@ -623,7 +647,7 @@ def createBasilReport(panpipe_labels,html_file,debug_dir,analysis_level=None):
 
     output_dir = os.path.dirname(html_file)
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        os.makedirs(output_dir,exist_ok=True)
 
     image_dir=os.path.join(output_dir, 'images')
 
