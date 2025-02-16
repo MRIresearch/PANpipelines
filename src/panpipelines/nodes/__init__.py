@@ -24,5 +24,6 @@ __all__ = [
     "upload",
     "reports",
     "tractseg",
-    "xdpd"
+    "xcpd",
+    "freewater"
 ]
