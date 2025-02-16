@@ -3,6 +3,9 @@ pantransformed_enable_aslmetrics.sh
 deployment_development/
 launch.json
 startenv.sh
+outputs/
+archive/
+sources/
 
 # files
 *.pklz

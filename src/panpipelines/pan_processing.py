@@ -40,6 +40,7 @@ def parse_params():
     parser.add_argument("--run_dependent_pipelines",nargs="+")
     parser.add_argument("--run_interactive",default="True")
     parser.add_argument("--force_run",default="False")
+    parser.add_argument("--participant_query", nargs="+", help="Apply query on pandas. works in exclusion to all other participant query filters")
     parser.add_argument("--participant_exclusions", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
     parser.add_argument("--session_label", nargs="*", type=drop_ses, help="filter by session label (the ses- prefix can be removed).")
     parser.add_argument('--version', action='version', version='%(prog)s {version}'.format(version=__version__))
@@ -188,7 +189,7 @@ def main():
             bids_incremental_dir = os.path.join(os.path.dirname(sinkdir),"bids_incremental")
     
     if not os.path.exists(bids_incremental_dir):
-        os.makedirs(bids_incremental_dir)
+        os.makedirs(bids_incremental_dir,exist_ok=True)
 
     if INFO_DELTA:
         new_targetdir=bids_incremental_dir
@@ -226,6 +227,7 @@ def main():
         RUN_DEPENDENT_PIPELINES = True
     else:
         RUN_DEPENDENT_PIPELINES = False
+        dependent_pipelines=[]
 
     FORCE_BIDS_DOWNLOAD = isTrue(args.force_bids_download)
     if FORCE_BIDS_DOWNLOAD:
@@ -257,13 +259,13 @@ def main():
             LOGGER.info(f"Participants file not found at {participants_file} - retrieving from XNAT. Please wait.")
             targetdir = os.path.dirname(participants_file)
             if not os.path.exists(targetdir):
-                os.makedirs(targetdir)
+                os.makedirs(targetdir,exist_ok=True)
 
         if not os.path.exists(sessions_file):
             LOGGER.info(f"Sessions file not found at {sessions_file} - retrieving from XNAT. Please wait.")
             targetdir = os.path.dirname(sessions_file)
             if not os.path.exists(targetdir):
-                os.makedirs(targetdir)
+                os.makedirs(targetdir,exist_ok=True)
 
         getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",participants_file,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST,sessionsTSV=sessions_file)
 
@@ -276,11 +278,14 @@ def main():
     else:
         pipelines = getParams(panpipe_labels,"PIPELINES")
 
+    if not pipelines:
+        pipelines=[]
+
     pipeline_match=args.pipeline_match
     pipeline_exclude=args.pipeline_exclude
 
     ALL_PIPELINES=[p for p in panpipeconfig_json.keys() if p != "all_pipelines"]
-    if not pipelines:
+    if not pipelines and not dependent_pipelines:
         LOGGER.info("No pipelines specified at command line.")
         pipelines = ALL_PIPELINES
         if pipeline_match:
@@ -314,6 +319,12 @@ def main():
         panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
     else:
         participant_label = getParams(panpipe_labels,"PARTICIPANTS")
+
+    participant_query = args.participant_query
+    if not participant_query:
+        participant_query = ""
+    else:
+        participant_query = " ".join(participant_query)
 
     participant_exclusions = args.participant_exclusions
     if not participant_exclusions:
@@ -362,8 +373,13 @@ def main():
             
             if "ftp_upload_bids" not in pipeline_exclude:
                 pipelines.add("ftp_upload_bids")
-            
-    LOGGER.info(f"participants to be processed: {participant_label}")
+
+    if not participant_query:            
+        LOGGER.info(f"participants to be processed: {participant_label}. Note that subject exclusions will be applied at the pipeline level.")
+    else:
+        projectmap = get_projectmap_query(sessions_file,participant_query)
+        participant_list = projectmap[0]
+        LOGGER.info(f"participants to be processed: {participant_list}. Note that subject exclusions will be applied at the pipeline level.")
     time.sleep(5)
     LOGGER.info(f"Pipelines to be processed : {pipelines}")
     time.sleep(5)
@@ -381,14 +397,21 @@ def main():
         subject_exclusions=[]
         subject_exclusions.extend(participant_exclusions)
 
-        pipeline_exclusions = getParams(panpipe_labels,"PARTICIPANT_PIPELINE_EXCLUSIONS")
+        pipeline_panpipe_labels={}
+        pipeline_panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,pipeline_panpipe_labels,pipeline)
+        
+        pipeline_exclusions = getParams(pipeline_panpipe_labels,"PARTICIPANT_PIPELINE_EXCLUSIONS")
         if not pipeline_exclusions:
             pipeline_exclusions=[]
         subject_exclusions.extend(pipeline_exclusions) 
         panpipe_labels = updateParams(panpipe_labels,"EXCLUDED_PARTICIPANTS",subject_exclusions)
 
-        projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+        if not participant_query:
+            projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+        else:
+            projectmap = get_projectmap_query(sessions_file,participant_query,subject_exclusions=subject_exclusions)
         participant_list = projectmap[0]
+        panpipe_labels = updateParams(panpipe_labels, "PARTICIPANTS",participant_list)
         project_list  = projectmap[1]
         session_list = projectmap[2]
         shared_project_list  = projectmap[3]
