@@ -8,6 +8,5 @@ __all__ = [
     "paninfo_bidsqc",
     "additional_transforms",
     "ftp_upload_pan",
-    "pandb_download",
-    "directcall_panscript"
+    "pandb_download"
 ]
