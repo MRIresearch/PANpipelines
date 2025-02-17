@@ -159,7 +159,12 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
         nib.save(mask_inverse_img,mask_inverse_file)
     else:
         # find a better way e.g. by making the output spec non-mandatory
-        mask_inverse_file ="."
+        # for now this is a horrible hack because previously passing "." causing havoc with DataSink
+        mask_inverse_file =os.path.join(cwd,"placeholder.txt")
+        with open(mask_inverse_file,"w") as outfile:
+            outfile.write("Ignore this file. It is a placeholder for a non-existent mask file as a nipype workaround until better solution implemented.")
+
+        
 
     # check that rois exist and check size of rois
     missing_rois = []
@@ -171,9 +176,17 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
     roi_sizes_list.append(f"sub-{participant_label}")
     roi_sizes_list.append(f"ses-{session_label}")
 
+    roi_sizes_masked_list=[]
+    roi_sizes_masked_list.append(f"sub-{participant_label}")
+    roi_sizes_masked_list.append(f"ses-{session_label}")
+
     roi_coverage_list=[]
     roi_coverage_list.append(f"sub-{participant_label}")
     roi_coverage_list.append(f"ses-{session_label}")
+
+    roi_coverage_masked_list=[]
+    roi_coverage_masked_list.append(f"sub-{participant_label}")
+    roi_coverage_masked_list.append(f"ses-{session_label}")
 
     if atlas_type == "3D":
         atlas_data = atlas_img.get_fdata()
@@ -182,6 +195,11 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
             lbl_index = labels_index_list.index(index)
             roi_sum = np.sum(atlas_data == int(index))
             roi_sizes_list.append(f"{str(roi_sum)}")
+
+            if mask_inverse_img:
+                roi_sum_masked = np.sum(np.logical_and(atlas_data == int(index), mask_inverse_img.get_fdata()))
+                roi_sizes_masked_list.append(f"{str(roi_sum_masked)}")
+
             if roi_sum == 0:               
                 UTLOGGER.warn(f"WARNING: Roi Number {index} is missing from atlas {atlas_file}. Have you provided the correct labels in {atlas_index} ?")
                 UTLOGGER.warn(f"WARNING: Roi Number {index} corresponds with ROI name : {labels_name_list[lbl_index]}")               
@@ -200,6 +218,18 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
                 check = measure_data[atlas_data == int(index)]
             else:
                 check = measure_data[atlas_data == int(index),:]
+
+            if mask_inverse_img:
+                if measure_type == "3D":
+                    check_masked = measure_data[np.logical_and(atlas_data == int(index), mask_inverse_img.get_fdata())]
+                else:
+                    check_masked = measure_data[np.logical_and(atlas_data == int(index), mask_inverse_img.get_fdata()),:]
+                if len(check_masked) < 1:
+                    roi_coverage_masked_list.append(f"0")
+                else:
+                    roi_coverage_masked = np.sum(check_masked != 0)
+                    roi_coverage_masked_list.append(f"{str(roi_coverage_masked)}")
+
             if len(check) < 1:
                 roi_coverage=0
                 roi_coverage_list.append(f"{str(roi_coverage)}")
@@ -257,10 +287,27 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
             lbl_index = labels_index_list[atlas_index_chk]
             roi_sum = np.sum(atlas_data > 0)
             roi_sizes_list.append(f"{str(roi_sum)}")
+
+            if mask_inverse_img:
+                roi_sum_masked = np.sum(np.logical_and(atlas_data > 0, mask_inverse_img.get_fdata()))
+                roi_sizes_masked_list.append(f"{str(roi_sum_masked)}")
+
             if measure_type == "3D":
                 check = measure_data[atlas_data > 0]               
             else:
                 check = measure_data[atlas_data > 0,:]
+
+            if mask_inverse_img:
+                if measure_type == "3D":
+                    check_masked = measure_data[np.logical_and(atlas_data > 0, mask_inverse_img.get_fdata())]
+                else:
+                    check_masked = measure_data[np.logical_and(atlas_data > 0, mask_inverse_img.get_fdata()),:]
+                if len(check_masked) < 1:
+                    roi_coverage_masked_list.append(f"0")
+                else:
+                    roi_coverage_masked = np.sum(check_masked != 0)
+                    roi_coverage_masked_list.append(f"{str(roi_coverage_masked)}")
+
             if len(check) < 1:
                 roi_coverage=0
                 roi_coverage_list.append(f"{str(roi_coverage)}")
@@ -354,6 +401,17 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
     roi_csv_coverage = newfile(outputdir=roi_output_dir,assocfile=csv_basename,suffix="roicoverage",extension="csv")
     cov_df=pd.DataFrame([roi_coverage_list],columns=["subject_id","session_id"]+[f"{atlas_name}.{x}" for x in labels_name_list])
     cov_df.to_csv(roi_csv_coverage,sep=",",header=True, index=False)
+
+    if mask_inverse_img:
+        roi_csv_masked_sizes = newfile(outputdir=roi_output_dir,assocfile=csv_basename,suffix="desc-masked_roisizes",extension="csv")
+        sizes_df=pd.DataFrame([roi_sizes_masked_list],columns=["subject_id","session_id"]+[f"{atlas_name}.{x}" for x in labels_name_list])
+        sizes_df.to_csv(roi_csv_masked_sizes,sep=",",header=True, index=False)
+        roi_csv_sizes=roi_csv_masked_sizes 
+
+        roi_csv_masked_coverage = newfile(outputdir=roi_output_dir,assocfile=csv_basename,suffix="desc-masked_roicoverage",extension="csv")
+        cov_df=pd.DataFrame([roi_coverage_masked_list],columns=["subject_id","session_id"]+[f"{atlas_name}.{x}" for x in labels_name_list])
+        cov_df.to_csv(roi_csv_masked_coverage,sep=",",header=True, index=False)
+        roi_csv_coverage = roi_csv_masked_coverage
 
     metadata = {}
     metadata = updateParams(metadata,"Title","roi_extract")

@@ -44,11 +44,12 @@ panproc flirt -in $PWD/Buckner2011_7Networks_MNI152_FreeSurferConformed1mm_Loose
 ### For comparison look at JHU atlas
 #### Create 1mm version
 
-panproc flirt -in $PWD/r_2mm_combined_corrected_atlas_1mm.nii \
+panproc flirt -in $PWD/atlas-yeobuckner17_space-MNI152NLin6Asym_res-02_dseg.nii.gz \
       -ref /opt/fsl/data/standard/MNI152_T1_1mm.nii.gz \
-      -out $PWD/r_1mm_combined_corrected_atlas_1mm.nii \
+      -out $PWD/yeobuck1mm_fromjhu.nii.gz \
       -applyxfm -interp nearestneighbour -init $PWD/identity.mat
-
+panproc fslorient -swaporient $PWD/yeobuck1mm_fromjhu.nii.gz
+panproc fslswapdim $PWD/yeobuck1mm_fromjhu.nii.gz -x y z $PWD/yeobuck1mm_fromjhu.nii.gz
 
 
 
