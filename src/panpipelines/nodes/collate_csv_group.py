@@ -10,6 +10,78 @@ import shutil
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
+def sort_df(df,sort_dict):
+    sort_columns=[]
+    sort_order=[]
+    if sort_dict:
+        if isinstance(sort_dict,dict):
+            for sort_col,sort_ord in sort_dict.items():
+                if sort_col in df.columns:
+                    sort_columns.append(sort_col)
+                    sort_order.append(isTrue(sort_ord))
+        elif isinstance(sort_dict,list):
+            for sort_col in sort_dict:
+                if sort_col in df.columns:
+                    sort_columns.append(sort_col)
+                    sort_order.append(True)
+        else:
+            if sort_dict in df.columns:
+                sort_columns.append(sort_dict)
+                sort_order.append(True)
+
+    if sort_columns and sort_order:
+        df = df.sort_values(by=sort_columns,ascending=sort_order)
+        df = df.reset_index(drop=True)
+
+    return df
+
+
+def move_cols_front(df, cols):
+    if not cols:
+        cols = []
+    cols_to_move=[]
+    for col in cols:
+        if col in df.columns:
+            cols_to_move.append(col)
+    if cols_to_move:
+        return df[ cols_to_move + [ col for col in df.columns if col not in cols_to_move ] ]
+    else:
+        return df
+
+def get_col_candidates(labels_dict,col_filter_key):
+    filter_col_candidates=[]
+    filter_file = getParams(labels_dict,col_filter_key)
+    if filter_file:
+        with open(filter_file, 'r') as infile:
+            col_parts = infile.read()
+            col_split_parts = col_parts.split("\n")
+            filter_col_candidates = [x for x in col_split_parts if x]
+    return filter_col_candidates
+
+
+def filter_df(df,field_exceptions=[],filter_col_candidates=None,labels_dict={},col_filter_key="COL_FILTER_FILE"):
+
+    current_cols = df.columns
+    filter_cols = []
+
+    if not filter_col_candidates:
+        filter_col_candidates=[]
+        if isinstance(col_filter_key,list):
+            for key in col_filter_key:
+                filter_col_candidates.extend(get_col_candidates(labels_dict,key))
+        else:
+            filter_col_candidates.extend(get_col_candidates(labels_dict,col_filter_key))
+
+    if filter_col_candidates:
+        filter_col_candidates.extend(field_exceptions)
+        for col in filter_col_candidates:
+            if col in current_cols:
+                filter_cols.append(col)
+
+        df=df[filter_cols]
+
+    return df
+
 def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
     if csv_list1 is None:
@@ -31,6 +103,12 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         subject_exclusions = process_exclusions(participant_exclusions)
     else:
         subject_exclusions = []
+
+    ENABLE_SORT_COLUMNS = getParams(labels_dict,"ENABLE_SORT_COLUMNS")
+    if ENABLE_SORT_COLUMNS:
+        ENABLE_SORT_COLUMNS = isTrue(ENABLE_SORT_COLUMNS)
+    else:
+        ENABLE_SORT_COLUMNS=True
 
     RSEP = getParams(labels_dict,'RSEP')
     if not RSEP:
@@ -96,6 +174,10 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     if not os.path.isdir(roi_output_dir):
         os.makedirs(roi_output_dir,exist_ok=True)
 
+    roi_work_dir = os.path.join(cwd,'group_roi_work_dir')
+    if not os.path.isdir(roi_work_dir):
+        os.makedirs(roi_work_dir,exist_ok=True)
+
     IFLOGGER.info(f"List of csv files (left) to collate: {csv_list_left}")
     IFLOGGER.info(f"List of csv files (right) to collate: {csv_list_right}")
 
@@ -156,7 +238,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         roi_csv_outer_left = os.path.join(roi_output_dir,'{}_{}_outer_left.csv'.format("group",collate_name_left))
 
         #create sorted output
-        cum_df_inner_left = cum_df_inner_left.reindex(sorted(cum_df_inner_left.columns), axis=1)
+        if ENABLE_SORT_COLUMNS:
+            cum_df_inner_left = cum_df_inner_left.reindex(sorted(cum_df_inner_left.columns), axis=1)
 
         if collate_prefix_left:
             orig_cols = cum_df_inner_left.columns.tolist()
@@ -173,7 +256,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
 
         #create sorted output
-        cum_df_outer_left = cum_df_outer_left.reindex(sorted(cum_df_outer_left.columns), axis=1)
+        if ENABLE_SORT_COLUMNS:
+            cum_df_outer_left = cum_df_outer_left.reindex(sorted(cum_df_outer_left.columns), axis=1)
         if collate_prefix_left:
             orig_cols = cum_df_outer_left.columns.tolist()
             other_cols = [x for x in orig_cols if x not in collate_join_left]
@@ -189,10 +273,12 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
         # deal with excluded
         cum_df_inner_left = mask_excludedrows(cum_df_inner_left, subject_exclusions, collate_join_left)
-        cum_df_inner_left.to_csv(roi_csv_inner_left,sep=",",header=True, index=False)
+        work_csv_inner_left=newfile(outputdir=roi_work_dir,assocfile=roi_csv_inner_left)
+        cum_df_inner_left.to_csv(work_csv_inner_left,sep=",",header=True, index=False)
 
         cum_df_outer_left = mask_excludedrows(cum_df_outer_left, subject_exclusions, collate_join_left)
-        cum_df_outer_left.to_csv(roi_csv_outer_left,sep=",",header=True, index=False)
+        work_csv_outer_left=newfile(outputdir=roi_work_dir,assocfile=roi_csv_outer_left)
+        cum_df_outer_left.to_csv(work_csv_outer_left,sep=",",header=True, index=False)
 
         # Drop or rename columns as specififed by LEFT_DROP and LEFT_RENAME
         left_inner_cols=list(cum_df_inner_left.columns.values)
@@ -350,7 +436,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         roi_csv_outer_right = os.path.join(roi_output_dir,'{}_{}_outer_right.csv'.format("group",collate_name_right))
 
         #create sorted output
-        cum_df_inner_right = cum_df_inner_right.reindex(sorted(cum_df_inner_right.columns), axis=1)
+        if ENABLE_SORT_COLUMNS:
+            cum_df_inner_right = cum_df_inner_right.reindex(sorted(cum_df_inner_right.columns), axis=1)
         if collate_prefix_right:
             orig_cols = cum_df_inner_right.columns.tolist()
             other_cols = [x for x in orig_cols if x not in collate_join_right]
@@ -365,7 +452,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             cum_df_inner_right.insert(index_col_num,collate_join_right[index_col_num],index_col)
 
         #create sorted output
-        cum_df_outer_right = cum_df_outer_right.reindex(sorted(cum_df_outer_right.columns), axis=1)
+        if ENABLE_SORT_COLUMNS:
+            cum_df_outer_right = cum_df_outer_right.reindex(sorted(cum_df_outer_right.columns), axis=1)
         if collate_prefix_right:
             orig_cols = cum_df_outer_right.columns.tolist()
             other_cols = [x for x in orig_cols if x not in collate_join_right]
@@ -380,11 +468,13 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             cum_df_outer_right.insert(index_col_num,collate_join_right[index_col_num],index_col)
 
 
-        cum_df_inner_right = mask_excludedrows(cum_df_inner_right, subject_exclusions, collate_join_right)     
-        cum_df_inner_right.to_csv(roi_csv_inner_right,sep=",",header=True, index=False)
+        cum_df_inner_right = mask_excludedrows(cum_df_inner_right, subject_exclusions, collate_join_right) 
+        work_csv_inner_right=newfile(outputdir=roi_work_dir,assocfile=roi_csv_inner_right)    
+        cum_df_inner_right.to_csv(work_csv_inner_right,sep=",",header=True, index=False)
 
         cum_df_outer_right = mask_excludedrows(cum_df_outer_right, subject_exclusions, collate_join_right)
-        cum_df_outer_right.to_csv(roi_csv_outer_right,sep=",",header=True, index=False)
+        work_csv_outer_right=newfile(outputdir=roi_work_dir,assocfile=roi_csv_outer_right)    
+        cum_df_outer_right.to_csv(work_csv_outer_right,sep=",",header=True, index=False)
 
         # Drop or rename columns as specififed by RIGHT_DROP and RIGHT_RENAME
         right_inner_cols=list(cum_df_inner_right.columns.values)
@@ -510,18 +600,68 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
                 IFLOGGER.debug(f"RIGHT_TRANSLATE should be a dictionary of values but {RIGHT_TRANSLATE} passed")   
 
 
+    ALL_GROUP = isTrue(getParams(labels_dict,"ALL_GROUP"))
+    # this flag currently also controls if cumulative group results are appended - need a better way to do this
+    FILTER_GROUP = isTrue(getParams(labels_dict,"FILTER_GROUP"))
+    LAST_OUTPUT_FILES = getParams(labels_dict,"LAST_OUTPUT_FILES")
+    ADD_CUMULATIVE = getParams(labels_dict,"ADD_CUMULATIVE")
+
+    SORT_VALUES = getParams(labels_dict,"SORT_VALUES")
+
+    filter_set = None
+    if not ALL_GROUP and FILTER_GROUP:
+        IFLOGGER.info("Group Filter: Attempting to filter out specific participant and session from dataframe using subject_id and session_id")
+        filter_set = set(zip([f"sub-{x}" for x in participants_label],[f"ses-{x}" for x in participants_session]))
+
     # replace hyphens with underscores
     if not cum_df_inner_right.empty:
-        cum_df_inner_right.columns =cum_df_inner_right.columns.str.replace("-", "_", regex=True)
+        cum_df_inner_right.columns = cum_df_inner_right.columns.str.replace("-", "_", regex=True)
+        if filter_set:
+            cum_df_inner_right = cum_df_inner_right[cum_df_inner_right[['subject_id', 'session_id']].apply(tuple, axis=1).isin(filter_set)]
+        extra_field_exceptions = getParams(labels_dict,"RIGHT_FILTER_EXCEPTIONS")
+        if not extra_field_exceptions:
+            extra_field_exceptions = []
+        cum_df_inner_right = filter_df(cum_df_inner_right,field_exceptions=collate_join_right + extra_field_exceptions,labels_dict=labels_dict,col_filter_key="RIGHT_FILTER_FILE")
+        cum_df_inner_right = move_cols_front(cum_df_inner_right, getParams(labels_dict,"COLUMNS_TO_FRONT"))
+        cum_df_inner_right = sort_df(cum_df_inner_right,SORT_VALUES)
+        cum_df_inner_right.to_csv(roi_csv_inner_right,sep=",",header=True, index=False)
     
     if not cum_df_inner_left.empty:
         cum_df_inner_left.columns = cum_df_inner_left.columns.str.replace("-", "_", regex=True)
+        if filter_set:
+            cum_df_inner_left = cum_df_inner_left[cum_df_inner_left[['subject_id', 'session_id']].apply(tuple, axis=1).isin(filter_set)]
+        extra_field_exceptions = getParams(labels_dict,"LEFT_FILTER_EXCEPTIONS")
+        if not extra_field_exceptions:
+            extra_field_exceptions = []
+        cum_df_inner_left = filter_df(cum_df_inner_left,field_exceptions=collate_join_left + extra_field_exceptions,labels_dict=labels_dict,col_filter_key="LEFT_FILTER_FILE")
+        cum_df_inner_left = move_cols_front(cum_df_inner_left, getParams(labels_dict,"COLUMNS_TO_FRONT"))
+        cum_df_inner_left = sort_df(cum_df_inner_left,SORT_VALUES)
+        cum_df_inner_left.to_csv(roi_csv_inner_left,sep=",",header=True, index=False)
 
     if not cum_df_outer_right.empty:
-        cum_df_outer_right.columns =cum_df_outer_right.columns.str.replace("-", "_", regex=True)
+        cum_df_outer_right.columns = cum_df_outer_right.columns.str.replace("-", "_", regex=True)
+        if filter_set:
+            cum_df_outer_right = cum_df_outer_right[cum_df_outer_right[['subject_id', 'session_id']].apply(tuple, axis=1).isin(filter_set)]
+        extra_field_exceptions = getParams(labels_dict,"RIGHT_FILTER_EXCEPTIONS")
+        if not extra_field_exceptions:
+            extra_field_exceptions = []
+        cum_df_outer_right = filter_df(cum_df_outer_right,field_exceptions=collate_join_right + extra_field_exceptions,labels_dict=labels_dict,col_filter_key="RIGHT_FILTER_FILE")
+        cum_df_outer_right = move_cols_front(cum_df_outer_right, getParams(labels_dict,"COLUMNS_TO_FRONT"))
+        cum_df_outer_right = sort_df(cum_df_outer_right,SORT_VALUES)
+        cum_df_outer_right.to_csv(roi_csv_outer_right,sep=",",header=True, index=False)
     
     if not cum_df_outer_left.empty:
         cum_df_outer_left.columns = cum_df_outer_left.columns.str.replace("-", "_", regex=True)
+        if filter_set:
+            cum_df_outer_left = cum_df_outer_left[cum_df_outer_left[['subject_id', 'session_id']].apply(tuple, axis=1).isin(filter_set)]
+        extra_field_exceptions = getParams(labels_dict,"LEFT_FILTER_EXCEPTIONS")
+        if not extra_field_exceptions:
+            extra_field_exceptions = []
+        cum_df_outer_left = filter_df(cum_df_outer_left,field_exceptions=collate_join_left + extra_field_exceptions,labels_dict=labels_dict,col_filter_key="LEFT_FILTER_FILE")
+        cum_df_outer_left = move_cols_front(cum_df_outer_left, getParams(labels_dict,"COLUMNS_TO_FRONT"))
+        cum_df_outer_left = sort_df(cum_df_outer_left,SORT_VALUES)
+        cum_df_outer_left.to_csv(roi_csv_outer_left,sep=",",header=True, index=False)
+
 
     if not cum_df_inner_right.empty and not cum_df_inner_left.empty:
 
@@ -536,14 +676,15 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         roi_csv_inner = os.path.join(roi_output_dir,'{}_{}-{}_inner.csv'.format("final-group",collate_name_left,collate_name_right))
 
         #create sorted output
-        cum_df_inner = cum_df_inner.reindex(sorted(cum_df_inner.columns), axis=1)
+        if ENABLE_SORT_COLUMNS:
+            cum_df_inner = cum_df_inner.reindex(sorted(cum_df_inner.columns), axis=1)
         index_col_list = [collate_join_left.index(x) for x in cum_df_inner.columns if x in collate_join_left]
         index_col_list.sort()
         for index_col_num in index_col_list:
             index_col = cum_df_inner.pop(collate_join_left[index_col_num])
             cum_df_inner.insert(index_col_num,collate_join_left[index_col_num],index_col)
 
-
+        cum_df_inner = move_cols_front(cum_df_inner, getParams(labels_dict,"COLUMNS_TO_FRONT"))
         cum_df_inner.to_csv(roi_csv_inner,sep=",",header=True, index=False)
 
         metadata = {}
@@ -593,7 +734,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         roi_csv_outer = os.path.join(roi_output_dir,'{}_{}-{}_outer.csv'.format("final-group",collate_name_left,collate_name_right))
 
         #create sorted output
-        cum_df_outer = cum_df_outer.reindex(sorted(cum_df_outer.columns), axis=1)
+        if ENABLE_SORT_COLUMNS:
+            cum_df_outer = cum_df_outer.reindex(sorted(cum_df_outer.columns), axis=1)
 
         index_col_list = [collate_join_left.index(x) for x in cum_df_outer.columns if x in collate_join_left]
         index_col_list.sort()
@@ -601,6 +743,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
             index_col = cum_df_outer.pop(collate_join_left[index_col_num])
             cum_df_outer.insert(index_col_num,collate_join_left[index_col_num],index_col)
 
+        cum_df_outer = move_cols_front(cum_df_outer, getParams(labels_dict,"COLUMNS_TO_FRONT"))
         cum_df_outer.to_csv(roi_csv_outer,sep=",",header=True, index=False)
         metadata = {}
         created_datetime = get_datetimestring_utc()
@@ -636,10 +779,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         metadata = updateParams(metadata,"InputFiles",f"{roi_csv_outer}")
         roi_csv_outer_json = create_metadata(roi_csv_outer, created_datetime, metadata = metadata)
 
-
-    ALL_GROUP = isTrue(getParams(labels_dict,"ALL_GROUP"))
-    LAST_OUTPUT_FILES = getParams(labels_dict,"LAST_OUTPUT_FILES")
-    if not ALL_GROUP and LAST_OUTPUT_FILES:
+    # this workflow needs to be looked at !!!!
+    if not ALL_GROUP and LAST_OUTPUT_FILES and not FILTER_GROUP and ADD_CUMULATIVE:
         IFLOGGER.info("This is an update to the last group files. We will append results from this run to files at {LAST_OUTPUT_FILES}")
         for group_file in LAST_OUTPUT_FILES:
 
@@ -657,6 +798,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
                     created_datetime = get_datetimestring_utc()
                     roi_csv_inner_backup = newfile(assocfile=roi_csv_inner,suffix=f"{created_datetime}")
                     shutil.copy(roi_csv_inner,roi_csv_inner_backup)
+                    sorted_df = filter_df(sorted_df,field_exceptions=collate_join_right + collate_join_left,labels_dict=labels_dict,col_filter_key=["LEFT_FILTER_FILE","RIGHT_FILTER_FILE"])
                     sorted_df.to_csv(roi_csv_inner,sep=LSEP,header=True, index=False)
 
                     roi_csv_inner_json_backup = newfile(assocfile=roi_csv_inner_json,suffix=f"{created_datetime}")
@@ -700,6 +842,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
                     created_datetime = get_datetimestring_utc()
                     roi_csv_outer_backup = newfile(assocfile=roi_csv_outer,suffix=f"{created_datetime}")
                     shutil.copy(roi_csv_outer,roi_csv_outer_backup)
+                    sorted_df = filter_df(sorted_df,field_exceptions=collate_join_right + collate_join_left,labels_dict=labels_dict,col_filter_key=["LEFT_FILTER_FILE","RIGHT_FILTER_FILE"])
                     sorted_df.to_csv(roi_csv_outer,sep=LSEP,header=True, index=False)
 
                     roi_csv_outer_json_backup = newfile(assocfile=roi_csv_outer_json,suffix=f"{created_datetime}")
