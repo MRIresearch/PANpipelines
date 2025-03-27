@@ -22,8 +22,21 @@ class pancontainer_panscript(panscript):
             runCommand(evaluated_command,IFLOGGER)
 
         PKG_DIR = getParams(labels_dict,"PKG_DIR")
-        os.environ["PYTHONPATH"]=f"{PKG_DIR}:$PYTHONPATH"
-        os.environ["SINGULARITYENV_PYTHONPATH"]=translate_binding(command_base,f"{PKG_DIR}:$PYTHONPATH")
+
+        ADD_PKG_DIR = getParams(labels_dict,"ADD_PKG_DIR")
+        if ADD_PKG_DIR:
+            ADD_PKG_DIR = f":{ADD_PKG_DIR}"
+        else:
+            ADD_PKG_DIR = ""
+
+        if "PYTHONPATH" in os.environ.keys():
+            PYTHONPATH = os.environ["PYTHONPATH"]
+            PYTHONPATH = f":{PYTHONPATH}"
+        else:
+            PYTHONPATH = ""
+            
+        os.environ["PYTHONPATH"]=f"{PKG_DIR}{PYTHONPATH}{ADD_PKG_DIR}"
+        os.environ["SINGULARITYENV_PYTHONPATH"]=translate_binding(command_base,f"{PKG_DIR}{PYTHONPATH}{ADD_PKG_DIR}")
 
         self.command = command_base + " " + command
 
