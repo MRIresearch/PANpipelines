@@ -45,6 +45,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         os.makedirs(work_dir,exist_ok=True)
 
     if isinstance(trans_mat[0],list):
+        trans_mat = trans_mat[0]
         trans_parts = substitute_labels(trans_mat[0][-1],labels_dict).split(":")
     else:
         trans_parts = substitute_labels(trans_mat[-1],labels_dict).split(":")
@@ -83,10 +84,13 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         costfunction="LanczosWindowedSinc"
     elif costfunction == "NearestNeighbor":
         fsl_costfunction = "nn"
+        fsl_affine_costfunction="nearestneighbour"
     elif costfunction == "Linear":
         fsl_costfunction="trilinear"
+        fsl_affine_costfunction="trilinear"
     elif costfunction == "Bspline":
         fsl_costfunction="spline"
+        fsl_affine_costfunction="spline"
 
     output_type = getParams(labels_dict,'OUTPUT_TYPE')
 
@@ -96,7 +100,9 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     fsl_command_base, fslcontainer = getContainer(labels_dict,nodename="invertWarpfield_FNIRT",SPECIFIC="FSL_CONTAINER",LOGGER=IFLOGGER)
     fslwarp_dict={}
 
-
+    prematconcat_list=[]
+    fslaffineconcat_list=[]
+ 
     transform_list=[]
     reverse_list=[]
     trans_ori = ""
@@ -112,9 +118,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     trans_count = 1
 
     for trans in trans_mat:
-        # check if list passed within list then force to be single string item
-        if isinstance(trans,list):
-            trans = trans[0]
+        APPEND_TO_TRANSFORM_LIST=True
         trans_parts = trans.split(":")
         transform = getGlob(substitute_labels(trans_parts[0],labels_dict))
         trans_type =""
@@ -280,6 +284,12 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         elif trans_type:
             BYPASS_ANTS=True
             if pathlib.Path(transform).suffix == ".gz":
+
+                if "^ants_to_fsl" in trans_type:
+                    new_fsl_transform=newfile(work_dir,transform,suffix="fsl-transform", extension=".nii.gz")
+                    convertWarp_toFNIRT(transform, new_fsl_transform , trans_source, wb_command_base)
+                    transform = new_fsl_transform
+
                 # if we need the inverse of non-linear transform FSL transform then do that 
                 if reverse_list[-1]==True:
                     new_transform = newfile(work_dir,transform,suffix="desc-inverse",extension=".nii.gz")
@@ -298,6 +308,12 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
                     orig_trans_src_ori =orig_trans_ref_ori
                     orig_trans_ref_ori=orig_trans_temp
             else:
+
+                if "^ants_to_fsl" in trans_type:
+                    new_fsl_transform=newfile(work_dir,transform,suffix="fsl-transform")
+                    convert_affine_ants_to_fsl(transform, trans_source, trans_reference, new_fsl_transform)
+                    transform = new_fsl_transform
+
                 if reverse_list[-1]==True:
                     new_transform = newfile(work_dir,transform,suffix="desc-inverse")
                     invertAffine_FLIRT(transform, new_transform, fsl_command_base)
@@ -315,10 +331,17 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
                     orig_trans_src_ori =orig_trans_ref_ori
                     orig_trans_ref_ori=orig_trans_temp
 
-            fslwarp_dict = updateParams(fslwarp_dict,trans_type,transform)
+            if trans_type.startswith("premat_concat"):
+                APPEND_TO_TRANSFORM_LIST = False
+                prematconcat_list.append(transform)
+            elif trans_type.startswith("fsl_affine_concat"):
+                APPEND_TO_TRANSFORM_LIST = False
+                fslaffineconcat_list.append(transform)                
+            else:
+                fslwarp_dict = updateParams(fslwarp_dict,trans_type,transform)
 
-        
-        transform_list.append(transform)
+        if APPEND_TO_TRANSFORM_LIST:
+            transform_list.append(transform)
 
 
         if trans_count == 1:
@@ -469,10 +492,28 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
                                 costfunction=costfunction,
                                 output_type=output_type,
                                 reverse=reverse_list)
+    # Hack to fix issues with solely concatenated affines causing weird issues with convertwarp!
+    elif fslaffineconcat_list:
+        start_tran = os.path.basename(fslaffineconcat_list[0]).split(".")[0]
+        end_tran = os.path.basename(fslaffineconcat_list[-1]).split(".")[0]
+        new_affine_transform = newfile(work_dir,f"{participant_label}_{participant_session}_prematconcat_from-{start_tran}_to-{end_tran}",extension="mat")
+        concatMultipleAffines_FLIRT(fslaffineconcat_list,new_affine_transform,fsl_command_base)
+
+        applyAffine_flirt(input_file,ref_file,out_file,new_affine_transform,fsl_command_base,interp=fsl_affine_costfunction)
+  
+
     else:
         combined_warp= newfile(work_dir,out_file,suffix="convert-warp",extension=".nii.gz")
         fslwarp_dict = updateParams(fslwarp_dict,"--ref",ref_file)
         fslwarp_dict = updateParams(fslwarp_dict,"--out",combined_warp)
+
+        if prematconcat_list:
+            start_tran = os.path.basename(prematconcat_list[0]).split(".")[0]
+            end_tran = os.path.basename(prematconcat_list[-1]).split(".")[0]
+            new_prematconcat_transform = newfile(work_dir,f"{participant_label}_{participant_session}_prematconcat_from-{start_tran}_to-{end_tran}",extension="mat")
+            concatMultipleAffines_FLIRT(prematconcat_list,new_prematconcat_transform,fsl_command_base)
+            fslwarp_dict = updateParams(fslwarp_dict,"--premat",new_prematconcat_transform)
+
 
         command=f"{fsl_command_base} convertwarp"\
             " "+get_fslparams(fslwarp_dict)

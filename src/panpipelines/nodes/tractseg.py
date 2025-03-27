@@ -189,6 +189,10 @@ def tractseg_proc(labels_dict,input_dir):
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     os.environ["APPTAINER_TEMPLATEFLOW_HOME"]=translate_binding(command_base,TEMPLATEFLOW_HOME)
 
+    EXTRA_PARAMS = getParams(labels_dict,"EXTRA_TRACTSEG_PARAMS")
+    if not EXTRA_PARAMS:
+        EXTRA_PARAMS=""
+
     # generate tensors using mrtrix, use grad from qsiprep
     params="-i "+dwimni152_las_nii+\
         " -o "+output_dir+\
@@ -197,22 +201,51 @@ def tractseg_proc(labels_dict,input_dir):
         " --raw_diffusion_input"
 
     command=f"{command_base} TractSeg"\
-            " "+params
+            " "+params + " " + EXTRA_PARAMS
 
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
 
     bundles=glob.glob(os.path.join(output_dir,"bundle_segmentations","*.nii.gz"))
-    bundles_native_dir=os.path.join(output_dir,"bundles_segmentations_native")
-    if not os.path.exists(bundles_native_dir):
-        os.makedirs(bundles_native_dir,exist_ok=True)
+    bundles_native_bin_dir=os.path.join(output_dir,"bundles_segmentations_native_bin")
+    if not os.path.exists(bundles_native_bin_dir):
+        os.makedirs(bundles_native_bin_dir,exist_ok=True)
+    
+    STORE_PROBS = False
+    if "get_probabilities" in command:
+        STORE_PROBS = True
+
+    if STORE_PROBS:
+        bundles_native_prob_dir=os.path.join(output_dir,"bundles_segmentations_native_prob")
+        if not os.path.exists(bundles_native_prob_dir):
+            os.makedirs(bundles_native_prob_dir,exist_ok=True)
+
+    TRACTSEG_PROBTHRESH=getParams(labels_dict,"TRACTSEG_PROBTHRESH")
+    if not TRACTSEG_PROBTHRESH:
+        TRACTSEG_PROBTHRESH="0.5"
 
     for bundle in bundles:
-        bundle_native=newfile(outputdir=bundles_native_dir,assocfile=bundle)
-        applyAffine_flirt(bundle,fa_fsl,bundle_native,inverse_trans_affine_fsl,mr_command_base,interp="nearestneighbour")
-        command=f"{mr_command_base} mrconvert -force {bundle_native} {bundle_native} -strides -1,-2,+3"
-        runCommand(command)
+        if STORE_PROBS:
+            bundle_native=newfile(outputdir=bundles_native_prob_dir,assocfile=bundle)
+            if ALIGN_APPROACH == "FA":        
+                applyAffine_flirt(bundle,fa_fsl,bundle_native,inverse_trans_affine_fsl,mr_command_base,interp="trilinear")
+            else:
+                applyAffine_flirt(bundle,dwiacpc,bundle_native,inverse_trans_affine_fsl,mr_command_base,interp="trilinear")
+            command=f"{mr_command_base} mrconvert -force {bundle_native} {bundle_native} -strides -1,-2,+3"
+            runCommand(command)
 
+            bundle_native_bin=newfile(outputdir=bundles_native_bin_dir,assocfile=bundle)
+            command=f"{mr_command_base} fslmaths {bundle_native} -thr {TRACTSEG_PROBTHRESH} -bin {bundle_native_bin}"
+            runCommand(command)
+        else:
+            bundle_native_bin=newfile(outputdir=bundles_native_bin_dir,assocfile=bundle)
+            if ALIGN_APPROACH == "FA":        
+                applyAffine_flirt(bundle,fa_fsl,bundle_native_bin,inverse_trans_affine_fsl,mr_command_base,interp="nearestneighbour")
+            else:
+                applyAffine_flirt(bundle,dwiacpc,bundle_native_bin,inverse_trans_affine_fsl,mr_command_base,interp="nearestneighbour")
+
+            command=f"{mr_command_base} mrconvert -force {bundle_native_bin} {bundle_native_bin} -strides -1,-2,+3"
+            runCommand(command)
 
     out_files=[]
     out_files.insert(0,inverse_trans_affine_fsl)
