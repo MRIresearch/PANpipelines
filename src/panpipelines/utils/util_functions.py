@@ -533,11 +533,20 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
         #if count >= TIMEOUT:
         #    break
 
-    IN_XNAT =  getParams(labels_dict,"IN_XNAT")
-    if IN_XNAT:
-        IN_XNAT = isTrue(IN_XNAT)
+    BIDS_SOURCE =  getParams(labels_dict,"BIDS_SOURCE")
+    if BIDS_SOURCE:
+        if BIDS_SOURCE == "XNAT":
+            IN_XNAT = True
+            ANON_FTP = False
+        elif BIDS_SOURCE == "FTP":
+            ANON_FTP = True
+            IN_XNAT = False
+        elif BIDS_SOURCE == "LOCAL":
+            IN_XNAT = False
+            ANON_FTP = False        
     else:
-        IN_XNAT = True
+        IN_XNAT = False
+        ANON_FTP = False
 
     try:
 
@@ -570,11 +579,13 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
                 UTLOGGER.info("Downloading started from XNAT.")
                 subject_id = getSubjectInfo(labels_dict,participant_label,session_label=session_label)
                 getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password,subject_id=subject_id,session_label=session_label,dataset_description=dataset_description,labels_dict=labels_dict,only_defaced=ONLY_DEFACED)
+            elif ANON_FTP:
+                getSubjectSessionsFTP(bids_dir,participant_label,labels_dict,session_label=session_label)
             else:
                 if not os.path.isdir(bids_session_folder):
-                    UTLOGGER.info(f"IN_XNAT set to {IN_XNAT}. Do not have a means of obtaining data for {participant_label}. Please add this subject's data to {bids_dir}")
+                    UTLOGGER.info(f"BIDS_SOURCE set to {BIDS_SOURCE}. Do not have a means of obtaining data for {participant_label}. Please add this subject's data to {bids_dir}")
                 else:
-                    UTLOGGER.info(f"IN_XNAT set to {IN_XNAT}. Ignoring Forced Downloads as no means of obtaining up to date data for {participant_label}. Existing data in {bids_dir} will be used as is.")
+                    UTLOGGER.info(f"BIDS_SOURCE set to {BIDS_SOURCE}. Ignoring Forced Downloads as no means of obtaining up to date data for {participant_label}. Existing data in {bids_dir} will be used as is.")
 
         else:
             print(f"BIDS folder for {participant_label} already present. No need to retrieve")
@@ -585,6 +596,86 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
             os.remove(lock_path)
         except Exception as e:
             pass
+
+def getSubjectSessionsFTP(bids_dir,participant_label,labels_dict,session_label=None):
+    from panpipelines.utils.upload_functions import ftp_downloaddir_recursive, ftp_download
+
+    bids_remote_path=getParams(labels_dict,"BIDS_FTPPATH")
+    anonymous_hostpath = getParams(labels_dict,"ANONYMOUS_FTPHOST")
+    UTLOGGER.info(f"BIDS folder for {participant_label} will be downloaded using anonymous FTP from {anonymous_hostpath} at {bids_remote_path}")
+    
+    # get datadescription if it doesn't exist
+    remote_dataset_desc = os.path.join(bids_remote_path,f"dataset_description.json")
+    target_dataset_desc =os.path.join(bids_dir,"dataset_description.json")
+    if not os.path.exists(target_dataset_desc):
+        lock_dir = getParams(labels_dict,"LOCK_DIR")
+        if lock_dir:
+            lock_path_dataset = os.path.join(lock_dir,"dataset_description" + LOCK_SUFFIX)
+        else:
+            lock_path_dataset = os.path.join("/tmp","dataset_description" + LOCK_SUFFIX)
+
+        lock_file_dataset = acquire_lock(lock_path_dataset)
+        try:
+            count=0
+            while not lock_file_dataset:
+                time.sleep(1)
+                count = count + 1
+                lock_file_dataset= acquire_lock(lock_path_dataset)
+            ftp_download(remote_dataset_desc, target_dataset_desc,anonymous_hostpath,"anonymous",None,22)
+        except Exception as e:
+            UTLOGGER.error(f"Cannot download dataset description: {e}")
+        finally:
+            release_lock(lock_file_dataset)
+            try:
+                os.remove(lock_path_dataset)
+            except Exception as e:
+                pass
+
+    
+    # get participants.tsv if it doesn't exist
+    remote_participants_tsv = os.path.join(bids_remote_path,f"participants.tsv")
+    target_participants_tsv =os.path.join(bids_dir,"participants.tsv")
+    if not os.path.exists(target_participants_tsv):
+        lock_dir = getParams(labels_dict,"LOCK_DIR")
+        if lock_dir:
+            lock_path_dataset = os.path.join(lock_dir,"participants_tsv" + LOCK_SUFFIX)
+        else:
+            lock_path_dataset = os.path.join("/tmp","participants_tsv" + LOCK_SUFFIX)
+
+        lock_file_dataset = acquire_lock(lock_path_dataset)
+        try:
+            count=0
+            while not lock_file_dataset:
+                time.sleep(1)
+                count = count + 1
+                lock_file_dataset= acquire_lock(lock_path_dataset)
+            ftp_download(remote_participants_tsv, target_participants_tsv,anonymous_hostpath,"anonymous",None,22)
+        except Exception as e:
+            UTLOGGER.error(f"Cannot download participant tsv: {e}")
+        finally:
+            release_lock(lock_file_dataset)
+            try:
+                os.remove(lock_path_dataset)
+            except Exception as e:
+                pass
+
+    # download subject
+    try:
+        if session_label:
+            local_bids_dir = os.path.join(bids_dir,f"sub-{participant_label}",f"ses-{session_label}")
+            if os.path.exists(local_bids_dir):
+                shutil.rmtree(local_bids_dir)
+            remote_bids_dir = os.path.join(bids_remote_path,f"sub-{participant_label}",f"ses-{session_label}")
+            ftp_downloaddir_recursive(remote_bids_dir,local_bids_dir,anonymous_hostpath,"anonymous",None,22)
+        else:
+            local_bids_dir = os.path.join(bids_dir,f"sub-{participant_label}")
+            if os.path.exists(local_bids_dir):
+                shutil.rmtree(local_bids_dir)
+            remote_bids_dir = os.path.join(bids_remote_path,f"sub-{participant_label}")
+            ftp_downloaddir_recursive(remote_bids_dir,local_bids_dir,anonymous_hostpath,"anonymous",None,22)
+    except Exception as e:
+        UTLOGGER.error(f"Cannot download sub-{participant_label},ses-{session_label} BIDS files: {e}")
+
 
 def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,user,password,subject_id=None,session_label=None,dataset_description=None,labels_dict={},only_defaced=True):
 
@@ -2027,6 +2118,107 @@ def get_freesurferatlas_index(atlas_file,lutfile,atlas_index,avail_only=False,us
 
     return atlas_dict,atlas_index_out
 
+def create_3d_hemi_aseg(atlas_file,roi_list,panpipe_labels,special_atlas_type):
+    out_dir = os.path.dirname(atlas_file)
+    workdir = os.path.join(out_dir,"hemi_workdir")
+    if not os.path.isdir(workdir):
+        os.makedirs(workdir,exist_ok=True)
+
+    command_base, container = getContainer(panpipe_labels,nodename="create_3d_hemi_aseg",SPECIFIC="NEURO_CONTAINER")
+
+    sub=f"sub-{getParams(panpipe_labels,'PARTICIPANT_LABEL')}"
+    subjects_dir = getParams(panpipe_labels,"SUBJECTS_DIR")
+    freesurfer_home = getParams(panpipe_labels,"FREESURFER_HOME")
+    if not freesurfer_home:
+        freesurfer_home = "/opt/freesurfer"
+
+    os.environ["SUBJECTS_DIR"]=subjects_dir
+    os.environ["SINGULARITYENV_SUBJECTS_DIR"]=translate_binding(command_base,subjects_dir)
+
+    command=f"{command_base} mris_volmask "\
+            "--save_ribbon "\
+            f"{sub} "
+    runCommand(command)
+
+    ribbon = f"{subjects_dir}/{sub}/mri/ribbon.mgz"
+    ribbon_nii=newfile(outputdir=workdir, assocfile=ribbon,extension=".nii.gz")
+    command=f"{command_base}  mri_convert "\
+                f"{ribbon} "\
+                f"{ribbon_nii} "
+    runCommand(command)
+
+    ribbon_img = nib.load(ribbon_nii)
+    ribbon_data = ribbon_img.get_fdata()
+
+    left_gm_mask = ribbon_data == 10
+    right_gm_mask = ribbon_data == 110
+    left_wm_mask = ribbon_data == 20
+    right_wm_mask = ribbon_data == 120
+    combined_gm_mask = np.logical_or.reduce([left_gm_mask,right_gm_mask])
+    combined_wm_mask = np.logical_or.reduce([left_wm_mask,right_wm_mask])
+    combined_mask = np.logical_or.reduce([combined_gm_mask,combined_wm_mask])
+
+    ribbon_proc=newfile(outputdir=workdir, assocfile=ribbon,suffix="desc-preproc",extension=".nii.gz")
+    if special_atlas_type == "gmhemi":             
+        ribbon_data[~combined_gm_mask] = 0
+        ribbon_data[left_gm_mask] = 3
+        ribbon_data[right_gm_mask] = 42
+    elif special_atlas_type == "wmhemi":     
+        ribbon_data[~combined_wm_mask] = 0
+        ribbon_data[left_wm_mask] = 2
+        ribbon_data[right_wm_mask] = 41
+    elif special_atlas_type == "gmcort":
+        ribbon_data[~combined_gm_mask] = 0
+        ribbon_data[combined_gm_mask] = 220
+    elif special_atlas_type == "wmintra":
+        ribbon_data[~combined_wm_mask] = 0
+        ribbon_data[combined_wm_mask] = 219
+    else:
+        ribbon_data[left_gm_mask] = 3
+        ribbon_data[right_gm_mask] = 42
+        ribbon_data[left_wm_mask] = 2
+        ribbon_data[right_wm_mask] = 41
+        ribbon_data[~combined_mask] = 0
+
+    atlas_img = nib.Nifti1Image(ribbon_data,ribbon_img.affine,ribbon_img.header)
+    nib.save(atlas_img,ribbon_proc) 
+
+    from panpipelines.nodes.antstransform import antstransform_proc
+    panpipe_labels= updateParams(panpipe_labels,"COST_FUNCTION","NearestNeighbor")
+    atlas_transform_mat = getParams(panpipe_labels,"NEWATLAS_TRANSFORM_MAT")
+    
+    if not atlas_transform_mat:
+        atlas_transform_mat = getParams(panpipe_labels,"ATLAS_TRANSFORM_MAT")
+
+    atlas_transform_ref = getParams(panpipe_labels,"NEWATLAS_TRANSFORM_REF")
+    if not atlas_transform_ref:
+        atlas_transform_ref = getParams(panpipe_labels,"ATLAS_TRANSFORM_REF")
+
+    if atlas_transform_mat:
+        CURRDIR=os.getcwd()
+        os.chdir(workdir)
+        results = antstransform_proc(panpipe_labels, ribbon_proc,atlas_transform_mat, atlas_transform_ref)
+        os.chdir(CURRDIR)
+        atlas_file_temp = results['out_file']
+    else:
+        atlas_file_temp = atlas_file
+
+    # issue with freesurfer -> fsl -> ants transform - it changes sign of roi value so use -abs below!
+    # enforce int data type at this point
+    command = f"{command_base} fslmaths"\
+            f"  {atlas_file_temp}"\
+            f" -abs"\
+            f" {atlas_file}" \
+            " -odt int"
+    evaluated_command=substitute_labels(command,panpipe_labels)
+    results = runCommand(evaluated_command)
+
+    freesurfer_atlas_index = getParams(panpipe_labels,"FREESURFER_LUTFILE")
+    if not freesurfer_atlas_index:
+        freesurfer_atlas_index = substitute_labels("<PROC_DIR>/atlas/freesurfer_atlas/FreeSurferColorLUT.txt",panpipe_labels)
+
+    return [f"get_freesurfer_atlas_index:{freesurfer_atlas_index}"]
+
             
 def create_3d_hcpmmp1_aseg(atlas_file,roi_list,panpipe_labels):
     out_dir = os.path.dirname(atlas_file)
@@ -3079,7 +3271,7 @@ def process_um_exception(bids_dir, work_dir, participant_label, participant_sess
             new_m0_file = extractVolumes(m0_file,command_base,work_dir,labels_dict,index="1",size="-1")
             copy(new_m0_file,m0_file)
     
-def extract_roi_mean_4D(image_path, atlas_4D, mask_list=None):
+def extract_roi_mean_4D(image_path, atlas_4D, mask_list=None,roi_list=[]):
 
     # Load image
     img = nib.load(image_path)
@@ -3087,8 +3279,13 @@ def extract_roi_mean_4D(image_path, atlas_4D, mask_list=None):
 
     # Load and combine all atlas ROIs into a list
     atlas_data = atlas_4D.get_fdata()
-    num_rois = atlas_data.shape[3]
-    rois = [atlas_data[...,i] for i in range(num_rois)]
+    if roi_list:
+        roi_choice=roi_list
+        num_rois=len(roi_list)
+    else:
+        num_rois = atlas_data.shape[3]
+        roi_choice = range(1,num_rois+1)
+    rois = [atlas_data[...,i-1] for i in roi_choice]
 
     # If additional masks are provided, compute the intersection
     if mask_list:
@@ -3101,6 +3298,40 @@ def extract_roi_mean_4D(image_path, atlas_4D, mask_list=None):
     roi_means = []
     for roi in rois:
         roi_mask = roi > 0  # Binary mask for ROI
+        final_mask = np.logical_and(roi_mask, combined_mask)  # Apply additional masks
+
+        # Extract and compute mean
+        roi_values = img_data[final_mask]
+        roi_mean =  roi_values.mean() if roi_values.size > 0 else np.nan
+        roi_means.append(roi_mean)
+
+    signals=np.array(roi_means)
+    return signals.reshape(1,-1)
+
+def extract_roi_mean_3D(image_path, atlas_3D, mask_list=None,roi_list=[]):
+
+    # Load image
+    img = nib.load(image_path)
+    img_data = img.get_fdata()
+
+    # Load and combine all atlas ROIs into a list
+    atlas_data = atlas_3D.get_fdata()
+    if roi_list:
+        rois = roi_list
+    else:
+        rois = range(1,np.max(atlas_data)+1)
+
+    # If additional masks are provided, compute the intersection
+    if mask_list:
+        masks = [mask_path.get_fdata() for mask_path in mask_list]
+        combined_mask = np.logical_and.reduce(masks)  # Intersection of all masks
+    else:
+        combined_mask = np.ones_like(img_data, dtype=bool)  # No additional masking
+
+    # Compute mean values for each ROI
+    roi_means = []
+    for roi in rois:
+        roi_mask = atlas_data == roi  # Binary mask for ROI
         final_mask = np.logical_and(roi_mask, combined_mask)  # Apply additional masks
 
         # Extract and compute mean
@@ -3132,3 +3363,119 @@ def iterative_substitution(entity,panpipe_labels):
         return result
     else:
         return entity
+
+def internode_pairings(nodes1,nodes2):
+   from itertools import product
+   pairings = list(product(nodes1, nodes2))
+   return pairings
+
+def intranode_pairings(nodes):
+   from itertools import combinations
+   pairings = list(combinations(nodes, 2))
+   return pairings
+
+def get_submatrix(node_df,nodes,targnodes=[],nodecol="Node"):
+    if not targnodes:
+        targnodes=nodes
+    new_df = node_df[node_df[nodecol].isin(nodes)]
+    return new_df[targnodes]
+
+def calc_inter(node_df,nodes1,nodes2,nodecol="Node"):
+    pairings = internode_pairings(nodes1,nodes2)
+    num_pairings=len(pairings)
+    corrval_sum=0
+    for pair in pairings:
+        corrval=node_df[node_df[nodecol]== pair[0]][pair[1]].values[0]
+        corrval_sum = corrval_sum + corrval     
+    return corrval_sum/num_pairings
+
+def calc_inter_flat(node_df,nodes):
+    num_pairings=len(nodes)
+    corrval_sum=0
+    for node in nodes:
+        corrval=float(node_df[node].values[0])
+        corrval_sum = corrval_sum + corrval
+        
+    return corrval_sum/num_pairings
+
+def calc_intra(node_df,nodes,nodecol="Node"):
+    pairings = intranode_pairings(nodes)
+    num_pairings=len(pairings)
+
+    corrval_sum=0
+    for pair in pairings:
+        corrval=node_df[node_df[nodecol]== pair[0]][pair[1]].values[0]
+        corrval_sum = corrval_sum + corrval
+        
+    return corrval_sum/num_pairings
+
+def calc_intra_flat(node_df,nodes):
+    corrval_sum=0
+    num_pairings=len(nodes)
+    for node in nodes:
+        corrval=float(node_df[node].values[0])
+        corrval_sum = corrval_sum + corrval
+        
+    return corrval_sum/num_pairings
+
+def flatten(node_df,nodecol="Node",sep="_",replace={}):
+    flat_df = pd.DataFrame()
+    table_cols=[]
+    table_vals=[]
+    nodes=node_df[nodecol].tolist()
+    pairs = intranode_pairings(nodes)
+    for pair in pairs:
+        node1=pair[0]
+        node2=pair[1]
+        newnode1=node1
+        newnode2=node2
+        if replace:
+            for origval, repval in replace.items():
+                newnode1 = newnode1.replace(origval,repval)
+                newnode2 = newnode2.replace(origval,repval)
+        table_cols.append(f"{newnode1}{sep}{newnode2}")
+        corrval = node_df[node_df[nodecol]== node1][node2].values[0]
+        table_vals.append(f"{corrval}")
+    if table_cols and table_vals and len(table_cols) == len(table_vals):
+        flat_df = pd.DataFrame([table_vals])
+        flat_df.columns = table_cols
+        
+    return flat_df
+
+def transpose(node_df,nodecol="Node",meascol="coverage",replace={}):
+    flat_df = pd.DataFrame()
+    table_cols=[]
+    table_vals=[]
+    nodes=node_df[nodecol].tolist()
+    for node in nodes:
+        newnode=node
+        if replace:
+            for origval, repval in replace.items():
+                newnode = newnode.replace(origval,repval)
+        table_cols.append(f"{newnode}")
+        corrval = node_df[node_df[nodecol]== node][meascol].values[0]
+        table_vals.append(f"{corrval}")
+    if table_cols and table_vals and len(table_cols) == len(table_vals):
+        flat_df = pd.DataFrame([table_vals])
+        flat_df.columns = table_cols
+        
+    return flat_df
+
+def roisizes(atlasfile,labelfile):
+    flat_df = pd.DataFrame()
+    table_cols=[]
+    table_vals=[]
+    labeldf=pd.read_table(labelfile,sep="\t")
+    labelindex = labeldf["index"].tolist()
+    labelname = labeldf["label"].tolist()
+    atlasimg = nib.load(atlasfile)
+    atlasdata = atlasimg.get_fdata()
+    for inum,roi_index in enumerate(labelindex):
+        roisize=np.sum(atlasdata == roi_index)
+        table_vals.append(f"{roisize}")
+        table_cols.append(f"{labelname[inum]}")
+    if table_cols and table_vals and len(table_cols) == len(table_vals):
+        flat_df = pd.DataFrame([table_vals])
+        flat_df.columns = table_cols
+        
+    return flat_df
