@@ -77,7 +77,7 @@ While there is some logic to sort parameters so that lookup variables are evalua
 ## Configuration entry examples for "all_pipelines"
 | Key      | Description     | Example         | Default Value if undefined |
 | -------- | --------------- | ----------------| ---------- |
-| IN_XNAT  | Data is to be downloaded from XNAT HOST or already exists locally | "IN_XNAT" : "Y" | "Y" |
+| BIDS_SOURCE  | Data is to be downloaded from XNAT HOST, FTP or already exists locally | "BIDS_SOURCE" : "XNAT" | "LOCAL" |
 | FORCE_BIDS_DOWNLOAD | Always download subject data from source even if the data already exists locally | "FORCE_BIDS_DOWNLOAD" : "Y" | "N" |
 
 

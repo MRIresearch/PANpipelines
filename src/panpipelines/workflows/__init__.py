@@ -20,5 +20,6 @@ __all__ = [
     "reports_workflow",
     "mriqcgroup_workflow",
     "tractseg_workflow",
-    "xcpd_workflow"
+    "xcpd_workflow",
+    "getbids_workflow"
 ]

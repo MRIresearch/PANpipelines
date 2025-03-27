@@ -144,6 +144,9 @@ def main():
             cred_dict = json.load(infile)
             cred_user = getParams(cred_dict,"user")
             cred_password = getParams(cred_dict,"password")
+    else:
+        cred_user = "dummy_user"
+        cred_password = "dummy_password"
 
     execution_json=getParams(panpipe_labels,"NIPYPE_CONFIG")
     if execution_json is None:

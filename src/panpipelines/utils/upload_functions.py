@@ -44,7 +44,9 @@ def ftp_downloaddir_recursive(remote_path, target_local_path,hostname,username,p
             except Exception as err:
                 raise Exception(err)
         with pysftp.Connection(host=hostname,username=username,password=password,port=port) as connection:
-            connection.get_r(remote_path, target_local_path)
+            connection.chdir(os.path.dirname(remote_path))
+            basefolder = os.path.basename(remote_path)
+            connection.get_r(basefolder, path)
     except Exception as err:
         raise Exception(err)
 
@@ -52,7 +54,7 @@ def ftp_upload(source_local_path, remote_path,hostname,username,password,port):
     try:
         with pysftp.Connection(host=hostname,username=username,password=password,port=port) as connection:
             if not connection.exists(os.path.dirname(remote_path)):
-                connection.makedirs(os.path.dirname(remote_path),exist_ok=True)
+                connection.makedirs(os.path.dirname(remote_path))
             connection.put(source_local_path, remote_path)
     except Exception as err:
         raise Exception(err)
@@ -61,7 +63,7 @@ def ftp_uploaddir_recursive(source_local_path, remote_path,hostname=None,usernam
     try:
         with pysftp.Connection(host=hostname,username=username,password=password,port=port) as connection:
             if not connection.exists(remote_path):
-                connection.makedirs(remote_path,exist_ok=True)
+                connection.makedirs(remote_path)
             connection.put_r(source_local_path, remote_path)
     except Exception as err:
         raise Exception(err)

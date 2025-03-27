@@ -21,5 +21,6 @@ __all__ = [
     "reports_panpipeline",
     "mriqcgroup_panpipeline",
     "tractseg_panpipeline",
-    "xcpd_panpipeline"
+    "xcpd_panpipeline",
+    "getbids_panpipeline",
 ]

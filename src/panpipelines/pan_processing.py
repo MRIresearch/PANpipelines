@@ -33,6 +33,7 @@ def parse_params():
     parser.add_argument("--pipeline_exclude", nargs="+")
     parser.add_argument("--projects", nargs="+")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
+    parser.add_argument("--participant_label_fromfile", type=PathExists, help="participants from file.")    
     parser.add_argument("--incremental", default="False")
     parser.add_argument("--info_delta", default="False", help="what are the subjects that are left to process")
     parser.add_argument("--all_group", default="True")
@@ -254,7 +255,7 @@ def main():
             shutil.copy(bids_participant_file,backup_participant_file)
 
     # if participants file doesn't exist then lets download it
-    if not os.path.exists(participants_file) or not os.path.exists(sessions_file):
+    if not os.path.exists(sessions_file):
         if not os.path.exists(participants_file):
             LOGGER.info(f"Participants file not found at {participants_file} - retrieving from XNAT. Please wait.")
             targetdir = os.path.dirname(participants_file)
@@ -310,6 +311,7 @@ def main():
 
     LOGGER.info(f"About to arrange pipelines by dependency. Pipeline list is {pipelines}")    
     pipelines = arrangePipelines(panpipeconfig_json,pipelines=pipelines)
+
     LOGGER.info(f"Pipelines arranged by dependency. Pipeline list is {pipelines}")    
 
     participant_label = args.participant_label
@@ -319,6 +321,20 @@ def main():
         panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
     else:
         participant_label = getParams(panpipe_labels,"PARTICIPANTS")
+
+    participant_label_fromfile = args.participant_label_fromfile
+    if participant_label_fromfile:
+        with open(participant_label_fromfile, 'r') as infile:
+            parts = infile.read()
+        split_parts = parts.split("\n")
+        split_parts_valid = [x for x in split_parts if x]
+
+        if split_parts_valid:
+            label_key="PARTICIPANTS"
+            participant_label = split_parts_valid
+            label_value=participant_label
+            panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
+
 
     participant_query = args.participant_query
     if not participant_query:
@@ -375,14 +391,14 @@ def main():
                 pipelines.add("ftp_upload_bids")
 
     if not participant_query:            
-        LOGGER.info(f"participants to be processed: {participant_label}. Note that subject exclusions will be applied at the pipeline level.")
+        LOGGER.info(f"participants to be processed:\n {participant_label}.\n Note that subject exclusions will be applied at the pipeline level.\n")
     else:
         projectmap = get_projectmap_query(sessions_file,participant_query)
         participant_list = projectmap[0]
-        LOGGER.info(f"participants to be processed: {participant_list}. Note that subject exclusions will be applied at the pipeline level.")
-    time.sleep(5)
-    LOGGER.info(f"Pipelines to be processed : {pipelines}")
-    time.sleep(5)
+        LOGGER.info(f"participants to be processed:\n {participant_list}.\n Note that subject exclusions will be applied at the pipeline level.\n")
+    time.sleep(1)
+    LOGGER.info(f"Pipelines to be processed :\n {pipelines}\n")
+    time.sleep(1)
 
     key=""
     if RUN_INTERACTIVE:
@@ -441,21 +457,20 @@ def main():
         # We handle the <DEPENDENCY> key specially as this is a list that we need to resolve into DEPENDENCY1, DEPENDENCY2, ...DEPENDENCYN
         dependency_list = getParams(panpipe_labels,"DEPENDENCY")
         if dependency_list:
-            depcount=1
-            if isinstance(dependency_list,list):
-                for dependency in dependency_list:
-                    panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}",dependency)
-                    dependency_dir = f"<PIPELINE_DIR>/<DEPENDENCY{depcount}>/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/<DEPENDENCY{depcount}>_wf"
-                    panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}_DIR",dependency_dir)
-                    depcount = depcount + 1
-            else:
-                # can refere to single DEPENDENCY also as DEPENDENCY1
-                panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY1",dependency_list)
-                dependency_dir1 = f"<PIPELINE_DIR>/<DEPENDENCY{depcount}>/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/<DEPENDENCY{depcount}>_wf"
-                panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}_DIR",dependency_dir1)
+            if not isinstance(dependency_list,list):
+                dependency_list=[dependency_list]
+                # can refer to single DEPENDENCY also as DEPENDENCY1
                 dependency_dir = f"<PIPELINE_DIR>/<DEPENDENCY>/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/<DEPENDENCY>_wf"
                 panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY_DIR",dependency_dir)
-            
+
+            depcount=1
+
+            for dependency in dependency_list:
+                panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}",dependency)
+                dependency_dir = f"<PIPELINE_DIR>/<DEPENDENCY{depcount}>/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/<DEPENDENCY{depcount}>_wf"
+                panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}_DIR",dependency_dir)
+                depcount = depcount + 1
+        
         # Now we can resolve all the references based on precedence in the pipeline section
         panpipe_labels = update_labels(panpipe_labels)
 
