@@ -28,8 +28,11 @@ class panscript:
         command=self.command + " " + self.params
 
         pkgdir = os.path.abspath(os.path.dirname(__file__))
-        IFLOGGER.info(f"Changing to panscript directory {pkgdir} to execute.")
-        os.chdir(pkgdir)
+        if getParams(self.labels_dict,"CHANGEDIR") == "N":
+            IFLOGGER.info(f"Staying in current directory {os.getcwd()}to run script.")
+        else:
+            IFLOGGER.info(f"Changing to panscript directory {pkgdir} to execute.")
+            os.chdir(pkgdir)
         
         evaluated_command=substitute_labels(command, self.labels_dict)
         runCommand(evaluated_command,IFLOGGER,interactive=self.interactive)
