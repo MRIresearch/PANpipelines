@@ -28,6 +28,7 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     session_label = getParams(labels_dict,'PARTICIPANT_SESSION')
 
+    USE_LABEL_SUBSET = isTrue(getParams(labels_dict,'USE_LABEL_SUBSET'))
     INVERT_MASK = isTrue(getParams(labels_dict,'MASK_INVERT'))
     MASK_NAME = getParams(labels_dict,'MASK_NAME')
     if not MASK_NAME:
@@ -130,28 +131,41 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
 
     if atlas_type == "4D":
         if mask_inverse_img:
-            signals = extract_roi_mean_4D(input_file, atlas_img, mask_list=[mask_inverse_img])
+            if not USE_LABEL_SUBSET:
+                signals = extract_roi_mean_4D(input_file, atlas_img, mask_list=[mask_inverse_img])
+            else:
+                signals = extract_roi_mean_4D(input_file, atlas_img, mask_list=[mask_inverse_img],roi_list=labels_index_list)
         else:
-            signals = extract_roi_mean_4D(input_file, atlas_img, mask_list=None)
+            if not USE_LABEL_SUBSET:
+                signals = extract_roi_mean_4D(input_file, atlas_img, mask_list=None)
+            else:
+                signals = extract_roi_mean_4D(input_file, atlas_img, mask_list=None,roi_list=labels_index_list)
         num_rows = signals.shape[0]
 
     else:
-        if mask_inverse_img:
-            NiftiMasker = NiftiLabelsMasker(
-                atlas_img,
-                mask_img = mask_inverse_img,
-                Labels = labels_name_list,
-                standardize=False
-            )
+        if not USE_LABEL_SUBSET:
+            if mask_inverse_img:
+                NiftiMasker = NiftiLabelsMasker(
+                    atlas_img,
+                    mask_img = mask_inverse_img,
+                    Labels = labels_name_list,
+                    standardize=False
+                )
+            else:
+                NiftiMasker = NiftiLabelsMasker(
+                    atlas_img,
+                    Labels = labels_name_list,
+                    standardize=False
+                )
+            NiftiMasker.fit(input_file)
+            signals = NiftiMasker.transform(input_file)
+            num_rows = signals.shape[0]
         else:
-            NiftiMasker = NiftiLabelsMasker(
-                atlas_img,
-                Labels = labels_name_list,
-                standardize=False
-            )
-        NiftiMasker.fit(input_file)
-        signals = NiftiMasker.transform(input_file)
-        num_rows = signals.shape[0]
+            if mask_inverse_img:
+                signals = extract_roi_mean_3D(input_file, atlas_img, mask_list=[mask_inverse_img],roi_list=labels_index_list)
+            else:
+                signals = extract_roi_mean_3D(input_file, atlas_img, mask_list=None,roi_list=labels_index_list)
+            num_rows = signals.shape[0]
 
     mask_inverse_file = None
     if mask_inverse_img:
@@ -235,13 +249,14 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
                 roi_coverage_list.append(f"{str(roi_coverage)}")
                 UTLOGGER.warn(f"WARNING: Roi Number {index} does not have any values in the measures file  {input_file}.")
                 UTLOGGER.warn(f"WARNING: Roi Number {index} corresponds with ROI name : {labels_name_list[lbl_index]}")
-                if lbl_index not in missing_rois:
-                    missing_rois.append(lbl_index)
-                    if num_rows > 1:
-                        insarr = np.array([np.nan for x in range(0,num_rows)])
-                        reconciled_signals= np.insert(reconciled_signals, lbl_index,[insarr],axis=1)
-                    else:
-                        reconciled_signals = np.insert(reconciled_signals,lbl_index,np.nan)
+                # In future implement more sophisticated handling of missing labels
+                #if lbl_index not in missing_rois:
+                #    missing_rois.append(lbl_index)
+                #    if num_rows > 1:
+                #        insarr = np.array([np.nan for x in range(0,num_rows)])
+                #        reconciled_signals= np.insert(reconciled_signals, lbl_index,[insarr],axis=1)
+                #    else:
+                #        reconciled_signals = np.insert(reconciled_signals,lbl_index,np.nan)
             else:
                 roi_coverage = np.sum(check != 0)
                 roi_coverage_list.append(f"{str(roi_coverage)}")
@@ -263,7 +278,7 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
 
     else:
         labels_len = len(labels_name_list)
-        if not labels_len == atlas_dim:
+        if not labels_len == atlas_dim and not USE_LABEL_SUBSET:
             UTLOGGER.warn(f"WARNING: Mismatch between number of labels {len(labels_name_list)} and the size of 4D atlas {atlas_dim}. Please correct this.")
             if labels_len  < atlas_dim:
                 if check_unknown_rois:
@@ -281,27 +296,33 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
                     else:
                         reconciled_signals = np.insert(reconciled_signals,len(reconciled_signals[0]),np.nan)
 
-        atlas_index_chk=0
-        for img in image.iter_img(atlas_img):
-            atlas_data = img.get_fdata()
-            lbl_index = labels_index_list[atlas_index_chk]
-            roi_sum = np.sum(atlas_data > 0)
+        if not USE_LABEL_SUBSET:
+            num_rois = atlas_img.shape[3]
+            roi_choice = range(1,num_rois+1)
+        else:
+            roi_choice = labels_index_list
+        atlas_data = atlas_img.get_fdata()
+
+        for index in roi_choice:
+            atlas_roi = atlas_data[...,index-1]
+            lbl_index = labels_index_list.index(index)
+            roi_sum = np.sum(atlas_roi > 0)
             roi_sizes_list.append(f"{str(roi_sum)}")
 
             if mask_inverse_img:
-                roi_sum_masked = np.sum(np.logical_and(atlas_data > 0, mask_inverse_img.get_fdata()))
+                roi_sum_masked = np.sum(np.logical_and(atlas_roi > 0, mask_inverse_img.get_fdata()))
                 roi_sizes_masked_list.append(f"{str(roi_sum_masked)}")
 
             if measure_type == "3D":
-                check = measure_data[atlas_data > 0]               
+                check = measure_data[atlas_roi > 0]               
             else:
-                check = measure_data[atlas_data > 0,:]
+                check = measure_data[atlas_roi > 0,:]
 
             if mask_inverse_img:
                 if measure_type == "3D":
-                    check_masked = measure_data[np.logical_and(atlas_data > 0, mask_inverse_img.get_fdata())]
+                    check_masked = measure_data[np.logical_and(atlas_roi > 0, mask_inverse_img.get_fdata())]
                 else:
-                    check_masked = measure_data[np.logical_and(atlas_data > 0, mask_inverse_img.get_fdata()),:]
+                    check_masked = measure_data[np.logical_and(atlas_roi > 0, mask_inverse_img.get_fdata()),:]
                 if len(check_masked) < 1:
                     roi_coverage_masked_list.append(f"0")
                 else:
@@ -311,18 +332,18 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
             if len(check) < 1:
                 roi_coverage=0
                 roi_coverage_list.append(f"{str(roi_coverage)}")
-                print(f"WARNING: Atlas Roi Volume {atlas_index_chk} does not have any values in the measures file {input_file}.")
-                missing_rois.insert(atlas_index_chk,atlas_index_chk+1)
-                if num_rows > 1:
-                    insarr = np.array([np.nan for x in range(0,num_rows)])
-                    reconciled_signals= np.insert(reconciled_signals, atlas_index_chk,[insarr],axis=1)
-                else:
-                    reconciled_signals = np.insert(reconciled_signals,atlas_index_chk,np.nan)
+                # In future implement more sophisticated handling of missing labels
+                #print(f"WARNING: Atlas Roi Volume {lbl_index-1} does not have any values in the measures file {input_file}.")
+                #missing_rois.insert(lbl_index-1,lbl_index)
+                #if num_rows > 1:
+                #    insarr = np.array([np.nan for x in range(0,num_rows)])
+                #    reconciled_signals= np.insert(reconciled_signals, lbl_index-1,[insarr],axis=1)
+                #else:
+                #    reconciled_signals = np.insert(reconciled_signals,lbl_index-1,np.nan)
             else:
                 roi_coverage = np.sum(check != 0)
                 roi_coverage_list.append(f"{str(roi_coverage)}")   
     
-            atlas_index_chk= atlas_index_chk + 1 
    
 
     if len(reconciled_signals.shape) > 1:

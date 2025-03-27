@@ -188,11 +188,14 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBA
     return out_file
 
 
-def apply_transform_ants(input_file,ref_file, out_file, trans_mat, COMMANDBASE, reverse=False, costfunction=None,output_type=None):
+def apply_transform_ants(input_file,ref_file, out_file, trans_mat, COMMANDBASE, reverse=False, costfunction=None,output_type=None,composite=False):
 
     input_file = os.path.abspath(input_file)
     ref_file=os.path.abspath(ref_file)
     out_file=os.path.abspath(out_file)
+
+    if composite:
+        out_file="["+out_file+",1]"
     
     if costfunction is None:
         costfunction="LanczosWindowedSinc"
@@ -212,14 +215,21 @@ def apply_transform_ants(input_file,ref_file, out_file, trans_mat, COMMANDBASE, 
         output_type = ""
 
     TRANSFORMS=""
-    if isinstance(trans_mat,list) and isinstance(reverse,list):
-        for transcount in range(trans_mat):
+    if isinstance(trans_mat,list):
+        if not reverse:
+            reverse=[False for x in range(0,len(trans_mat))]
+        elif reverse and not isinstance(reverse,list):
+            reverse=[reverse for x in range(0,len(trans_mat))]
+        elif reverse and isinstance(reverse,list) and len(reverse) < len(trans_mat):
+            reverse.extend([False for x in range(len(reverse),len(trans_mat))])
+
+        for transcount in range(len(trans_mat)):
             trans_item = os.path.abspath(trans_mat[transcount])
             reverse_item = reverse[transcount]
             if reverse_item:
                 TRANSFORMS = " -t [" + str(trans_item) + ",1]" + TRANSFORMS
             else:
-                TRANSFORMS = " -t" + str(trans_item)  + TRANSFORMS
+                TRANSFORMS = " -t " + str(trans_item)  + TRANSFORMS
     else:
         trans_mat=os.path.abspath(trans_mat)
         if reverse:
@@ -246,9 +256,10 @@ def apply_transform_ants(input_file,ref_file, out_file, trans_mat, COMMANDBASE, 
     results = ut.runCommand(command)
 
     # quick hack to fix issue with templateflow transfomr - 5 dims instead of 3 dims used in header
-    command=f"{COMMANDBASE} fslroi"\
-            " "+out_file+" "+out_file + " 0 "+str(dimz)
-    results = ut.runCommand(command)
+    if not composite:
+        command=f"{COMMANDBASE} fslroi"\
+                " "+out_file+" "+out_file + " 0 "+str(dimz)
+        results = ut.runCommand(command)
 
 
 def resampleimage_ants_ori(input_file, out_file, newdims, COMMANDBASE, dim_type="0",target_ori=None,interpolation_type=None,output_type=None):
@@ -727,7 +738,7 @@ def fsl_register_nonlin(input,reference,out,COMMANDBASE):
     return {"forward": fwd_warp, "inverse": inv_warp}
 
     
-def applyWarp_fnirt(input,reference,out,transwarp,COMMANDBASE,interp="trilinear",premat=None,postmat=None):
+def applyWarp_fnirt(input,reference,out,transwarp,COMMANDBASE,interp="trilinear",premat=None,postmat=None,relative=False):
 
     if premat is not None:
         premat_param=f"--premat={premat}"
@@ -737,7 +748,12 @@ def applyWarp_fnirt(input,reference,out,transwarp,COMMANDBASE,interp="trilinear"
     if postmat is not None:
         postmat_param=f"--postmat={postmat}"
     else:
-        post_param=""
+        postmat_param=""
+
+    if relative:
+        relative_param="--rel"
+    else:
+        relative_param=""
     
     command=f"{COMMANDBASE} applywarp"\
         f" --in={input}"\
@@ -745,8 +761,9 @@ def applyWarp_fnirt(input,reference,out,transwarp,COMMANDBASE,interp="trilinear"
         f" --out={out}"\
         f" --warp={transwarp}"\
         f" --interp={interp}"\
-        + premat_param + \
-        + postmat_param 
+        f" {premat_param}" \
+        f" {postmat_param}" \
+        f" {relative_param}"
     results = ut.runCommand(command)
 
 def tkregister2_fslout(moving,target,COMMANDBASE,outmat_fsl):
@@ -828,6 +845,20 @@ def concatAffine_FLIRT(AB_affine,BC_affine, concat_AC_affine, COMMANDBASE):
         f" {BC_affine}"\
         f" {AB_affine}"
     results = ut.runCommand(command)
+
+def concatMultipleAffines_FLIRT(affine_list,output_affine,COMMANDBASE):
+    count=0
+    if affine_list and isinstance(affine_list,list) and len(affine_list) > 1:
+        for affine in affine_list:
+            if count == 0:
+                concatAffine_FLIRT(affine,affine_list[1], output_affine, COMMANDBASE)
+            elif count > 1:
+                concatAffine_FLIRT(output_affine,affine_list[count], output_affine, COMMANDBASE)
+            count=count+1
+    else:
+        LOGGER.warn(f"affine_list entered as {affine_list} - not properly defined. Needs to be a list with more than 1 element.")
+
+
 
 def invertAffine_ANTS(fwd_affine, inv_affine, moving, reference, COMMANDBASE):
     fsl_fwd_affine = tempfile.mkstemp()[1] + ".mat"
