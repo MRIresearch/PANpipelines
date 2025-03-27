@@ -1,12 +1,15 @@
 # custom
 pantransformed_enable_aslmetrics.sh
+pantransformed_*
 deployment_development/
 launch.json
 startenv.sh
 outputs/
 archive/
 sources/
-
+create_*
+runjup.sh
+prepare_schaeffer1000.ipynb
 # files
 *.pklz
 

@@ -44,8 +44,8 @@ def xcpd_proc(labels_dict,input_dir):
     xcpd_dict = updateParams(xcpd_dict,"--participant_label","<PARTICIPANT_LABEL>")
     xcpd_dict = updateParams(xcpd_dict,"--smoothing","0")
     xcpd_dict = updateParams(xcpd_dict,"--fd-thresh","0.5")
-    xcpd_dict = updateParams(xcpd_dict,"--datasets","aal=/custom_atlases/aal yeobuckner=/custom_atlases/yeobuckner")
-    xcpd_dict = updateParams(xcpd_dict,"--atlases","AAL3 yeobuckner7 yeobuckner17 yeobuckner58 yeobuckner131")
+    xcpd_dict = updateParams(xcpd_dict,"--datasets","aal=/custom_atlases/aal yeobuckner=/custom_atlases/yeobuckner schaefer=/custom_atlases/schaefer")
+    xcpd_dict = updateParams(xcpd_dict,"--atlases","AAL3 yeobuckner131 yeobuckner58 schaefer1000 schaefer1000b")
     
     xcpd_dict = updateParams(xcpd_dict,"--mem_gb","<BIDSAPP_MEMORY_GB>")
     xcpd_dict = updateParams(xcpd_dict,"--nthreads","<BIDSAPP_THREADS>")
