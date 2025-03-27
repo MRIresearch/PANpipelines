@@ -25,5 +25,10 @@ __all__ = [
     "reports",
     "tractseg",
     "xcpd",
-    "freewater"
+    "freewater",
+    "tracula",
+    "xtract",
+    "freesurferextra",
+    "getbids",
+    "postxcpd"
 ]
