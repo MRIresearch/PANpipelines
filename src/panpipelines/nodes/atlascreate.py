@@ -28,8 +28,8 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
 
     special_atlas_type=""
     # scan through the roi list and find out if we have a special atlas type
-    if roi_list[0] == "hcpmmp1aseg":
-        special_atlas_type="hcpmmp1aseg"
+    if roi_list[0].split(":")[0] == "special_atlas":
+        special_atlas_type=roi_list[0].split(":")[1]
 
 
     atlas_type = getParams(labels_dict,'NEWATLAS_TYPE')
@@ -60,6 +60,11 @@ def atlascreate_proc(labels_dict,roi_list,roilabels_list):
         roilabels_list=create_3d_hcpmmp1_aseg(atlas_file,roi_list,labels_dict)
         if not atlas_index_mode:
             atlas_index_mode = "hcpmmp1aseg_tsv"
+        roi_list = [atlas_file]
+    if special_atlas_type == "gmhemi" or special_atlas_type=="wmhemi" or special_atlas_type=="gmcort" or special_atlas_type=="wmintra" or special_atlas_type=="allhemi":
+        roilabels_list=create_3d_hemi_aseg(atlas_file,roi_list,labels_dict,special_atlas_type)
+        if not atlas_index_mode:
+            atlas_index_mode = "freesurf_tsv_general"
         roi_list = [atlas_file]
     elif atlas_type == "3D":
         create_3d_atlas_from_rois(atlas_file, roi_list,labels_dict,prob_thresh=prob_thresh)

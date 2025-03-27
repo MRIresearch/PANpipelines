@@ -91,7 +91,15 @@ def parse_textdata_proc(labels_dict, textdata, textdata_type,custom_prefix, add_
     elif "rh.aparc" in basefile_name or textdata_type=="rh.aparc":
         extra_prefix= extra_prefix + "rh-DK"
         prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
-        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label,session_label=session_label)     
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label,session_label=session_label)
+    elif "lh.lobe" in basefile_name or textdata_type=="lh.lobe":
+        extra_prefix= extra_prefix + "lh-lobe"
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label,session_label=session_label)
+    elif "rh.lobe" in basefile_name or textdata_type=="rh.lobe":
+        extra_prefix= extra_prefix + "rh-lobe"
+        prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
+        df = get_freesurfer_genstats(textdata,columns=["SurfArea","GrayVol","ThickAvg"], prefix=prefix,participant_label=participant_label,session_label=session_label)      
     elif "hipposubfields.lh" in basefile_name or textdata_type=="hipposubfields.lh":
         extra_prefix= extra_prefix + "lh-hipposf" + basefile_name.split("hipposubfields.lh.")[1].split(".stats")[0].replace(".","-")
         prefix = getprefix(custom_prefix, extra_prefix, add_prefix)
