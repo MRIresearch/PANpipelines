@@ -415,6 +415,19 @@ def main():
 
         pipeline_panpipe_labels={}
         pipeline_panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,pipeline_panpipe_labels,pipeline)
+
+        # panpipe_labels holds global defs - need a more elegant way to handle pipeline and global defs
+        participant_override_file = substitute_labels(getParams(pipeline_panpipe_labels,"PARTICIPANT_OVERRIDE_FILE"),panpipe_labels)
+        if participant_override_file:
+            with open(participant_override_file, 'r') as infile:
+                parts = infile.read()
+            split_parts = parts.split("\n")
+            split_parts_valid = [x for x in split_parts if x]
+
+            if split_parts_valid:
+                participant_label = split_parts_valid
+                panpipe_labels = updateParams(panpipe_labels, "PARTICIPANTS",participant_label)
+                LOGGER.info(f"Participant override has been performed at pipeline level :\n {participant_label} will be run instead for {pipeline}\n")
         
         pipeline_exclusions = getParams(pipeline_panpipe_labels,"PARTICIPANT_PIPELINE_EXCLUSIONS")
         if not pipeline_exclusions:
