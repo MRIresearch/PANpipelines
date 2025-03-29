@@ -54,6 +54,21 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
             os.makedirs(sinker_basedir,exist_ok=True)
         sinker.inputs.base_directory = sinker_basedir
 
+        substitutions=[]
+        file_substitutions = getParams(labels_dict,"FILE_SUBSTITUTIONS")
+        if not file_substitutions:
+            file_substitutions = []
+        elif not isinstance(file_substitutions,list):
+            file_substitutions=[file_substitutions]
+
+        for filesub in file_substitutions:
+            filesub_parts = filesub.split(":")
+            if len(filesub_parts) > 1:
+                substitutions+=[(filesub_parts[0],filesub_parts[1])]
+
+        if substitutions:
+            sinker.inputs.substitutions = substitutions
+
         pan_workflow.connect( collate_csv_groupnode,"roi_csv_inner",sinker,f"{sinker_folder}.@inner")
         pan_workflow.connect( collate_csv_groupnode,"roi_csv_inner_metadata",sinker,f"{sinker_folder}.@inner_metadata")
         pan_workflow.connect( collate_csv_groupnode,"roi_csv_outer",sinker,f"{sinker_folder}.@outer")
