@@ -487,6 +487,13 @@ def getSubjectInfo(labels_dict, participant_label,session_label=None):
     sessions_file = getParams(labels_dict,"SESSIONS_FILE")
     if sessions_file:
         sessions_df = pd.read_table(sessions_file,sep="\t")
+        if "bids_participant_id" not in sessions_df.columns and "participant_id" in sessions_df.columns:
+            sessions_df["bids_participant_id"] = sessions_df["participant_id"]
+        if "bids_session_id" not in sessions_df.columns and "session_id" in sessions_df.columns:
+            sessions_df["bids_session_id"] = sessions_df["session_id"]
+        if "project" not in sessions_df.columns and "pan_project" in sessions_df.columns:
+            sessions_df["project"] = sessions_df["pan_project"]
+
         if not session_label:
             search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant_label))]
         else:
@@ -1125,6 +1132,13 @@ def create_array(participants, participants_file, projects_list = None, sessions
     else:
         df = pd.read_table(participants_file,sep="\t")
 
+    if "bids_participant_id" not in df.columns and "participant_id" in df.columns:
+        df["bids_participant_id"] = df["participant_id"]
+    if "bids_session_id" not in df.columns and "session_id" in df.columns:
+        df["bids_session_id"] = df["session_id"]
+    if "project" not in df.columns and "pan_project" in df.columns:
+        df["project"] = df["pan_project"]
+
     array=[]
     if participants is not None and len(participants) > 0 and sessions_list and projects_list and sessions_file:
         for part_count in range(len(participants)):
@@ -1224,7 +1238,14 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
         df = pd.read_table(sessions_file,sep="\t")
     else:
         df = pd.read_table(participants_file,sep="\t")
-        
+
+    if "bids_participant_id" not in df.columns and "participant_id" in df.columns:
+        df["bids_participant_id"] = df["participant_id"]
+    if "bids_session_id" not in df.columns and "session_id" in df.columns:
+        df["bids_session_id"] = df["session_id"]
+    if "project" not in df.columns and "pan_project" in df.columns:
+        df["project"] = df["pan_project"]
+
     if len(participants) == 1 and participants[0]=="ALL_SUBJECTS":
         participants = list(set(df["bids_participant_id"].tolist()))
 
@@ -1305,6 +1326,13 @@ def get_projectmap_query(sessions_file, panquery,subject_exclusions=[]):
     panquery_list = panquery.split(",")
     df = pd.read_table(sessions_file,sep="\t")
     df["scan_date"] = pd.to_datetime(df["scan_date"])
+
+    if "bids_participant_id" not in df.columns and "participant_id" in df.columns:
+        df["bids_participant_id"] = df["participant_id"]
+    if "bids_session_id" not in df.columns and "session_id" in df.columns:
+        df["bids_session_id"] = df["session_id"]
+    if "project" not in df.columns and "pan_project" in df.columns:
+        df["project"] = df["pan_project"]
 
     # sessions are defined and so we will use this as priority
     project_list=[]
