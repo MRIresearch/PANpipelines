@@ -381,6 +381,8 @@ def main():
     # take snapshot of the runtime labels for all pipelines
     runtime_labels = panpipe_labels.copy()
 
+    orig_participant_label = participant_label
+
     if INCREMENTAL:
         if not pipelines:
             LOGGER.info(f"Running in incremental mode but no pipelines selected. Will run the dummy_panpipeline and ftp_upload_pan script if they are not explictly excluded")
@@ -428,6 +430,10 @@ def main():
                 participant_label = split_parts_valid
                 panpipe_labels = updateParams(panpipe_labels, "PARTICIPANTS",participant_label)
                 LOGGER.info(f"Participant override has been performed at pipeline level :\n {participant_label} will be run instead for {pipeline}\n")
+        else:
+            participant_label = orig_participant_label
+            panpipe_labels = updateParams(panpipe_labels, "PARTICIPANTS",participant_label)
+
         
         pipeline_exclusions = getParams(pipeline_panpipe_labels,"PARTICIPANT_PIPELINE_EXCLUSIONS")
         if not pipeline_exclusions:

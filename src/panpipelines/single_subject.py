@@ -207,6 +207,14 @@ def main():
             df = pd.read_table(participants_file,sep="\t")
         else:
             df = pd.read_table(sessions_file,sep="\t")
+
+        if "bids_participant_id" not in df.columns and "participant_id" in df.columns:
+            df["bids_participant_id"] = df["participant_id"]
+        if "bids_session_id" not in df.columns and "session_id" in df.columns:
+            df["bids_session_id"] = df["session_id"]
+        if "project" not in df.columns and "pan_project" in df.columns:
+            df["project"] = df["pan_project"]
+
         if participant_index <= len(df):
             participant_label = drop_sub(df['bids_participant_id'].iloc[participant_index - 1])
             xnat_project = df['project'].iloc[participant_index - 1]
