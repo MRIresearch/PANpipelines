@@ -21,13 +21,11 @@ class pancontainer_panscript(panscript):
             evaluated_command=substitute_labels(version_command, labels_dict)
             runCommand(evaluated_command,IFLOGGER)
 
-        PKG_DIR = getParams(labels_dict,"PKG_DIR")
+        PAN_PKG_DIR = getParams(labels_dict,"PAN_PKG_DIR")
 
         ADD_PKG_DIR = getParams(labels_dict,"ADD_PKG_DIR")
-        if isTrue(ADD_PKG_DIR):
-            ADD_PKG_DIR = f":{PKG_DIR}"
-        else:
-            ADD_PKG_DIR = ""
+        if not isTrue(ADD_PKG_DIR):
+            PAN_PKG_DIR=""
 
         EXTRA_PKG_DIR = getParams(labels_dict,"EXTRA_PKG_DIR")
         if EXTRA_PKG_DIR:
@@ -45,7 +43,7 @@ class pancontainer_panscript(panscript):
         if OVERRIDE_PYTHON_PATH:
             NEW_PYTHONPATH = f":{OVERRIDE_PYTHON_PATH}"
         else:
-            NEW_PYTHONPATH  = f"{ADD_PKG_DIR}{PYTHONPATH}{EXTRA_PKG_DIR}"       
+            NEW_PYTHONPATH  = f"{PAN_PKG_DIR}{PYTHONPATH}{EXTRA_PKG_DIR}"       
             
         os.environ["PYTHONPATH"]=NEW_PYTHONPATH
         os.environ["SINGULARITYENV_PYTHONPATH"]=translate_binding(command_base,f"{NEW_PYTHONPATH}")

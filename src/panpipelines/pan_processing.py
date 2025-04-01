@@ -82,8 +82,9 @@ def main():
 
     if __file__:
         pkgdir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-        pkgdir = os.path.join(pkgdir,"panpipelines")
         panpipe_labels = insertParams(panpipe_labels,'PKG_DIR',pkgdir)
+        panpkgdir = os.path.join(pkgdir,"panpipelines")
+        panpipe_labels = insertParams(panpipe_labels,'PAN_PKG_DIR',panpkgdir)
     panpipe_labels = insertParams(panpipe_labels,'PWD',str(os.getcwd()))
 
    # only need date label if pipeline outdir not provided. This helps with nipype caching for repeat runs
