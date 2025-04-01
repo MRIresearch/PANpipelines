@@ -2,6 +2,8 @@
 pantransformed_enable_aslmetrics.sh
 pantransformed_*
 deployment_development/
+tractseg_home/
+tractseg_home.zip
 launch.json
 startenv.sh
 outputs/
@@ -10,6 +12,14 @@ sources/
 create_*
 april2025_PAN_Deployment/atlas_development/arterial/MNI152NLin6Asym/*.nii.gz
 april2025_PAN_Deployment/atlas_development/fslstandard/*.nii.gz
+april2025_PAN_Deployment/atlas/Arterial/MNI152NLin6Asym/tpl-MNI152NLin6Asym*
+april2025_PAN_Deployment/atlas/xcpd_custom_atlases/yeobuckner/atlas-yeobuckner58/
+april2025_PAN_Deployment/atlas/xcpd_custom_atlases/yeobuckner/atlas-yeobuckner17/
+april2025_PAN_Deployment/atlas/xcpd_custom_atlases/yeobuckner/atlas-yeobuckner7/
+april2025_PAN_Deployment/atlas/xcpd_custom_atlases/schaefer/
+
+
+
 runjup.sh
 prepare_schaeffer1000.ipynb
 # files
