@@ -82,6 +82,7 @@ def main():
 
     if __file__:
         pkgdir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+        pkgdir = os.path.join(pkgdir,"panpipelines")
         panpipe_labels = insertParams(panpipe_labels,'PKG_DIR',pkgdir)
     panpipe_labels = insertParams(panpipe_labels,'PWD',str(os.getcwd()))
 
@@ -118,8 +119,9 @@ def main():
     panpipe_labels = updateParams(panpipe_labels, label_key,label_value)
 
     xnat_host = getParams(panpipe_labels,"XNAT_HOST")
-    credentials = os.path.abspath(getParams(panpipe_labels,"CREDENTIALS"))
-    if credentials is not None and os.path.exists(credentials):
+    credentials_file = getParams(panpipe_labels,"CREDENTIALS")
+    if credentials_file is not None and os.path.exists(credentials_file):
+        credentials = os.path.abspath(credentials_file)
         with open(credentials, 'r') as infile:
             cred_dict = json.load(infile)
             cred_user = getParams(cred_dict,"user")
