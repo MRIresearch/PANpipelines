@@ -1,0 +1,28 @@
+{
+    "BIDSVersion": "1.8.0",
+    "Description": "The 6-node Arterial whole-brain atlas which uses the original 32-node atlas to combine rois as follows. ACAL=ACAL,MLSL; ACAR=ACAR,MLSR; MCAL=MCAFL,MCAPL,MCATL,MCAOL,MCAIL; MCAR=MCAFR,MCAPR,MCATR,MCAOR,MCAIR; PCAL=PCAIL,PCAOL;PCAR=PCATR,PCAOR",
+    "Name": "arterial6",
+    "ReferencesAndLinks": [
+        "atlas-arterial6_space-MNI152NLin6Asym_res-01_dseg",
+        "https://www.nitrc.org/frs/?group_id=1498",
+        "https://www.nature.com/articles/s41597-022-01923-0"
+
+    ],
+    "Resolution": {
+        "01": {
+            "zooms": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        },
+        "02": {
+            "zooms": [
+                2.0,
+                2.0,
+                2.0
+            ]
+        }
+    },
+    "SpatialReference": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin6Asym_res-01_T1w.nii.gz"
+}

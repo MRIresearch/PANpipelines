@@ -1,0 +1,25 @@
+{
+    "BIDSVersion": "1.8.0",
+    "Description": "The 131-node network atlas combining Yeo 114 split atlas based on 17 network cortical parcellation and Buckner 17 network cerebellar parcellation.",
+    "Name": "yeobuckner131",
+    "ReferencesAndLinks": [
+        "atlas-yeobuckner131_space-MNI152NLin6Asym_res-01_dseg"
+    ],
+    "Resolution": {
+        "01": {
+            "zooms": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        },
+        "02": {
+            "zooms": [
+                2.0,
+                2.0,
+                2.0
+            ]
+        }
+    },
+    "SpatialReference": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin6Asym_res-01_T1w.nii.gz"
+}

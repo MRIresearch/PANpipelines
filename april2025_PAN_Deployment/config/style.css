@@ -1,0 +1,81 @@
+.header {
+  font-family: arial, sans-serif;
+    font-size: 1.5em;
+}
+
+.header-timestamp {
+  font-family: arial, sans-serif;
+    font-size: 1.0em;
+}
+
+.section {
+  font-family: arial, sans-serif;
+    font-size: 1.3em;
+}
+
+.contents {
+  font-family: arial, sans-serif;
+    font-size: 1.2em;
+}
+
+.img-caption {
+  font-family: arial, sans-serif;
+    font-size: 1.0em;
+}
+
+.table-caption {
+   font-family: arial, sans-serif;
+    font-size: 1.0em; 
+}
+
+.data-table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  margin: 25px 10px;
+  font-size: 0.9em;
+  min-width: 400px;
+  float: left;
+  padding: 15px;
+}
+
+
+.data-table td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+
+}
+
+.data-table tr:nth-child(even) {
+  background-color: #dddddd;
+}
+
+.info-table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  margin: 25px 10px;
+  font-size: 0.9em;
+  min-width: 400px;
+  padding: 15px;
+}
+
+
+.info-table td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+
+}
+
+.info-table tr:nth-child(even) {
+  background-color: #dddddd;
+}
+
+
+.clearfloat:after {
+	content: " ";
+	visibility: hidden;
+	clear: both;
+	display: block;
+	height: 0;
+}
