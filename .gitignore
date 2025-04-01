@@ -8,6 +8,8 @@ outputs/
 archive/
 sources/
 create_*
+april2025_PAN_Deployment/atlas_development/arterial/MNI152NLin6Asym/*.nii.gz
+april2025_PAN_Deployment/atlas_development/fslstandard/*.nii.gz
 runjup.sh
 prepare_schaeffer1000.ipynb
 # files

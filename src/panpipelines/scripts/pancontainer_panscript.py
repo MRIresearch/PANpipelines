@@ -24,19 +24,31 @@ class pancontainer_panscript(panscript):
         PKG_DIR = getParams(labels_dict,"PKG_DIR")
 
         ADD_PKG_DIR = getParams(labels_dict,"ADD_PKG_DIR")
-        if ADD_PKG_DIR:
-            ADD_PKG_DIR = f":{ADD_PKG_DIR}"
+        if isTrue(ADD_PKG_DIR):
+            ADD_PKG_DIR = f":{PKG_DIR}"
         else:
             ADD_PKG_DIR = ""
+
+        EXTRA_PKG_DIR = getParams(labels_dict,"EXTRA_PKG_DIR")
+        if EXTRA_PKG_DIR:
+            EXTRA_PKG_DIR = f":{EXTRA_PKG_DIR}"
+        else:
+            EXTRA_PKG_DIR = ""
 
         if "PYTHONPATH" in os.environ.keys():
             PYTHONPATH = os.environ["PYTHONPATH"]
             PYTHONPATH = f":{PYTHONPATH}"
         else:
             PYTHONPATH = ""
+
+        OVERRIDE_PYTHON_PATH = getParams(labels_dict,"OVERRIDE_PYTHON_PATH")
+        if OVERRIDE_PYTHON_PATH:
+            NEW_PYTHONPATH = f":{OVERRIDE_PYTHON_PATH}"
+        else:
+            NEW_PYTHONPATH  = f"{ADD_PKG_DIR}{PYTHONPATH}{EXTRA_PKG_DIR}"       
             
-        os.environ["PYTHONPATH"]=f"{PKG_DIR}{PYTHONPATH}{ADD_PKG_DIR}"
-        os.environ["SINGULARITYENV_PYTHONPATH"]=translate_binding(command_base,f"{PKG_DIR}{PYTHONPATH}{ADD_PKG_DIR}")
+        os.environ["PYTHONPATH"]=NEW_PYTHONPATH
+        os.environ["SINGULARITYENV_PYTHONPATH"]=translate_binding(command_base,f"{NEW_PYTHONPATH}")
 
         self.command = command_base + " " + command
 
