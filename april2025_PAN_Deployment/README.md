@@ -1,5 +1,5 @@
 # Reproducing April 2025 MRI PAN Measures
-The following instructions can be followed to replicate the results provided as part of the April 2025 data release on a slurm-based HPC environment.
+The following [instructions](https://github.com/MRIresearch/PANpipelines/tree/main/april2025_PAN_Deployment) can be followed to replicate the results provided as part of the April 2025 data release on a slurm-based HPC environment.
 
 ## Tables released
 
@@ -86,15 +86,24 @@ The script `build_all.sh` in `containers` folder will enable you to build the co
 
 The following singularity images should be generated and stored in an accessible location on your file system for example `/rootdir/containers`
 
-docker://aacazxnat/panproc-minimal:0.2 > panprocminimal-v0.2.sif
-docker://pennbbl/qsiprep:0.21.4 > qsiprep-0.21.4.sif 
-docker://nipreps/fmriprep:0.21.4 > fmriprep-24.1.1.sif
-docker://wasserth/tractseg_container:master > tractseg.sif 
-docker://pennlinc/xcp_d:0.10.5 > xcpd-0.10.5.sif
-docker://aacazxnat/panproc-apps:0.1   > panapps.sif
+`docker://aacazxnat/panproc-minimal:0.2` > `panprocminimal-v0.2.sif`
+
+`docker://pennbbl/qsiprep:0.21.4` > `qsiprep-0.21.4.sif` 
+
+`docker://nipreps/fmriprep:0.21.4` > `fmriprep-24.1.1.sif`
+
+`docker://wasserth/tractseg_container:master` > `tractseg.sif` 
+
+`docker://pennlinc/xcp_d:0.10.5` > `xcpd-0.10.5.sif`
+
+`docker://aacazxnat/panproc-apps:0.1`   > `panapps.sif`
+
+
+## Apptainer Progeny
+Details of all the apptainers except 2 are provided in relevant references from the associated institutions. The other two apptainers  (`aacazxnat/panproc-minimal:0.2` and `aacazxnat/panproc-apps:0.1`) are custom made containers, the recipes for which are provided here https://github.com/MRIresearch/panproc-minimal (using v0.2 tag for this release) and https://github.com/MRIresearch/panproc-minimal/tree/main/panproc-apps respectively.
+
 
 ## Edit `pan.config.april2025`
-
 If the above folder configuration is used then there should be no required changes in the the config file. If paths to containers and scripts are an issue then you may need to change this here.
 
 
