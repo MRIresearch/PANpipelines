@@ -11,7 +11,7 @@ The following instructions can be followed to replicate the results provided as 
 * coree_chen_rsfmri_yeobuckner131_withinconn
 
 ## Create Python environment
-Use a python virtual environment manager to create an environment for the panpipelines 1.1.2 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
+Use a python virtual environment manager to create an environment for the panpipelines 1.1.4 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
 
 ### Install `virtualenv` and prepare virtual environment
 Install `virtualenv` in python environment:
@@ -31,42 +31,46 @@ module load python/3.11/3.11.4
 virtualenv -p python3 $ENVLOC/$ENVNAME
 ```
 
-Activate environment and Install version 1.1.2 of PAN pipelines using `pip`
+Activate environment and Install version 1.1.4 of PAN pipelines using `pip`
 ```
 module load python/3.11/3.11.4
 source $ENVLOC/$ENVNAME/bin/activate
-pip install panpipelines==1.1.2
+pip install panpipelines==1.1.4
 ```
 
 ## Deployment Folder Structure
 Create a root directory from which you will reproduce the analysis.
 
-Navigate to the root directory and from the main repository copy folders **config**, **atlas**,**tractseg_home** and **batch_scripts** and the run script `runpan.sh`.
+## Clone Panpipelines repository and copy folders
+In a separate folder clone the Panpipelines repository and from the `april2025_PAN_Deployment` folder copy the folders   **atlas**,**batch_scripts** , **config**, **containers**, **external_scripts** and the run script `runpan.sh` to your root directory.
 
-Also copy the folder `PANpipelines/external_scripts/amico` to a folder called `external_scripts` in your root directory
+Obtain the weights for the tractseg container from its github page or alternatively Download `tractseg_home.zip` from `https://osf.io/fpbkn/files/osfstorage` to the root directory and unzip it.
 
-├── atlas
-│   ├── Arterial
-│   ├── freesurfer_atlas
-│   ├── tractseg
-│   └── xcpd_custom_atlases
-├── batch_scripts
-│   ├── group_template.pbs
-│   ├── headers
-│   └── participant_template.pbs
-├── config
-│   ├── freesurfer_outputs_april.csv
-│   ├── gm_model.json
-│   ├── hml_ids_list_241231.csv
-│   ├── license.txt
-│   ├── pan.config.april2025
-│   ├── pan_eddyparams_cuda.json
-│   ├── sessions.tsv
-│   └── style.css
-├── external_scripts
-│   └── amico
-├── runpan.sh
-├── tractseg_home
+
+ <br/>
+├── atlas<br/>
+│   ├── Arterial <br/>
+│   ├── freesurfer_atlas <br/>
+│   ├── tractseg <br/>
+│   └── xcpd_custom_atlases <br/>
+├── batch_scripts <br/>
+│   ├── group_template.pbs <br/>
+│   ├── headers <br/>
+│   └── participant_template.pbs <br/>
+├── config <br/>
+│   ├── freesurfer_outputs_april.csv <br/>
+│   ├── gm_model.json <br/>
+│   ├── hml_ids_list_241231.csv <br/>
+│   ├── license.txt <br/>
+│   ├── pan.config.april2025 <br/>
+│   ├── pan_eddyparams_cuda.json <br/>
+│   ├── sessions.tsv <br/>
+│   └── style.css <br/>
+├── containers <br/>
+├── external_scripts <br/>
+│   └── amico <br/>
+├── runpan.sh <br/>
+├── tractseg_home <br/>
 
 ## Create associated Apptainers
 The PAN pipelines rely on a number of apptainer images which are required to successfully run the pipelines. These are available as docker images which can be converted to singularity images. Provided is an example for panprocminimal-v0.2.sif
@@ -77,6 +81,8 @@ SINGNAME=panprocminimal-v0.2.sif
 DOCKERURI=docker://aacazxnat/panproc-minimal:0.2
 singularity build $SINGNAME $DOCKERURI
 ```
+
+The script `build_all.sh` in `containers` folder will enable you to build the containers. You will need a reasonable amount of memory to complete the build so obtain reasonable size of resources on the HPC before building.
 
 The following singularity images should be generated and stored in an accessible location on your file system for example `/rootdir/containers`
 
@@ -89,26 +95,8 @@ docker://aacazxnat/panproc-apps:0.1   > panapps.sif
 
 ## Edit `pan.config.april2025`
 
-In the configuration file `./config/pan.config.april2025` correct the following container references with their file locations on your system.
+If the above folder configuration is used then there should be no required changes in the the config file. If paths to containers and scripts are an issue then you may need to change this here.
 
-```
-"PAN_CONTAINER": "/xdisk/trouard/chidiugonna/PAN/april2025_repro/containers/panprocminimal-v0.2.sif",
-"QSIPREP_CONTAINER": "/xdisk/trouard/chidiugonna/PAN/april2025_repro/containers/qsiprep-0.21.4.sif",
-"FMRIPREP_CONTAINER": "/xdisk/trouard/chidiugonna/PAN/april2025_repro/containers/fmriprep-24.1.1.sif",
-"TRACTSEG_CONTAINER": "/xdisk/trouard/chidiugonna/PAN/april2025_repro/containers/tractseg.sif",
-"XCPD_CONTAINER": "/xdisk/trouard/chidiugonna/PAN/april2025_repro/containers/xcpd-0.10.5.sif",
-```
-
-The PANAPPS container is found further below the file on about line 673 in the amiconoddi-gm pipeline and also needs to be corrected.
-```
-"PANAPPS_CONTAINER": "/xdisk/trouard/chidiugonna/PAN/april2025_repro/containers/panapps.sif"
-```
-
-Also correct the entry for amiconoddi-gm's external script to point to the correct location
-
-```
-"SCRIPT_FILE" : "/xdisk/trouard/chidiugonna/PAN/april2025_repro/external_scripts/
-```
 
 ## Freesurfer license
 Update the provided freesurfer license in `./config/license.txt` with your personal license if you have one. The pipeline will run with the existing license but it is good practice to use your own license. You can get a license from the Freesurfer main website.
@@ -140,7 +128,7 @@ export PYTHONPATH=${PKG_DIR}:$PYTHONPATH
 Go through each of the different slurm headers to adjust times and credentials as necessary. These are referenced in the config entries as `SLURM_CPU_HEADER` and `SLURM_GPU_HEADER` as required.
 
 ##  Deploy
-run as `./runpan.sh`.
+run as `./runpan.sh`. The script is currently set to run a selection of 10 subjects. To run all subjects then use "ALL_SUBJECTS" in the participant variable. Please note that some SLURM configurations place limits on the numbers of jobs that can be run. Each subject will require about 40 jobs for the single subject pipeline. And there are 11 group jobs. So for N subjects a total of `40*N + 11` Jobs will be required. To run all the subjects you may need to run them in batches of Nmax depending on your SLURM constraints and pass different participants to run using the setting `SESSIONSFILE="--sessions_file $CURRDIR/config/sessions.tsv"` with a different `sessions.tsv` file for each batch. 
 
 
 ## Troubleshooting

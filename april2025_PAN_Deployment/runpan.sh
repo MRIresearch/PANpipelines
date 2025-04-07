@@ -20,13 +20,14 @@ LOCPY=${PKG_DIR}/panpipelines
 CONFIG=$CURRDIR/config/pan.config.april2025
 SESSIONSFILE="--sessions_file $CURRDIR/config/sessions.tsv"
 PARTICIPANTS="HML0033 HML0227 HML0633 HML0130 HML0560 HML0191 HML0179 HML0490"
+#PARTICIPANTS="ALL_SUBJECTS"
 
 PROJECTS="001_HML 002_HML 003_HML 004_HML"
 
 OUTDIR="$CURRDIR/april2025_processing_outputs"
 
-PIPELINES=""
-DEPENDENT="--run_dependent_pipelines preproc xnat_mri_sessions amiconoddi_gm qsiprep_v0214_affine_transform"
+#PIPELINES="--pipelines "
+#DEPENDENT="--run_dependent_pipelines "
 
 FORCERUN="--force_run True"
 FORCERUN=""
