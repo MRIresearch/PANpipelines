@@ -65,7 +65,7 @@
       "SLURM_TEMPLATE_DIR": "<PROC_DIR>/batch_scripts",
       "SLURM_PARTICIPANT_TEMPLATE": "<SLURM_TEMPLATE_DIR>/participant_template.pbs",
       "SLURM_GROUP_TEMPLATE": "<SLURM_TEMPLATE_DIR>/group_template.pbs",
-      "CPUSUFFIX" : "trouard",
+      "CPUSUFFIX" : "hp",
       "GPUSUFFIX" : "windfall",
       "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_<CPUSUFFIX>.pbs",
       "SLURM_GPU_HEADER": "<SLURM_HEADER_DIR>/gpu_<GPUSUFFIX>.pbs",
