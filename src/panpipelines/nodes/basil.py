@@ -229,12 +229,13 @@ def process_fmriprep_fieldmap(fmriprep_fieldmap_dir,layout, asljson , asl_acq, b
 # work in progress
 def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljson, asl_acq, command_base, work_dir):
 
+    PHASEDIFF=False
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
     participant_session = getParams(labels_dict,'PARTICIPANT_SESSION')
     xnat_project = getParams(labels_dict,"PARTICIPANT_XNAT_PROJECT")
     xnat_shared_project = getParams(labels_dict,"PARTICIPANT_XNAT_SHARED_PROJECT")
 
-    phase1 = layout.get(subject=participant_label,suffix='phase1', extension='nii.gz')
+    phase1 = layout.get(subject=participant_label,session=participant_session,suffix='phase1', extension='nii.gz')
     echo1=None
     if phase1:
         phase1_md = phase1[0].get_metadata()
@@ -242,13 +243,22 @@ def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljso
             echo1=phase1_md["EchoTime"]
         phase1 = phase1[0].path
 
-    phase2 = layout.get(subject=participant_label,suffix='phase2', extension='nii.gz')
+    phase2 = layout.get(subject=participant_label,session=participant_session,suffix='phase2', extension='nii.gz')
     echo2=None
     if phase2:
         phase2_md = phase2[0].get_metadata()
         if phase2_md:
             echo2=phase2_md["EchoTime"]
         phase2 = phase2[0].path
+
+    phasediff = layout.get(subject=participant_label,session=participant_session,suffix='phasediff', extension='nii.gz')
+    if phasediff and not phase1 and not phase1:
+        PHASEDIFF=True
+        phasediff_md = phasediff[0].get_metadata()
+        if phasediff_md:
+            echo1=phasediff_md["EchoTime1"]
+            echo2=phasediff_md["EchoTime2"]
+        phasediff = phasediff[0].path
     
     deltaTE=None
     deltaTEms=None
@@ -256,10 +266,10 @@ def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljso
         deltaTE=(float(echo2) - float(echo1))
         deltaTEms=(1000 * deltaTE)
 
-    mag1 = layout.get(subject=participant_label,suffix='magnitude1', extension='nii.gz')
+    mag1 = layout.get(subject=participant_label,session=participant_session,suffix='magnitude1', extension='nii.gz')
     if mag1:
         mag1=mag1[0].path
-    mag2 = layout.get(subject=participant_label,suffix='magnitude2', extension='nii.gz')
+    mag2 = layout.get(subject=participant_label,session=participant_session,suffix='magnitude2', extension='nii.gz')
     if mag2:
         mag2=mag2[0].path
 
@@ -300,91 +310,130 @@ def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljso
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,UTLOGGER)
 
-    fsl_dict=OrderedDict()
-    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(phase1)}")
-    fsl_dict = updateParams(fsl_dict,"-a","^^^")
-    fsl_dict = updateParams(fsl_dict,"-R","^^^")
-    params = get_fslparams(fsl_dict)
-    command=f"{command_base} fslstats"\
-        " "+params
-    evaluated_command=substitute_labels(command, labels_dict)
-    phasedivstr1 = getLastFromList(runCommand(evaluated_command,UTLOGGER).split("\n"))
-    phasediv1 = np.max([abs(float(x)) for x in phasedivstr1.split()]) 
+    if not PHASEDIFF:
+        fsl_dict=OrderedDict()
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(phase1)}")
+        fsl_dict = updateParams(fsl_dict,"-a","^^^")
+        fsl_dict = updateParams(fsl_dict,"-R","^^^")
+        params = get_fslparams(fsl_dict)
+        command=f"{command_base} fslstats"\
+            " "+params
+        evaluated_command=substitute_labels(command, labels_dict)
+        phasedivstr1 = getLastFromList(runCommand(evaluated_command,UTLOGGER).split("\n"))
+        phasediv1 = np.max([abs(float(x)) for x in phasedivstr1.split()]) 
 
-    fsl_dict=OrderedDict()
-    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phase2}")
-    fsl_dict = updateParams(fsl_dict,"-a","^^^")
-    fsl_dict = updateParams(fsl_dict,"-R","^^^")
-    params = get_fslparams(fsl_dict)
-    command=f"{command_base} fslstats"\
-        " "+params
-    evaluated_command=substitute_labels(command, labels_dict)
-    phasedivstr2 = getLastFromList(runCommand(evaluated_command,UTLOGGER).split("\n"))
-    phasediv2 = np.max([abs(float(x)) for x in phasedivstr2.split()]) 
+        fsl_dict=OrderedDict()
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phase2}")
+        fsl_dict = updateParams(fsl_dict,"-a","^^^")
+        fsl_dict = updateParams(fsl_dict,"-R","^^^")
+        params = get_fslparams(fsl_dict)
+        command=f"{command_base} fslstats"\
+            " "+params
+        evaluated_command=substitute_labels(command, labels_dict)
+        phasedivstr2 = getLastFromList(runCommand(evaluated_command,UTLOGGER).split("\n"))
+        phasediv2 = np.max([abs(float(x)) for x in phasedivstr2.split()]) 
 
-    phaserads1 = newfile(work_dir,phase1,suffix="rads")
-    fsl_dict=OrderedDict()
-    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phase1}")
-    fsl_dict = updateParams(fsl_dict,"-div",f"{phasediv1}")
-    fsl_dict = updateParams(fsl_dict,"-mul","3.14159")
-    fsl_dict = updateParams(fsl_dict,"-mas",f"{magnitude_biascorr_brain_mask}")
-    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{phaserads1}")
-    fsl_dict = updateParams(fsl_dict,"-odt","float")
-    params = get_fslparams(fsl_dict)
-    command=f"{command_base} fslmaths"\
-        " "+params
-    evaluated_command=substitute_labels(command, labels_dict)
-    results = runCommand(evaluated_command,UTLOGGER)
+        phaserads1 = newfile(work_dir,phase1,suffix="rads")
+        fsl_dict=OrderedDict()
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phase1}")
+        fsl_dict = updateParams(fsl_dict,"-div",f"{phasediv1}")
+        fsl_dict = updateParams(fsl_dict,"-mul","3.14159")
+        fsl_dict = updateParams(fsl_dict,"-mas",f"{magnitude_biascorr_brain_mask}")
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{phaserads1}")
+        fsl_dict = updateParams(fsl_dict,"-odt","float")
+        params = get_fslparams(fsl_dict)
+        command=f"{command_base} fslmaths"\
+            " "+params
+        evaluated_command=substitute_labels(command, labels_dict)
+        results = runCommand(evaluated_command,UTLOGGER)
 
-    phaserads2 = newfile(work_dir,phase2,suffix="rads")
-    fsl_dict=OrderedDict()
-    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phase2}")
-    fsl_dict = updateParams(fsl_dict,"-div",f"{phasediv2}")
-    fsl_dict = updateParams(fsl_dict,"-mul","3.14159")
-    fsl_dict = updateParams(fsl_dict,"-mas",f"{magnitude_biascorr_brain_mask}")
-    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{phaserads2}")
-    fsl_dict = updateParams(fsl_dict,"-odt","float")
-    params = get_fslparams(fsl_dict)
-    command=f"{command_base} fslmaths"\
-        " "+params
-    evaluated_command=substitute_labels(command, labels_dict)
-    results = runCommand(evaluated_command,UTLOGGER)
+        phaserads2 = newfile(work_dir,phase2,suffix="rads")
+        fsl_dict=OrderedDict()
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phase2}")
+        fsl_dict = updateParams(fsl_dict,"-div",f"{phasediv2}")
+        fsl_dict = updateParams(fsl_dict,"-mul","3.14159")
+        fsl_dict = updateParams(fsl_dict,"-mas",f"{magnitude_biascorr_brain_mask}")
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{phaserads2}")
+        fsl_dict = updateParams(fsl_dict,"-odt","float")
+        params = get_fslparams(fsl_dict)
+        command=f"{command_base} fslmaths"\
+            " "+params
+        evaluated_command=substitute_labels(command, labels_dict)
+        results = runCommand(evaluated_command,UTLOGGER)
 
-    phaserads1_unwrap = newfile(work_dir,phaserads1,suffix="unwrapped")
-    fsl_dict=OrderedDict()
-    fsl_dict = updateParams(fsl_dict,"-a",f"{magnitude_biascorr}")
-    fsl_dict = updateParams(fsl_dict,"-p",f"{phaserads1}")
-    fsl_dict = updateParams(fsl_dict,"-m",f"{magnitude_biascorr_brain_mask}")
-    fsl_dict = updateParams(fsl_dict,"-u",f"{phaserads1_unwrap}")
-    params = get_fslparams(fsl_dict)
-    command=f"{command_base} prelude"\
-        " "+params
-    evaluated_command=substitute_labels(command, labels_dict)
-    results = runCommand(evaluated_command,UTLOGGER)
+        phaserads1_unwrap = newfile(work_dir,phaserads1,suffix="unwrapped")
+        fsl_dict=OrderedDict()
+        fsl_dict = updateParams(fsl_dict,"-a",f"{magnitude_biascorr}")
+        fsl_dict = updateParams(fsl_dict,"-p",f"{phaserads1}")
+        fsl_dict = updateParams(fsl_dict,"-m",f"{magnitude_biascorr_brain_mask}")
+        fsl_dict = updateParams(fsl_dict,"-u",f"{phaserads1_unwrap}")
+        params = get_fslparams(fsl_dict)
+        command=f"{command_base} prelude"\
+            " "+params
+        evaluated_command=substitute_labels(command, labels_dict)
+        results = runCommand(evaluated_command,UTLOGGER)
 
-    phaserads2_unwrap = newfile(work_dir,phaserads2,suffix="unwrapped")
-    fsl_dict=OrderedDict()
-    fsl_dict = updateParams(fsl_dict,"-a",f"{magnitude_biascorr}")
-    fsl_dict = updateParams(fsl_dict,"-p",f"{phaserads2}")
-    fsl_dict = updateParams(fsl_dict,"-m",f"{magnitude_biascorr_brain_mask}")
-    fsl_dict = updateParams(fsl_dict,"-u",f"{phaserads2_unwrap}")
-    params = get_fslparams(fsl_dict)
-    command=f"{command_base} prelude"\
-        " "+params
-    evaluated_command=substitute_labels(command, labels_dict)
-    results = runCommand(evaluated_command,UTLOGGER)
+        phaserads2_unwrap = newfile(work_dir,phaserads2,suffix="unwrapped")
+        fsl_dict=OrderedDict()
+        fsl_dict = updateParams(fsl_dict,"-a",f"{magnitude_biascorr}")
+        fsl_dict = updateParams(fsl_dict,"-p",f"{phaserads2}")
+        fsl_dict = updateParams(fsl_dict,"-m",f"{magnitude_biascorr_brain_mask}")
+        fsl_dict = updateParams(fsl_dict,"-u",f"{phaserads2_unwrap}")
+        params = get_fslparams(fsl_dict)
+        command=f"{command_base} prelude"\
+            " "+params
+        evaluated_command=substitute_labels(command, labels_dict)
+        results = runCommand(evaluated_command,UTLOGGER)
 
-    phasediffrads = newfile(work_dir,phase1,suffix="unwrapped-diff-rads")
-    fsl_dict=OrderedDict()
-    fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phaserads2_unwrap}")
-    fsl_dict = updateParams(fsl_dict,"-sub",f"{phaserads1_unwrap}")
-    fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{phasediffrads}")
-    fsl_dict = updateParams(fsl_dict,"-odt","float")
-    params = get_fslparams(fsl_dict)
-    command=f"{command_base} fslmaths"\
-        " "+params
-    evaluated_command=substitute_labels(command, labels_dict)
-    results = runCommand(evaluated_command,UTLOGGER)
+        phasediffrads = newfile(work_dir,phase1,suffix="unwrapped-diff-rads")
+        fsl_dict=OrderedDict()
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phaserads2_unwrap}")
+        fsl_dict = updateParams(fsl_dict,"-sub",f"{phaserads1_unwrap}")
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{phasediffrads}")
+        fsl_dict = updateParams(fsl_dict,"-odt","float")
+        params = get_fslparams(fsl_dict)
+        command=f"{command_base} fslmaths"\
+            " "+params
+        evaluated_command=substitute_labels(command, labels_dict)
+        results = runCommand(evaluated_command,UTLOGGER)
+    else:
+        fsl_dict=OrderedDict()
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{str(phasediff)}")
+        fsl_dict = updateParams(fsl_dict,"-a","^^^")
+        fsl_dict = updateParams(fsl_dict,"-R","^^^")
+        params = get_fslparams(fsl_dict)
+        command=f"{command_base} fslstats"\
+            " "+params
+        evaluated_command=substitute_labels(command, labels_dict)
+        phasedivstr1 = getLastFromList(runCommand(evaluated_command,UTLOGGER).split("\n"))
+        phasediv1 = np.max([abs(float(x)) for x in phasedivstr1.split()]) 
+
+        phaserads1 = newfile(work_dir,phasediff,suffix="rads")
+        fsl_dict=OrderedDict()
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY0",f"{phasediff}")
+        fsl_dict = updateParams(fsl_dict,"-div",f"{phasediv1}")
+        fsl_dict = updateParams(fsl_dict,"-mul","3.14159")
+        fsl_dict = updateParams(fsl_dict,"-mas",f"{magnitude_biascorr_brain_mask}")
+        fsl_dict = updateParams(fsl_dict,"DUMMYKEY1",f"{phaserads1}")
+        fsl_dict = updateParams(fsl_dict,"-odt","float")
+        params = get_fslparams(fsl_dict)
+        command=f"{command_base} fslmaths"\
+            " "+params
+        evaluated_command=substitute_labels(command, labels_dict)
+        results = runCommand(evaluated_command,UTLOGGER)
+
+        phasediffrads = newfile(work_dir,phaserads1,suffix="unwrapped")
+        fsl_dict=OrderedDict()
+        fsl_dict = updateParams(fsl_dict,"-a",f"{magnitude_biascorr}")
+        fsl_dict = updateParams(fsl_dict,"-p",f"{phaserads1}")
+        fsl_dict = updateParams(fsl_dict,"-m",f"{magnitude_biascorr_brain_mask}")
+        fsl_dict = updateParams(fsl_dict,"-u",f"{phasediffrads}")
+        params = get_fslparams(fsl_dict)
+        command=f"{command_base} prelude"\
+            " "+params
+        evaluated_command=substitute_labels(command, labels_dict)
+        results = runCommand(evaluated_command,UTLOGGER)
+
 
     fmaprads_raw = newfile(work_dir,phasediffrads,suffix="fmap-raw")
     fsl_dict=OrderedDict()
@@ -400,7 +449,7 @@ def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljso
 
     fmap = newfile(work_dir,phasediffrads,suffix="fmap-final")
     fsl_dict=OrderedDict()
-    fsl_dict = updateParams(fsl_dict,"--loadfmap",f"{fmaprads_raw }")
+    fsl_dict = updateParams(fsl_dict,"--loadfmap",f"{fmaprads_raw}")
     fsl_dict = updateParams(fsl_dict,"--mask",f"{magnitude_biascorr_brain_mask}")
     fsl_dict = updateParams(fsl_dict,"--savefmap",f"{fmap}")
     params = get_fslparams(fsl_dict)
@@ -458,6 +507,74 @@ def process_fsl_prepare_fieldmap(layout, asl_json,basil_dict,labels_dict, asljso
         basil_dict = updateParams(basil_dict,PEDIR,pedir_fsl)
 
     return basil_dict
+
+def mcflirt_basil(command_base, infile, outfile, refvol=0,labels_dict={}):
+    command=f"{command_base} mcflirt -in {infile} -out {outfile} -mats -refvol {refvol}"
+    evaluated_command=substitute_labels(command, labels_dict)
+    runCommand(evaluated_command,IFLOGGER)
+
+def flirt_basil(command_base, infile, reffile, outfile, outmat, dof=6, cost="mutualinfo",labels_dict={}):
+    command=f"{command_base} flirt -in {infile} -ref {reffile} -dof {dof} -cost {cost} -out {outfile} -omat {outmat}"
+    evaluated_command=substitute_labels(command, labels_dict)
+    runCommand(evaluated_command,IFLOGGER)
+
+def applyflirt_basil(command_base, infile, reffile, outfile, transform, dof=6, interp="trilinear",labels_dict={}):
+    command = f"{command_base} flirt -in {infile} -ref {reffile} -dof {dof} -applyxfm -init {transform} -interp {interp} -out {outfile}"
+    evaluated_command=substitute_labels(command, labels_dict)
+    runCommand(evaluated_command,IFLOGGER)
+
+def fslmerge_basil(command_base, outfile, filelist=[],labels_dict={}):
+    if filelist:
+        files_in = " ".join(filelist)
+        command = f"{command_base}  fslmerge -t {outfile} {files_in}"
+        evaluated_command=substitute_labels(command, labels_dict)
+        runCommand(evaluated_command,IFLOGGER)
+
+def topup_basil(command_base, infile,acqparams, topupresult, topupresult_fmap,labels_dict={}):
+    command = f"{command_base} topup --imain={infile} --datain={acqparams} --config=b02b0.cnf --out={topupresult} --fout={topupresult_fmap}"
+    evaluated_command=substitute_labels(command, labels_dict)
+    runCommand(evaluated_command,IFLOGGER)
+
+def applytopup_basil(command_base, outfile, imainlist, indexlist, acqparams, topupdir, method="jac",labels_dict={}):
+    if isinstance(imainlist,list):
+        files_in = ",".join(imainlist)
+    else:
+        files_in = imainlist
+
+    if isinstance(indexlist,list):
+        strlist = [str(x) for x in indexlist]
+        index_in = ",".join(strlist)
+    else:
+        index_in = indexlist
+
+    command=f"{command_base} applytopup --imain={files_in} --inindex={index_in} --datain={acqparams} --topup={topupdir} --out={outfile} --method={method}"
+    evaluated_command=substitute_labels(command, labels_dict)
+    runCommand(evaluated_command,IFLOGGER)
+
+
+def align_multipld_asl(ASL, MO, workdir,command_base,acqparams, topupdir,labels_dict={}):
+
+    ASL_mc=newfile(outputdir=workdir, assocfile=ASL, suffix="mc")
+    mcflirt_basil(command_base, ASL, ASL_mc)
+
+    # rigid registration of 
+    interASL=newfile(outputdir=workdir, assocfile=ASL_mc,suffix="to_MO")
+    interASLMAT=newfile(outputdir=workdir, assocfile=ASL_mc, suffix="to_MO",extension=".mat")
+    flirt_basil(command_base, ASL_mc, MO, interASL, interASLMAT)
+
+    ASL_aligned=newfile(outputdir=workdir, assocfile=ASL_mc, suffix = "aligned")
+    applyflirt_basil(command_base, ASL_mc, MO, ASL_aligned, interASLMAT)
+
+    ASL_DC=newfile(outputdir=workdir, assocfile=ASL_aligned, suffix = "dc")
+    if "dir-AP" in os.path.basename(ASL):
+        inindex=1
+    else:
+        inindex=2
+    applytopup_basil(command_base, ASL_DC, ASL_aligned, inindex, acqparams, topupdir)
+
+    return ASL_DC
+
+
 
 def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
@@ -520,7 +637,13 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
         #process_um_exception(bids_dir, cwd, participant_label, participant_session,labels_dict)
 
     layout = BIDSLayout(bids_dir)
-    asl=layout.get(subject=participant_label,session=participant_session,suffix='asl', extension='nii.gz')
+    all_asl=layout.get(subject=participant_label,session=participant_session,suffix='asl', extension='nii.gz')
+
+    MULTI_PLD=["_acq-pcasl1","_acq-pcasl2","_acq-pcasl3"]
+    multi_asl = [x for x in all_asl if any(keyword in x.filename for keyword in MULTI_PLD)]
+
+    SINGLE_PLD=["_acq-prod_","_acq-pcasl_","_acq-plusM0_"]
+    asl = [x for x in all_asl if any(keyword in x.filename for keyword in SINGLE_PLD)]
 
     if len(asl) > 0:
         asl_bidsfile=asl[0]
@@ -711,8 +834,126 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
         evaluated_command=substitute_labels(command, labels_dict)
         runCommand(evaluated_command,IFLOGGER)
+
     else:
-        IFLOGGER.warn(f"ASL acquisition not found for subject {participant_label} and session {participant_session}")
+        IFLOGGER.warn(f"standard ASL acquisition not found for subject {participant_label} and session {participant_session}")
+
+    if multi_asl:
+
+        MULTIPLD_PIPELINE="topup_all"
+
+        m0scans=layout.get(subject=participant_label,session=participant_session,suffix='m0scan', extension='nii.gz')
+        IFLOGGER.info(f"Found Multi-pld ASL acquisition for subject {participant_label} and session {participant_session}. Attempting Basil multi-pld ")
+        MO_AP=[x.path for x in m0scans if "_acq-pcasl3000_dir-AP_m0scan" in x.filename]
+        MO_PA=[x.path for x in m0scans if "_acq-pcasl3000_dir-PA_m0scan" in x.filename]
+        AP1260=[x.path for x in all_asl if "_acq-pcasl1260_dir-AP_asl" in x.filename]
+        PA1500=[x.path for x in all_asl if "_acq-pcasl1500_dir-PA_asl" in x.filename]
+        AP1800=[x.path for x in all_asl if "_acq-pcasl1800_dir-AP_asl" in x.filename]
+        PA2100=[x.path for x in all_asl if "_acq-pcasl2100_dir-PA_asl" in x.filename]
+        AP2500=[x.path for x in all_asl if "_acq-pcasl2500_dir-AP_asl" in x.filename]
+        PA3000=[x.path for x in all_asl if "_acq-pcasl3000_dir-PA_asl" in x.filename]
+        if MO_PA and MO_AP and AP1260 and PA1500 and AP1800 and PA2100 and AP2500 and PA3000:
+            IFLOGGER.info(f"Found full set of Multi-pld ASL acquisition for subject {participant_label} and session {participant_session}.Multi-PLD processing can proceed")
+            IFLOGGER.info(f"Running Multi-PLD processing pipeline {MULTIPLD_PIPELINE}")
+            if MULTIPLD_PIPELINE=="topup_all":
+                multipld_output_dir=os.path.join(cwd,"basiloutput_multipld")
+                if not os.path.exists(multipld_output_dir):
+                    os.makedirs(multipld_output_dir,exist_ok=True)
+
+                multipld_work_dir=os.path.join(multipld_output_dir,"basilwork_multipld")
+                if not os.path.exists(multipld_work_dir):
+                    os.makedirs(multipld_work_dir,exist_ok=True)
+
+
+                IFLOGGER.info(f"All scans will be individually motion corrected and distortion corrected using topup before running in BASIL")
+                MO_AP_mc = newfile(outputdir=multipld_work_dir,assocfile=MO_AP[0],suffix="mc")
+                mcflirt_basil(command_base,MO_AP[0],MO_AP_mc)
+
+                MO_PA_mc = newfile(outputdir=multipld_work_dir,assocfile=MO_PA[0],suffix="mc")
+                mcflirt_basil(command_base,MO_PA[0],MO_PA_mc)
+
+                # rigid registration of 
+                interMO = newfile(outputdir=multipld_work_dir,assocfile="MO_PA_in_AP_mutualinfo.nii.gz")
+                interMOMAT = newfile(outputdir=multipld_work_dir,assocfile="MO_PA_in_AP_trans_mututalinfo.mat")
+                flirt_basil(command_base,MO_PA_mc,MO_AP_mc,interMO,interMOMAT)
+
+                MO_PA_aligned = newfile(outputdir=multipld_work_dir,assocfile="MO_PA_aligned.nii.gz")
+                applyflirt_basil(command_base, MO_PA_mc , MO_AP_mc, MO_PA_aligned, interMOMAT)
+
+                MO = newfile(outputdir=multipld_work_dir,assocfile=f"sub-{participant_label}_ses-{participant_session}_acq-pcasl3000_m0scan.nii.gz")
+                fslmerge_basil(command_base, MO, [MO_AP_mc,MO_PA_aligned])
+
+                TRT=0.0635
+                topuparams_init=os.path.join(multipld_work_dir,"topuparams_init.txt")
+                with open(topuparams_init,"w") as outfile:
+                    outfile.write(f"0 -1 0 {TRT}\n")
+                    outfile.write(f"0 -1 0 {TRT}\n")
+                    outfile.write(f"0 -1 0 {TRT}\n")
+                    outfile.write(f"0 -1 0 {TRT}\n")
+                    outfile.write(f"0 1 0 {TRT}\n")
+                    outfile.write(f"0 1 0 {TRT}\n")
+                    outfile.write(f"0 1 0 {TRT}\n")
+                    outfile.write(f"0 1 0 {TRT}\n")
+
+                topupresult = os.path.join(multipld_work_dir,"topupresult_M0")
+                topupresult_fmap = os.path.join(multipld_work_dir,"topupresult_fmap_M0")
+                topup_basil(command_base, MO, topuparams_init, topupresult, topupresult_fmap)
+
+                acqparams=os.path.join(multipld_work_dir,"acqparams.txt")
+                with open(acqparams,"w") as outfile:
+                    outfile.write(f"0 -1 0 {TRT}\n")
+                    outfile.write(f"0 1 0 {TRT}\n")
+
+                MO_DC = newfile(outputdir=multipld_work_dir,assocfile=MO, suffix="dc")
+                applytopup_basil(command_base, MO_DC, [MO_AP_mc, MO_PA_aligned], [1, 2], acqparams, topupresult, method="jac")
+
+                asldc_list=[]
+                asldc_list.append(align_multipld_asl(AP1260[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(PA1500[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(AP1800[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(PA2100[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(AP2500[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(PA3000[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
+
+
+                MULTIASL=newfile(outputdir=multipld_work_dir,assocfile=f"sub-{participant_label}_ses-{participant_session}_acq-multipld_asl.nii.gz")
+                fslmerge_basil(command_base, MULTIASL, asldc_list)
+
+                # process PA
+                command=f"{command_base} oxford_asl -i={MULTIASL} --iaf=ct --ibf=tis --casl --bolus=1.8 --rpts=2,2,2,2,2,2 --tis=3.06,3.3,3.6,3.9,4.3,4.8 --fslanat={fslanat_dir} -c={MO_DC} --cmethod=voxel --tr=5.6 --cgain=10 -o={multipld_output_dir}  --t1=1.3 --t1b=1.65 --alpha=0.85 --spatial=1 --pvcorr --debug"
+                evaluated_command=substitute_labels(command, labels_dict)
+                runCommand(evaluated_command,IFLOGGER)
+
+            else:
+                IFLOGGER.info(f"All scans in AP and PA directions will be processed together in BASIL and then merged at the end")
+ 
+                multipld_output_dir=os.path.join(cwd,"basiloutput_multipld")
+                if not os.path.exists(multipld_output_dir):
+                    os.makedirs(multipld_output_dir,exist_ok=True)
+
+                ASL_AP=os.path.join(multipld_output_dir,f"sub-{participant_label}_ses-{participant_session}_dir-AP_asl.nii.gz")
+                command=f"{command_base} fslmerge -t {ASL_AP} {AP1260[0]} {AP1800[0]} {AP2500[0]}"
+                evaluated_command=substitute_labels(command, labels_dict)
+                runCommand(evaluated_command,IFLOGGER)
+
+                ASL_PA=os.path.join(multipld_output_dir,f"sub-{participant_label}_ses-{participant_session}_dir-PA_asl.nii.gz")
+                command=f"{command_base} fslmerge -t {ASL_PA} {PA1500[0]} {PA2100[0]} {PA3000[0]}"
+                evaluated_command=substitute_labels(command, labels_dict)
+                runCommand(evaluated_command,IFLOGGER)
+
+                # process AP
+                command=f"{command_base} oxford_asl -i={ASL_AP} --iaf=ct --ibf=tis --casl --bolus=1.8 --rpts=2,2,2 --tis=3.06,3.6,4.3 --fslanat={fslanat_dir} -c={MO_AP[0]} --cmethod=voxel --tr=5.6 --cgain=10 --echospacing=0.0005 --pedir=-y --cblip={MO_PA[0]} -o={multipld_output_dir}/output_AP --bat=0 --t1=1.65 --t1b=1.65 --alpha=0.85 --spatial=1 --fixbolus --mc --pvcorr --wp --debug"
+                evaluated_command=substitute_labels(command, labels_dict)
+                runCommand(evaluated_command,IFLOGGER)
+
+                # process PA
+                command=f"{command_base} oxford_asl -i={ASL_PA} --iaf=ct --ibf=tis --casl --bolus=1.8 --rpts=2,2,2 --tis=3.3,3.9,4.8 --fslanat={fslanat_dir} -c={MO_PA[0]} --cmethod=voxel --tr=5.6 --cgain=10 --echospacing=0.0005 --pedir=-y --cblip={MO_AP[0]} -o={multipld_output_dir}/output_PA --bat=0 --t1=1.65 --t1b=1.65 --alpha=0.85 --spatial=1 --fixbolus --mc --pvcorr --wp --debug"
+                evaluated_command=substitute_labels(command, labels_dict)
+                runCommand(evaluated_command,IFLOGGER)
+
+        else:
+            IFLOGGER.info(f"Did not find full set of Multi-pld ASL acquisition for subject {participant_label} and session {participant_session}. Multi-PLD processing cannot proceed.")
+
 
 
     cbf_native = getGlob(os.path.join(output_dir,"native_space","perfusion_calib.nii.gz"))
@@ -728,7 +969,7 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
         "cbf_native":cbf_native,
         "cbf_t1":cbf_t1,
         "cbf_mni6":cbf_mni6,
-        "output_dir":output_dir,
+        "output_dir":cwd,
         "out_files":out_files
     }
 
