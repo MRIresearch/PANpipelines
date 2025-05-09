@@ -121,7 +121,7 @@ def within_range(vox,dims):
 
 def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,participant_session,artefact_outputdir,PHASESHIFT=12,PHASEAXIS=1,ALLOWOVERLAP=False,CLOSE_DISC_STR="",DILATE_DISC_STR="disc-1",ERODE_DISC_STR="",T1_DILATE_DISC_STR="",COMBINED_ERODE_DISC_STR="",FILL_HOLES_STR="2",expand_ring=["1","1"],DO_T1_SHIFT=True, DO_CONSERVATIVE=True):
 
-
+    MULTIPLD=False
     transform_list =  getParams(labels_dict,'TRANSFORM_MAT')
     transform_ref =  getParams(labels_dict,'TRANSFORM_REF')
     PHASESHIFT_lookup = getParams(labels_dict,'PHASESHIFT')
@@ -129,6 +129,16 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
         if isinstance(PHASESHIFT_lookup,dict):
             if asl_acq in PHASESHIFT_lookup.keys():
                 PHASESHIFT=int(PHASESHIFT_lookup[asl_acq])
+            else:
+                MULTIPLD=True
+                if "dir-PA" in asl_acq:
+                    PHASESHIFT=-int(PHASESHIFT_lookup["default"])
+                    transform_list =  getParams(labels_dict,'PA_TRANSFORM_MAT')
+                    transform_ref =  getParams(labels_dict,'PA_TRANSFORM_REF')
+                else:
+                    PHASESHIFT=int(PHASESHIFT_lookup["default"])
+                    transform_list =  getParams(labels_dict,'AP_TRANSFORM_MAT')
+                    transform_ref =  getParams(labels_dict,'AP_TRANSFORM_REF')
         else:
             PHASESHIFT = int(PHASESHIFT_lookup)
     if getParams(labels_dict,'PHASEAXIS'):
@@ -158,6 +168,8 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
     output_dir=cwd
 
     work_dir=os.path.join(output_dir,"preproc_workdir")
+    if MULTIPLD:
+        work_dir=os.path.join(output_dir,f"preproc_workdir_{asl_acq}")
     if not os.path.exists(work_dir):
         os.makedirs(work_dir,exist_ok=True)
 
@@ -178,6 +190,10 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
         artefact_outputdir = os.path.join(output_dir,artefact_subdirname, subject,session)
     else:
         artefact_outputdir = os.path.join(artefact_outputdir,artefact_subdirname, subject,session)
+    
+    if MULTIPLD:
+        artefact_outputdir=os.path.join(artefact_outputdir,asl_acq)
+
 
     if not os.path.exists(artefact_outputdir):
         os.makedirs(artefact_outputdir, exist_ok=True)
@@ -572,35 +588,44 @@ def preproc_proc(labels_dict,bids_dir=""):
 
     # calculate asl artefact for acq-prod
     layout = BIDSLayout(bids_dir)
-    asl=layout.get(subject=participant_label,session=participant_session,suffix='asl', extension='nii.gz')
+    all_asl=layout.get(subject=participant_label,session=participant_session,suffix='asl', extension='nii.gz')
 
-    if len(asl) > 0:
-        asl_bidsfile=asl[0]
-        asl_entities = asl_bidsfile.get_entities()
-        if "acquisition" in asl_entities.keys():
-            asl_acq = "acq-" + asl_entities["acquisition"]
-        else:
-            asl_acq = get_bidstag("acq",asl_bidsfile.filename)
+    if len(all_asl) > 0:
+        for asl in all_asl:
+            asl_bidsfile=asl
+            asl_entities = asl_bidsfile.get_entities()
+            if "acquisition" in asl_entities.keys():
+                asl_acq = "acq-" + asl_entities["acquisition"]
+            else:
+                asl_acq = get_bidstag("acq",asl_bidsfile.filename)
 
-        if not asl_acq:
-            asl_acq = "default"
+            if not asl_acq:
+                asl_acq = "default"
 
-        artefact_outputdir = getParams(labels_dict,'DERIVATIVES_DIR')
-        if not artefact_outputdir:
-            artefact_outputdir = output_dir
+            if asl_acq in ["acq-pcasl1800","acq-pcasl2100","acq-pcasl2500","acq-pcasl3000"]:
+                continue
+                
+            if "dir-AP" in os.path.basename(asl.filename):
+                asl_acq = "dir-AP"
+            elif "dir-PA" in  os.path.basename(asl.filename):
+                asl_acq = "dir-PA"
+
+            artefact_outputdir = getParams(labels_dict,'DERIVATIVES_DIR')
+            if not artefact_outputdir:
+                artefact_outputdir = output_dir
 
 
-        if VERSION_TO_RUN == "2":
-            derive_asl_artefact_v2(asl_acq,labels_dict,command_base, participant_label,participant_session,artefact_outputdir)
-        else:
-            m0_entities = asl_entities.copy()
-            m0_entities["suffix"]="m0scan"
-            m0  = layout.get(return_type='file', invalid_filters='allow', **m0_entities)
-            if len(m0) > 0:
-                m0_file=m0[0]
-                m0_file_brain = newfile(work_dir,assocfile=m0_file,suffix="brain")
-                m0_file_brain_mask = newfile(work_dir,assocfile=m0_file_brain,suffix="mask")
-                derive_asl_artefact_v1(asl_acq,labels_dict, command_base, m0_file,m0_file_brain,m0_file_brain_mask,work_dir,artefact_outputdir)
+            if VERSION_TO_RUN == "2":
+                derive_asl_artefact_v2(asl_acq,labels_dict,command_base, participant_label,participant_session,artefact_outputdir)
+            else:
+                m0_entities = asl_entities.copy()
+                m0_entities["suffix"]="m0scan"
+                m0  = layout.get(return_type='file', invalid_filters='allow', **m0_entities)
+                if len(m0) > 0:
+                    m0_file=m0[0]
+                    m0_file_brain = newfile(work_dir,assocfile=m0_file,suffix="brain")
+                    m0_file_brain_mask = newfile(work_dir,assocfile=m0_file_brain,suffix="mask")
+                    derive_asl_artefact_v1(asl_acq,labels_dict, command_base, m0_file,m0_file_brain,m0_file_brain_mask,work_dir,artefact_outputdir)
 
     return {
         "output_dir":output_dir
