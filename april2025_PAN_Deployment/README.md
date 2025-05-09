@@ -99,7 +99,7 @@ The following singularity images should be generated and stored in an accessible
 `docker://aacazxnat/panproc-apps:0.1`   > `panapps.sif`
 
 
-## Apptainer Progeny
+## Apptainer Provenance
 Details of all the apptainers except 2 are provided in relevant references from the associated institutions. The other two apptainers  (`aacazxnat/panproc-minimal:0.2` and `aacazxnat/panproc-apps:0.1`) are custom made containers, the recipes for which are provided here https://github.com/MRIresearch/panproc-minimal (using v0.2 tag for this release) and https://github.com/MRIresearch/panproc-minimal/tree/main/panproc-apps respectively.
 
 
@@ -146,4 +146,4 @@ Most problems can be avoided by creating a clean new python environment using `c
 if you see this error `ImportError: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'OpenSSL 1.0.2k-fips  26 Jan 2017'. See: https://github.com/urllib3/urllib3/issues/2168` and you are using `Python 3.7 - 3.9` on the HPC then downgrade `urllib3` as follows `pip install urllib==1.25.9` 
 
 # General HPC Deployment
-As described in the main README, one of the current limitations of the pipeline is the fact that it is only optimised for **SLURM** environments in which singularity containers are automatically bound by the system administrator to disk locations on which users manage their data. This means that the `-B` parameter is not required to map output locations to their respective locations within the singularity image.
+As described in the main README, one of the current limitations of the pipeline is the fact that it has been tested on **SLURM** environments in which singularity containers are automatically bound by the system administrator to disk locations on which users manage their data. There is however support for the use of the `-B` parameter  to map output locations to their respective locations within the singularity image. This functionality will attempt to automatically translate all host location parameters in a command call to their container locations. This has not been extensively tested and so should be used with caution.

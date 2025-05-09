@@ -13,7 +13,10 @@ conda activate panpython
 pip install panpipelines
 ```
 # Current Limitations
-The current pipeline is currently optimised for **SLURM** environments in which singularity containers are automatically bound by the system administrator to disk locations on which users manage their data. This means that the `-B` parameter is not required to map output locations to their respective locations within the singularity image.  If the latter is not the case then users will need to run their deployments in the `/tmp` directory as this is automatically bound by singularity. We hope to eventually enable this pipeline to work in other scenarios that users may be facing e.g. Docker environments and more restrictive singularity environments. 
+The current pipeline is currently optimised for **SLURM** environments in which singularity containers are automatically bound by the system administrator to disk locations on which users manage their data. There is however support for the use of the `-B` parameter  in singularity to map output locations to their respective locations within the singularity. This functionality will attempt to automatically translate all host location parameters in a command call to their container locations. This has not been extensively tested and so should be used with caution.
+
+By changing the `PROCESSING_ENVIRONMENT` parameter in the config file to `local` then pipelines will be run without being submitted to slurm using python's `multiprocessing` library. Docker containers can also be invoked instead of singularity images by using `docker run` instead of `singularity run` in the `*_CONTAINER_RUN_OPTIONS` parameter.
+
 Several pipelines rely on the image `aacazxnat/panproc-minimal:0.2` which is defined here https://github.com/MRIresearch/panproc-minimal. See the section below **Building singularity images from Docker Images** for information on how to convert your docker images into singularity images.
 
 # Building singularity images from Docker Images
