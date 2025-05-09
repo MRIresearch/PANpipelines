@@ -302,7 +302,9 @@ def main():
             LOGGER.info("All pipelines in configuration file will be run.")
 
     if RUN_DEPENDENT_PIPELINES:
-        pipelines.extend(get_dependent_pipelines(panpipeconfig_json,dependent_pipelines,ALL_PIPELINES))
+        dependent_results = get_dependent_pipelines(panpipeconfig_json,dependent_pipelines,ALL_PIPELINES)
+        dependent_results_only = list(set(dependent_results) - set(dependent_pipelines))
+        pipelines.extend(dependent_results_only)
         panpipe_labels = updateParams(panpipe_labels, "RUN_DEPENDENT_PIPELINES","Y")
 
     if pipeline_exclude and pipelines:
@@ -395,12 +397,21 @@ def main():
             if "ftp_upload_bids" not in pipeline_exclude:
                 pipelines.add("ftp_upload_bids")
 
-    if not participant_query:            
-        LOGGER.info(f"participants to be processed:\n {participant_label}.\n Note that subject exclusions will be applied at the pipeline level.\n")
+    LOGGER.info(f"participants to be processed:\n {participant_label}.\n Note that additional subject exclusions may be applied at the pipeline level.\n")
+    if not participant_query:
+        subject_exclusions=[]
+        subject_exclusions.extend(participant_exclusions)            
+        projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
     else:
-        projectmap = get_projectmap_query(sessions_file,participant_query)
-        participant_list = projectmap[0]
-        LOGGER.info(f"participants to be processed:\n {participant_list}.\n Note that subject exclusions will be applied at the pipeline level.\n")
+        projectmap = get_projectmap_query(sessions_file,participant_query,participants=orig_participant_label)
+
+    participant_list = projectmap[0]
+    project_list  = projectmap[1]
+    session_list = projectmap[2]
+    pretty_participant_list = [f"{x[0]}_{x[1]} <{x[2]}>" for x in zip(participant_list,session_list,project_list)]
+
+
+    LOGGER.info(f"Participant Details:\n {pretty_participant_list}.\n")
     time.sleep(1)
     LOGGER.info(f"Pipelines to be processed :\n {pipelines}\n")
     time.sleep(1)
@@ -421,9 +432,18 @@ def main():
         pipeline_panpipe_labels={}
         pipeline_panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,pipeline_panpipe_labels,pipeline)
 
+        pipeline_exclusions = getParams(pipeline_panpipe_labels,"PARTICIPANT_PIPELINE_EXCLUSIONS")
+        if not pipeline_exclusions:
+            pipeline_exclusions=[]
+        subject_exclusions.extend(pipeline_exclusions) 
+        panpipe_labels = updateParams(panpipe_labels,"EXCLUDED_PARTICIPANTS",subject_exclusions)
+
         # panpipe_labels holds global defs - need a more elegant way to handle pipeline and global defs
+        PARTICIPANT_OVERRIDE=False
         participant_override_file = substitute_labels(getParams(pipeline_panpipe_labels,"PARTICIPANT_OVERRIDE_FILE"),panpipe_labels)
+        participant_override_query = substitute_labels(getParams(pipeline_panpipe_labels,"PARTICIPANT_OVERRIDE_QUERY"),panpipe_labels)
         if participant_override_file:
+            PARTICIPANT_OVERRIDE=True
             with open(participant_override_file, 'r') as infile:
                 parts = infile.read()
             split_parts = parts.split("\n")
@@ -433,21 +453,23 @@ def main():
                 participant_label = split_parts_valid
                 panpipe_labels = updateParams(panpipe_labels, "PARTICIPANTS",participant_label)
                 LOGGER.info(f"Participant override has been performed at pipeline level :\n {participant_label} will be run instead for {pipeline}\n")
+                projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+
+        elif participant_override_query:
+            PARTICIPANT_OVERRIDE=True
+            projectmap = get_projectmap_query(sessions_file,participant_override_query,subject_exclusions=subject_exclusions,participants=orig_participant_label)
+
         else:
+            PARTICIPANT_OVERRIDE=False
             participant_label = orig_participant_label
             panpipe_labels = updateParams(panpipe_labels, "PARTICIPANTS",participant_label)
-
         
-        pipeline_exclusions = getParams(pipeline_panpipe_labels,"PARTICIPANT_PIPELINE_EXCLUSIONS")
-        if not pipeline_exclusions:
-            pipeline_exclusions=[]
-        subject_exclusions.extend(pipeline_exclusions) 
-        panpipe_labels = updateParams(panpipe_labels,"EXCLUDED_PARTICIPANTS",subject_exclusions)
+        if not PARTICIPANT_OVERRIDE:
+            if not participant_query:
+                projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+            else:
+                projectmap = get_projectmap_query(sessions_file,participant_query,subject_exclusions=subject_exclusions,participants=orig_participant_label)
 
-        if not participant_query:
-            projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
-        else:
-            projectmap = get_projectmap_query(sessions_file,participant_query,subject_exclusions=subject_exclusions)
         participant_list = projectmap[0]
         panpipe_labels = updateParams(panpipe_labels, "PARTICIPANTS",participant_list)
         project_list  = projectmap[1]

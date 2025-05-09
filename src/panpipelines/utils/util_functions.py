@@ -1321,7 +1321,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
     return  [ participant_list, project_list, sessions_list, shared_project_list ]
 
 
-def get_projectmap_query(sessions_file, panquery,subject_exclusions=[]):
+def get_projectmap_query(sessions_file, panquery,subject_exclusions=[],participants=[]):
 
     panquery_list = panquery.split(",")
     df = pd.read_table(sessions_file,sep="\t")
@@ -1347,11 +1347,24 @@ def get_projectmap_query(sessions_file, panquery,subject_exclusions=[]):
 
     query_df=pd.DataFrame()
     for query in panquery_list:
+        new_list = [f"'{x}'" for x in participants]
+        query = query.replace("<PARTICIPANTS>", ",".join(new_list))
+        combine="OR"
         if query_df.empty:
-            query_df = eval(f'df[({query})]')
+            query_string = query.split("^")[0]
+            query_df = eval(f'df[({query_string})]')
         else:
-            new_query_df = eval(f'df[({query})]')
-            query_df = query_df.merge(new_query_df,how='inner')
+            query_string = query.split("^")[0]
+            new_query_df = eval(f'df[({query_string})]')
+            if len(query.split("^")) > 1:
+                combine=query.split("^")[1]
+            else:
+                combine="OR"
+
+            if combine.upper() == "AND":
+                query_df = query_df.merge(new_query_df,how='inner')
+            else:
+                query_df = pd.concat([query_df,new_query_df])
 
     if not query_df.empty:
         for dfnum in range(len(query_df)):
