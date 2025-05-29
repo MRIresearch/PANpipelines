@@ -326,7 +326,7 @@
       "DEPENDENCY": ["postxcpd"],
       "COLLATE_NAME_LEFT": "intrayeo131_Networks7",
       "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_intraconnectivity.csv"],
-      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739"]
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060", "HML0575"]
     },
     "collategroup_postxcpd_yeo131wholeinter":
     {
@@ -340,7 +340,7 @@
       "DEPENDENCY": ["postxcpd"],
       "COLLATE_NAME_LEFT": "yeo131wholeinter",
       "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_wholebrain_interconnectivity.csv"],
-      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739"]
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060", "HML0575"]
     },
     "collategroup_postxcpd_yeo131cortcerebinter":
     {
@@ -354,7 +354,7 @@
       "DEPENDENCY": ["postxcpd"],
       "COLLATE_NAME_LEFT": "yeo131cortcerebinter",
       "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_corticocerebellar_interconnectivity.csv"],
-      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739"]
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060", "HML0575"]
     },
     "fmriprep_v2411":
     {
