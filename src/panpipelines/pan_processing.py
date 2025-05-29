@@ -410,6 +410,9 @@ def main():
     session_list = projectmap[2]
     pretty_participant_list = [f"{x[0]}_{x[1]} <{x[2]}>" for x in zip(participant_list,session_list,project_list)]
 
+    ### account for updates
+    orig_participant_label = participant_list
+
 
     LOGGER.info(f"Participant Details:\n {pretty_participant_list}.\n")
     time.sleep(1)
@@ -453,7 +456,11 @@ def main():
                 participant_label = split_parts_valid
                 panpipe_labels = updateParams(panpipe_labels, "PARTICIPANTS",participant_label)
                 LOGGER.info(f"Participant override has been performed at pipeline level :\n {participant_label} will be run instead for {pipeline}\n")
-                projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+                if participant_override_query:
+                    LOGGER.info(f"Participant query at pipeline level also applied:\n {participant_override_query} will be run as well for {pipeline}\n")
+                    projectmap = get_projectmap_query(sessions_file,participant_override_query,subject_exclusions=subject_exclusions,participants=participant_label)
+                else:
+                    projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
 
         elif participant_override_query:
             PARTICIPANT_OVERRIDE=True
@@ -477,7 +484,7 @@ def main():
         shared_project_list  = projectmap[3]
 
         # obtain mappings for all subjects which will be handy for incremental
-        projectmap_all = get_projectmap(["ALL_SUBJECTS"],participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+        projectmap_all = get_projectmap(["ALL_SUBJECTS_ORDERED"],participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
         participant_list_all = projectmap_all[0]
         project_list_all  = projectmap_all[1]
         session_list_all = projectmap_all[2]

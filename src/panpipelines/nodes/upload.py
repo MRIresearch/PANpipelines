@@ -29,7 +29,31 @@ def upload_proc(labels_dict,source_path,remote_path, ftpcredentials):
             else:
                 port = 22
 
-    if source_path and remote_path and len(remote_path) == 1:
+    if source_path and remote_path and len(source_path) == 1 and len(remote_path) == 1 and "<PARTICIPANT_LABEL>" in source_path[0] and "<PARTICIPANT_LABEL>" in remote_path[0]:
+        source_path_template = source_path[0]
+        remote_path_template = remote_path[0]
+        IFLOGGER.info(f"source path list {source_path} and remote path list {remote_path} will be expanded.")
+        source_path=[]
+        remote_path=[]
+        participants_label = getParams(labels_dict,'GROUP_PARTICIPANTS_LABEL')
+        participants_project = getParams(labels_dict,'GROUP_PARTICIPANTS_XNAT_PROJECT')
+        participants_session = getParams(labels_dict,'GROUP_SESSION_LABEL')
+        for part_vals in zip(participants_label,participants_project,participants_session):
+            labels_dict = updateParams(labels_dict,"PARTICIPANT_LABEL",part_vals[0])
+            labels_dict = updateParams(labels_dict,"PARTICIPANT_XNAT_PROJECT",part_vals[1])
+            labels_dict = updateParams(labels_dict,"PARTICIPANT_SESSION",part_vals[2])
+            source_path.append(substitute_labels(source_path_template,labels_dict))
+            remote_path.append(substitute_labels(remote_path_template,labels_dict))
+
+        RESTART_UPLOAD = getParams(labels_dict,"RESTART_UPLOAD")
+        if RESTART_UPLOAD:
+            RESTART_UPLOAD=int(RESTART_UPLOAD)
+
+        if RESTART_UPLOAD and RESTART_UPLOAD < len(source_path):
+            source_path = source_path[RESTART_UPLOAD:]
+            remote_path = remote_path[RESTART_UPLOAD:]
+
+    elif source_path and remote_path and len(remote_path) == 1:
         IFLOGGER.info(f"Folders to upload {source_path} to {remote_path}")
         remote_path = [remote_path[0] for x in range(len(source_path))]
     elif not source_path:
@@ -49,6 +73,7 @@ def upload_proc(labels_dict,source_path,remote_path, ftpcredentials):
     for source_path_dir,remote_path_dir in zip(source_path, remote_path):
         DEST_IS_DIR=False
         if os.path.isfile(source_path_dir):
+            IFLOGGER.info(f">> upload file from source path {source_path_dir} to {remote_path_dir}")
             if remote_path_dir[-1]== "/":
                 DEST_IS_DIR=True
                 remote_path_dir = os.path.join(remote_path_dir,os.path.basename(source_path_dir))
@@ -59,7 +84,6 @@ def upload_proc(labels_dict,source_path,remote_path, ftpcredentials):
                 source_path_folder = os.path.basename(os.path.dirname(source_path_dir))              
                 remote_path_dir = os.path.join(remote_path_dirname,source_path_folder,remote_path_filename)
             
-
             ftp_upload(source_path_dir,remote_path_dir,hostname,username,password,port)
             remote_metadata_file = newfile(assocfile=os.path.dirname(remote_path_dir),suffix="upload-metadata",extension="json")
             local_metadata_file = newfile(outputdir=cwd,assocfile=remote_metadata_file,extension="json")
@@ -77,9 +101,10 @@ def upload_proc(labels_dict,source_path,remote_path, ftpcredentials):
 
 
         elif os.path.isdir(source_path_dir):
+            IFLOGGER.info(f">> upload directory from source path {source_path_dir} to {remote_path_dir}")
             if retain_folder:
                 remote_path_dir = os.path.join(remote_path_dir,os.path.basename(source_path_dir))
-            ftp_uploaddir_recursive(source_path_dir,remote_path_dir,hostname,username,password,port)
+            ftp_uploaddir_custom_recursive(source_path_dir,remote_path_dir,hostname,username,password,port)
 
             remote_metadata_file = newfile(assocfile=os.path.dirname(remote_path_dir),suffix="upload-metadata",extension="json")
             local_metadata_file = newfile(outputdir=cwd,assocfile=remote_metadata_file,extension="json")
@@ -88,6 +113,9 @@ def upload_proc(labels_dict,source_path,remote_path, ftpcredentials):
             history={}
             upload_metadata(local_metadata_file,remote_metadata_file,source_path_dir,remote_path_dir,metadata=metadata_init,history=history,hostname=hostname,username=username,
             password=password, port=port)
+        else:
+            IFLOGGER.info(f">> source path {source_path_dir} not available. skipping.")
+
 
     out_files=[]
     out_files.append(local_metadata_file)

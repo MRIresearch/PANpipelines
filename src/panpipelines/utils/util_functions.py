@@ -1249,6 +1249,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
     if len(participants) == 1 and participants[0]=="ALL_SUBJECTS":
         participants = list(set(df["bids_participant_id"].tolist()))
 
+
     # process exclusions
     exclusion_list  = process_exclusions(subject_exclusions)
 
@@ -1257,7 +1258,34 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
     shared_project_list=[]
     participant_list=[]
     sessions_list=[]
-    if sessions_file is not None and session_labels:
+
+    if len(participants) == 1 and participants[0]=="ALL_SUBJECTS_ORDERED":
+        sessions_df = pd.read_table(sessions_file,sep="\t")
+        df = sessions_df[(~pd.isna(sessions_df["bids_participant_id"]) & ~pd.isna(sessions_df["bids_session_id"]))]
+        ses=[drop_ses(ses) for ses in list(df.bids_session_id.values)]                 
+        sub=[drop_sub(sub) for sub in list(df.bids_participant_id.values)]                   
+        proj=[proj for proj in list(df.project.values)]
+        shared_proj=[]
+        if 'shared_projects' in df.columns:
+            shared_proj=[shared_proj for shared_proj in list(df.shared_projects.values)]
+            
+        idx=0
+        for subx in sub:
+            sesx = ses[idx]
+            projx = proj[idx]
+            if shared_proj:
+                sharedx = shared_proj[idx]
+            else:
+                sharedx = None
+
+            if not (subx in exclusion_list) and not (f"{subx}_{sesx}" in exclusion_list) and not (f"{subx}_{sesx}_{projx}" in exclusion_list) and not (f"{subx}_*_{projx}" in exclusion_list):
+                participant_list.append(subx)
+                sessions_list.append(sesx)
+                project_list.append(projx)
+                shared_project_list.append(sharedx)
+            idx=idx+1
+
+    elif sessions_file is not None and session_labels:
         sessions_df = pd.read_table(sessions_file,sep="\t")
         # participants and sessions are defined
         if participants is not None and len(participants) > 0:
@@ -1323,7 +1351,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
 
 def get_projectmap_query(sessions_file, panquery,subject_exclusions=[],participants=[]):
 
-    panquery_list = panquery.split(",")
+    panquery_list = panquery.split(";")
     df = pd.read_table(sessions_file,sep="\t")
     df["scan_date"] = pd.to_datetime(df["scan_date"])
 
@@ -1339,6 +1367,9 @@ def get_projectmap_query(sessions_file, panquery,subject_exclusions=[],participa
     shared_project_list=[]
     participant_list=[]
     sessions_list=[]
+
+    if len(participants) == 1 and (participants[0]=="ALL_SUBJECTS" or participants[0]=="ALL_SUBJECTS_ORDERED"):
+        participants = list(set(df["bids_participant_id"].tolist()))
 
     # process exclusions
     exclusion_list  = process_exclusions(subject_exclusions)
@@ -3073,25 +3104,39 @@ def getVersion(Process,ProcessFile=None,ProcessCommand=None,labels_dict=None):
     proc_dict={}
     if Process == "freesurfer":
         if ProcessFile and os.path.exists(ProcessFile):
-            VERTOKEN="VERSION"
-            lines=[]
-            with open(ProcessFile,"r") as infile:
-                lines = infile.readlines()
-            versionstring = [x for x in lines if VERTOKEN in x]
-            if versionstring:
-                if len(versionstring[-1].split(VERTOKEN)) > 1:
-                    VER =  versionstring[-1].split(VERTOKEN)[1].replace("\n",'').strip()
-                    proc_dict[f"{Process}_version"]=VER
 
-            DATETOKEN="END_TIME"
-            lines=[]
-            with open(ProcessFile,"r") as infile:
-                lines = infile.readlines()
-            datestring = [x for x in lines if DATETOKEN in x]
-            if datestring:
-                if len(datestring[-1].split(DATETOKEN)) > 1:
-                    DATEPROC =  datestring[-1].split(DATETOKEN)[1].replace("\n",'').strip()
-                    proc_dict[f"{Process}_date_processed"]=DATEPROC
+            if ProcessCommand == "defects":
+                TOKEN="total defect index"
+                lines=[]
+                with open(ProcessFile,"r") as infile:
+                    lines = infile.readlines()
+                eulerstring = [x for x in lines if TOKEN in x]
+                if eulerstring:
+                    eulernums = [x.split(TOKEN + " = ")[-1].replace("\n","") for x in eulerstring]
+                    if len(eulernums) > 1:
+                        proc_dict[f"freesurfer_defects_lefthemi"]=eulernums[0]
+                        proc_dict[f"freesurfer_defects_righthemi"]=eulernums[1]
+
+            else:
+                VERTOKEN="VERSION"
+                lines=[]
+                with open(ProcessFile,"r") as infile:
+                    lines = infile.readlines()
+                versionstring = [x for x in lines if VERTOKEN in x]
+                if versionstring:
+                    if len(versionstring[-1].split(VERTOKEN)) > 1:
+                        VER =  versionstring[-1].split(VERTOKEN)[1].replace("\n",'').strip()
+                        proc_dict[f"{Process}_version"]=VER
+
+                DATETOKEN="END_TIME"
+                lines=[]
+                with open(ProcessFile,"r") as infile:
+                    lines = infile.readlines()
+                datestring = [x for x in lines if DATETOKEN in x]
+                if datestring:
+                    if len(datestring[-1].split(DATETOKEN)) > 1:
+                        DATEPROC =  datestring[-1].split(DATETOKEN)[1].replace("\n",'').strip()
+                        proc_dict[f"{Process}_date_processed"]=DATEPROC
 
     elif Process == "basil":
         if ProcessFile and os.path.exists(ProcessFile):
@@ -3237,7 +3282,11 @@ def processExtraColumns(df, labels_dict):
                 if column_value == "get_version_string":
                     ProcessFile = column_details["ProcessFile"]
                     Process = column_details["Process"]
-                    add_labels(getVersion(Process,ProcessFile=ProcessFile,labels_dict=labels_dict),extra_cols)
+                    if "ProcessCommand" in column_details.keys():
+                        ProcessCommand = column_details["ProcessCommand"]
+                        add_labels(getVersion(Process,ProcessFile=ProcessFile,ProcessCommand=ProcessCommand,labels_dict=labels_dict),extra_cols)
+                    else:
+                        add_labels(getVersion(Process,ProcessFile=ProcessFile,labels_dict=labels_dict),extra_cols)
             elif column_value:
                 if "Translation" in column_details.keys():
                     if column_value in column_details["Translation"].keys():

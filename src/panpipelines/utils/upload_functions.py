@@ -69,6 +69,31 @@ def ftp_uploaddir_recursive(source_local_path, remote_path,hostname=None,usernam
         raise Exception(err)
 
 
+def ftp_uploaddir_custom_recursive(source_local_path, remote_path,hostname=None,username=None,password=None,port=None):
+    try:
+        with pysftp.Connection(host=hostname,username=username,password=password,port=port) as connection:
+            if not connection.exists(remote_path):
+                connection.makedirs(remote_path)
+            for root, dirs, files in os.walk(source_local_path):
+                rel_path = os.path.relpath(root, source_local_path)
+                remote_path_local = os.path.join(remote_path, rel_path).replace('\\', '/')
+                
+                # Create remote directory
+                try:
+                    connection.makedirs(remote_path_local)
+                except Exception:
+                    pass  # May already exist
+
+                # Upload files (ignore symlinks)
+                for file in files:
+                    local_file = os.path.join(root, file)
+                    if not os.path.islink(local_file):
+                        remote_file = os.path.join(remote_path_local, file).replace('\\', '/')
+                        connection.put(local_file, remote_file)
+
+    except Exception as err:
+        raise Exception(err)
+
 def ftp_upload_subjectbids(subject_dir, remote_path,hostname=None,username=None,password=None, port=None, replace=True):
     subject = os.path.basename(subject_dir)
     print(f"uploading {subject} from {subject_dir} to {remote_path}.")

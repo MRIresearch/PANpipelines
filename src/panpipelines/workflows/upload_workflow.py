@@ -15,14 +15,20 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
     if len(execution.keys()) > 0:
         pan_workflow.config = process_dict(pan_workflow.config,execution)
 
+    # we will not evaluate these variables now as we will need them to be evaluated later in the node
+    EXCEPTIONS=["PARTICIPANT_LABEL","PARTICIPANT_XNAT_PROJECT","PARTICIPANT_SESSION"]
+
     # Specify node inputs
     source_path = getParams(labels_dict,"FTP_SOURCEPATH")
     source_list=[]
     if isinstance(source_path,list):
         for source_template in source_path:
-            evaluated_source_template = substitute_labels(source_template,labels_dict)
+            evaluated_source_template = substitute_labels(source_template,labels_dict,EXCEPTIONS)
             source_files=glob.glob(evaluated_source_template)
-            source_list.extend(source_files)
+            if source_files:
+                source_list.extend(source_files)
+            else:
+                source_list.append(evaluated_source_template)
     else:
         source_list=[source_path]
 
@@ -30,7 +36,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
     remote_list=[]
     if isinstance(remote_path,list):
         for remote_template in remote_path:
-            evaluated_remote_template = substitute_labels(remote_template,labels_dict)
+            evaluated_remote_template = substitute_labels(remote_template,labels_dict, EXCEPTIONS)
             remote_files=evaluated_remote_template
             remote_list.append(remote_files)
     else:
