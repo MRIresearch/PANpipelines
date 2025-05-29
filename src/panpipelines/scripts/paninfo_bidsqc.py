@@ -601,13 +601,6 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
                     experiment_t = 'None'
                     loadParams(table_row,SESSION_LABEL,experiment_t)
 
-                    Manufacturer_t=""
-                    StationName_t = ""
-                    DeviceSerialNumber_t = ""
-                    SoftwareVersions_t=""
-                    ManufacturerModelName_t=""
-                    ImplementationversionName_t=""
-
                     experiments = subject.experiments
 
                     if len(experiments) < 1:
@@ -622,6 +615,13 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
                         experiment = experiments[exp_index]
                         experiment_t = experiment.label
                         loadParams(session_table_row,SESSION_LABEL,experiment_t)
+
+                        Manufacturer_t=""
+                        StationName_t = ""
+                        DeviceSerialNumber_t = ""
+                        SoftwareVersions_t=""
+                        ManufacturerModelName_t=""
+                        ImplementationversionName_t=""
 
                         
                         if experiment.modality == 'MR' or '_MR_' in experiment.label:
@@ -664,32 +664,32 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
                                             scandate_t = datetime.datetime.strftime(scandate,"%Y%m%d")
                                             loadParams(session_table_row,SESSION_SCANDATE,scandate_t)
 
-                                        if not Manufacturer_t:
-                                            Manufacturer_t=ds.Manufacturer
-                                            loadParams(session_table_row,MANUFACTURER,Manufacturer_t) 
-                                        if not StationName_t:
-                                            StationName_t = ds.StationName
-                                            loadParams(session_table_row,STATION_NAME,StationName_t) 
-                                        if not DeviceSerialNumber_t:
-                                            DeviceSerialNumber_t = ds.DeviceSerialNumber
-                                            loadParams(session_table_row,DEVICE_SERIAL_NUMBER,DeviceSerialNumber_t) 
-                                        if not SoftwareVersions_t:
-                                            SoftwareVersions_t = ds.SoftwareVersions 
-                                            if isinstance(SoftwareVersions_t,MultiValue):
-                                                SoftwareVersions_t = list(SoftwareVersions_t)[0]
-                                            loadParams(session_table_row,SOFTWARE_VERSION,SoftwareVersions_t) 
-                                        if not ManufacturerModelName_t:
-                                            ManufacturerModelName_t = ds.ManufacturerModelName
-                                            loadParams(session_table_row,MANUFACTURER_MODEL_NAME,ManufacturerModelName_t) 
-                                        if not ImplementationversionName_t:
-                                            ImplementationversionName_t = ds.file_meta.ImplementationVersionName
-                                            loadParams(session_table_row,IMPLEMENTATION_VERSION_NAME,ImplementationversionName_t) 
+
+                                        Manufacturer_t=ds.Manufacturer
+
+                                        StationName_t = ds.StationName                                       
+
+                                        DeviceSerialNumber_t = ds.DeviceSerialNumber
+                                        
+                                        SoftwareVersions_t = ds.SoftwareVersions 
+                                        if isinstance(SoftwareVersions_t,MultiValue):
+                                            SoftwareVersions_t = list(SoftwareVersions_t)[0]
+                                        
+                                        ManufacturerModelName_t = ds.ManufacturerModelName                                     
+
+                                        ImplementationversionName_t = ds.file_meta.ImplementationVersionName
+                                        
                                         break
 
                                     except Exception as e:
                                         pass
 
-
+                            loadParams(session_table_row,MANUFACTURER,Manufacturer_t) 
+                            loadParams(session_table_row,STATION_NAME,StationName_t) 
+                            loadParams(session_table_row,DEVICE_SERIAL_NUMBER,DeviceSerialNumber_t) 
+                            loadParams(session_table_row,SOFTWARE_VERSION,SoftwareVersions_t) 
+                            loadParams(session_table_row,MANUFACTURER_MODEL_NAME,ManufacturerModelName_t) 
+                            loadParams(session_table_row,IMPLEMENTATION_VERSION_NAME,ImplementationversionName_t) 
                             notes_t = experiment.note
                             loadParams(session_table_row,SESSION_NOTES,notes_t)
 
@@ -983,7 +983,7 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
             cols.pop(cols.index(BIDS_SUBJECT))
             cols.pop(cols.index(BIDS_SESSION))
             newdf=search_df[[HMLID] + [BIDS_SUBJECT] + [BIDS_SESSION] + cols]
-            sorted_df = newdf.sort_values(by = [HMLID], ascending = [True])
+            sorted_df = newdf.sort_values(by = [HMLID,BIDS_SESSION], ascending = [True,True])
             sorted_df.reset_index(drop=True,inplace=True)
             sorted_df.to_csv(pan_mri_info_csvout,sep=",", index=False)
             pan_mri_info_csvout_metadata = create_metadata(pan_mri_info_csvout,None, metadata = {"Script":"paninfo_bidsqc.py","Description":"Information about missing scans and scan issues"})

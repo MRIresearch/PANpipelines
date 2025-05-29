@@ -18,7 +18,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
         pan_workflow.config = process_dict(pan_workflow.config,execution)
 
     # we will not evaluate these variables now as we will need them to be evaluated later in the node
-    EXCEPTIONS=["PARTICIPANT_LABEL","PARTICIPANT_XNAT_RPOJECT","PARTICIPANT_SESSION"]
+    EXCEPTIONS=["PARTICIPANT_LABEL","PARTICIPANT_XNAT_PROJECT","PARTICIPANT_SESSION"]
 
     measures_list1=[]
     measures_template = getParams(labels_dict,"MEASURES_TEMPLATE1")
