@@ -27,7 +27,7 @@ PAN_SCANTYPES = {
     "PASL" : ["PASL_PRODUCT_PLD-2750"],
     "PASL_M0" : ["PASL_PRODUCT_PLD-2750 MO"],
     "PASL_LEGACY": ["AXIAL 3D PASL plus M0","Axial 3D PASL plus M0"],
-    "MEGRE" : ["Axial 3D ME T2 GRE","Axial 3D ME T2 GRE_noT2*"],
+    "MEGRE" : ["Axial 3D ME T2 GRE","Axial 3D ME T2 GRE (optional)","Axial 3D ME T2 GRE_noT2*"],
     "T2HIPPO" : ["HighResHippocampus","HighResHippoObliqueperpenHIPPO"],
     "T2SPACE" : ["Sagittal 3D T2 SPACE","3D_Brain_VIEW_T2"]
 }
@@ -590,6 +590,8 @@ def getBidsQC(host,user,password,projects,csvout,excluded_participants=[],LOGFIL
                     loadParams(table_row,MCID,getSubjectCustomField(connection,subject,"mcid"))
                     loadParams(table_row,P2ID,getSubjectCustomField(connection,subject,"p2id"))
                     orig_project = getSubjectCustomField(connection,subject,"site")
+                    if not orig_project:
+                    	orig_project = project_t
                     loadParams(table_row,ORIG_PROJECT,orig_project)
 
                     yob_t = ""
