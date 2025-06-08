@@ -3110,12 +3110,23 @@ def getVersion(Process,ProcessFile=None,ProcessCommand=None,labels_dict=None):
                 lines=[]
                 with open(ProcessFile,"r") as infile:
                     lines = infile.readlines()
-                eulerstring = [x for x in lines if TOKEN in x]
-                if eulerstring:
-                    eulernums = [x.split(TOKEN + " = ")[-1].replace("\n","") for x in eulerstring]
+                defectstring = [x for x in lines if TOKEN in x]
+                if defectstring:
+                    defectnums = [x.split(TOKEN + " = ")[-1].replace("\n","").strip() for x in defectstring]
+                    if len(defectnums) > 1:
+                        proc_dict[f"freesurfer_defects_lefthemi"]=defectnums[0]
+                        proc_dict[f"freesurfer_defects_righthemi"]=defectnums[1]
+
+                TOKEN = "Computing euler"
+                lines=[]
+                with open(ProcessFile,"r") as infile:
+                    lines = infile.readlines()
+                eulerln = [ln for ln,x in enumerate(lines) if TOKEN in x]
+                if eulerln:
+                    eulernums = [x.split(" = ")[-1].replace("\n","").strip() for x in lines[eulerln[0]+1].split(",")]
                     if len(eulernums) > 1:
-                        proc_dict[f"freesurfer_defects_lefthemi"]=eulernums[0]
-                        proc_dict[f"freesurfer_defects_righthemi"]=eulernums[1]
+                        proc_dict[f"freesurfer_euler_lefthemi"]=eulernums[0]
+                        proc_dict[f"freesurfer_euler_righthemi"]=eulernums[1]
 
             else:
                 VERTOKEN="VERSION"
