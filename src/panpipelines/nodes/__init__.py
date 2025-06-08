@@ -30,5 +30,6 @@ __all__ = [
     "xtract",
     "freesurferextra",
     "getbids",
-    "postxcpd"
+    "postxcpd",
+    "registration"
 ]

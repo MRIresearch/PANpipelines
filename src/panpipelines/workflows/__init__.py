@@ -21,5 +21,7 @@ __all__ = [
     "mriqcgroup_workflow",
     "tractseg_workflow",
     "xcpd_workflow",
-    "getbids_workflow"
+    "getbids_workflow",
+    "transform_workflow",
+    "registration_workflow"
 ]
