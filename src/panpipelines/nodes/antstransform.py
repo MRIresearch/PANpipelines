@@ -70,13 +70,35 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         old_space=None
 
     
-    if old_space:
+    provided_space = getParams(labels_dict,'TRANSFORM_SPACE')
+    replace_strings =  getParams(labels_dict,'REPLACE_STRINGS')
+    if provided_space or replace_strings:
+        out_file_basename = os.path.basename(input_file)
+        if replace_strings:
+            if isinstance(replace_strings,list):
+                for replace_string in replace_strings:
+                    out_file_basename = out_file_basename.replace(replace_string,"")
+            elif isinstance(replace_strings,dict):
+                for key,value in replace_strings.items():
+                    out_file_basename = out_file_basename.replace(key,value)
+            else:
+                out_file_basename = out_file_basename.replace(replace_strings,"")
+
+        if provided_space:
+            out_file = newfile(output_dir,out_file_basename,intwix=f"space-{provided_space}")
+        else:
+            out_file = newfile(output_dir,out_file_basename)
+
+    elif old_space:
         out_file = os.path.join(output_dir,input_file_basename.replace(old_space, trans_space))
     else:
         out_file = newfile(output_dir,input_file_basename,intwix=trans_space)
 
     #ensure extension set to nifti
-    out_file = newfile(assocfile=out_file,prefix=f"sub-{participant_label}_ses-{participant_session}",extension=".nii.gz")
+    if f"sub-{participant_label}_ses-{participant_session}" in os.path.basename(out_file):
+        out_file = newfile(assocfile=out_file,extension=".nii.gz")
+    else:
+        out_file = newfile(assocfile=out_file,prefix=f"sub-{participant_label}_ses-{participant_session}",extension=".nii.gz")
 
     costfunction = getParams(labels_dict,'COST_FUNCTION')
     fsl_costfunction = "sinc"
@@ -578,7 +600,7 @@ class antstransform_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="antstransform_node",input_file="",trans_mat="",ref_file="",LOGGER=IFLOGGER):
+def create(labels_dict,name="antstransform_node",input_file="",trans_mat=[],ref_file="",LOGGER=IFLOGGER):
     # Create Node
     pan_node = Node(antstransform_pan(), name=name)
 
