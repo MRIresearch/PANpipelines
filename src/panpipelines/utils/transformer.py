@@ -531,7 +531,9 @@ def ants_registration(moving, reference, transform, COMMANDBASE, composite=False
                              
     forward.sort()
 
-    return {"forward": forward, "inverse" : inverse}
+    out_file = ut.getGlob(f"{transform}*Warped.nii.gz")
+
+    return {"forward": forward, "inverse" : inverse, "out_file" : out_file}
     
 
 # ensure that moving and reference are in RAS before calculating transform
@@ -605,9 +607,50 @@ def ants_registration_rigid(moving, reference, transform, COMMANDBASE):
 
     results = ut.runCommand(command)
     
-    final_transform=transform+"0GenericAffine.mat"
+    forward = glob.glob(f"{transform}*GenericAffine.mat")
+    forward.sort()
 
-    return final_transform
+    out_file = ut.getGlob(f"{transform}*Warped.nii.gz")
+                          
+    return {"forward": forward, "out_file": out_file}
+
+def ants_registration_affine(moving, reference, transform, COMMANDBASE):
+    
+    transform=os.path.abspath(transform)
+    reference=os.path.abspath(reference)
+    moving=os.path.abspath(moving)
+
+    params="--collapse-output-transforms 1" \
+    " --dimensionality 3" \
+    f" --initial-moving-transform [ {reference}, {moving}, 1 ] "\
+    " --initialize-transforms-per-stage 0" \
+    " --interpolation LanczosWindowedSinc" \
+    f" --output [ {transform}, {transform}_Warped.nii.gz ]"\
+    " --transform Rigid[ 0.2 ] "\
+    f" --metric Mattes[ {reference}, {moving}, 1, 32, Random, 0.25 ]"\
+    " --convergence [ 10000x1000x10000x10000, 1e-06, 10 ]"\
+    " --smoothing-sigmas 7.0x3.0x1.0x0.0vox"\
+    " --shrink-factors 8x4x2x1"\
+    " --transform Affine[ 0.2 ]" \
+    f" --metric Mattes[ {reference}, {moving}, 1, 32, Random, 0.25 ]"\
+    " --convergence [ 1000x500x250x100, 1e-6, 10 ]"\
+    " --smoothing-sigmas 3.0x2.0x1.0x0.0vox"\
+    " --shrink-factors 8x4x2x1"\
+    " --use-histogram-matching 1"\
+    " --winsorize-image-intensities [ 0.025, 0.975 ]"\
+    " --write-composite-transform 0"
+
+    command=f"{COMMANDBASE} antsRegistration"\
+            " "+params
+
+    results = ut.runCommand(command)
+    
+    forward = glob.glob(f"{transform}*GenericAffine.mat")
+    forward.sort()
+
+    out_file = ut.getGlob(f"{transform}*Warped.nii.gz")
+                          
+    return {"forward": forward, "out_file": out_file}
 
 # ensure that moving and reference are in RAS before calculating transform
 def ants_registration_quick_ori(moving, reference, transform, COMMANDBASE,transform_ori="RAS:RAS",target_ori="RAS",threads=8):
@@ -681,10 +724,9 @@ def ants_registration_quick(moving, reference, transform, COMMANDBASE,threads=8)
                              
     forward.sort()
 
-    return {"forward": forward, "inverse" : inverse}
+    out_file = [os.path.join(transform_dir,s) for s in dirs if "Inverse".upper() not in s.upper() and "Warped".upper() in s.upper()]
 
-
-    return candidates
+    return {"forward": forward, "inverse" : inverse, "out_file" : out_file}
 
 
 def fsl_reg_flirt(input,reference,out,transmat,COMMANDBASE,dof="12",cost="mutualinfo"):
@@ -724,18 +766,18 @@ def fsl_reg_fnirt(input,reference,out,transwarp,COMMANDBASE,transmat=None):
     
 def fsl_register_nonlin(input,reference,out,COMMANDBASE):
     trans_str= ut.getTransName(input, reference)
-    pre_aff = ut.newfile(prefix=f"{trans_str}",suffix="affine",extension="mat")
+    pre_aff = ut.newfile(assocfile=out,prefix=f"{trans_str}",suffix="affine",extension="mat")
     pre_aff_out = ut.newfile(assocfile=pre_aff,suffix="outfile",extension=".nii.gz")
     fsl_reg_flirt(input,reference,pre_aff_out,pre_aff,COMMANDBASE)
     
-    fwd_warp = ut.newfile(prefix=f"{trans_str}",suffix="warp",extension="nii.gz")
+    fwd_warp = ut.newfile(assocfile=out,prefix=f"{trans_str}",suffix="warp",extension="nii.gz")
     fwd_warp_out = ut.newfile(assocfile=fwd_warp,suffix="outfile",extension=".nii.gz")
     fsl_reg_fnirt(input,reference,fwd_warp_out,fwd_warp,COMMANDBASE,transmat=pre_aff)
     
-    inv_warp = ut.newfile(prefix=f"{trans_str}",suffix="invwarp",extension="nii.gz")
+    inv_warp = ut.newfile(assocfile=out,prefix=f"{trans_str}",suffix="invwarp",extension="nii.gz")
     invertWarpfield_FNIRT(input, fwd_warp, inv_warp, COMMANDBASE)
     
-    return {"forward": fwd_warp, "inverse": inv_warp}
+    return {"forward": [fwd_warp], "inverse": [inv_warp], "out_file": fwd_warp_out}
 
     
 def applyWarp_fnirt(input,reference,out,transwarp,COMMANDBASE,interp="trilinear",premat=None,postmat=None,relative=False):
