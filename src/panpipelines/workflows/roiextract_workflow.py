@@ -7,6 +7,7 @@ import panpipelines.nodes.roi_extract as roiextract
 from panpipelines.utils.util_functions import *
 from panpipelines.utils.transformer import *
 import glob
+import sys
 
 def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=None):
     # Create workflow
@@ -87,7 +88,8 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
             labels_dict = updateParams(labels_dict,"NEWATLAS_INDEXMODE",newatlas_indexmode,remove_if_none=True)
         else:
             if LOGGER:
-                LOGGER.info(f"mask Template defined but valid template file not found. Ignoring mask Template.")
+                LOGGER.info(f"mask Template defined but valid template file not found. Exiting.")
+            sys.exit(1)    
 
     # do we need to create a custom atlas?
     atlas_index = getParams(labels_dict,"ATLAS_INDEX")
