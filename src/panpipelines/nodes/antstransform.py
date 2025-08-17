@@ -555,6 +555,39 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
         runCommand(evaluated_command,IFLOGGER)
 
 
+    # Clip measure if specified
+    CLIP_MEASURE =getParams(labels_dict,"CLIP_MEASURE")
+    if CLIP_MEASURE and isinstance(CLIP_MEASURE,dict):
+        IFLOGGER.info(f"Clip thresholds found {CLIP_MEASURE}")
+        CLIP_DICT={}
+        if "ALL_MEASURES" in CLIP_MEASURE.keys():
+            CLIP_DICT = CLIP_MEASURE["ALL_MEASURES"]
+            IFLOGGER.info(f"Clipping {input_file} using {CLIP_DICT}")
+        else:
+            CLIP_KEY = [ x for x in CLIP_MEASURE.keys() if x in input_file]
+            if CLIP_KEY and len(CLIP_KEY) == 1:
+                CLIP_DICT = CLIP_MEASURE[CLIP_KEY[0]]
+                IFLOGGER.info(f"Clipping {input_file} using {CLIP_DICT}")
+            elif CLIP_KEY and len(CLIP_KEY) > 1:
+                IFLOGGER.info(f"Clip measure {CLIP_MEASURE} matches {input_file} ambiguously on {CLIP_KEY} - skipping clip")
+            else:
+                IFLOGGER.info(f"Clip measure {CLIP_MEASURE} doesnt match {input_file}")
+        if CLIP_DICT:
+            if "LTHR" in CLIP_DICT.keys():
+                LTHR = CLIP_DICT["LTHR"]
+                command=f"{fsl_command_base} fslmaths {out_file}"\
+                        f" -max {LTHR} {out_file}"
+                evaluated_command=substitute_labels(command, labels_dict)
+                runCommand(evaluated_command,IFLOGGER)
+
+            if "UTHR" in CLIP_DICT.keys():
+                UTHR = CLIP_DICT["UTHR"]
+                command=f"{fsl_command_base} fslmaths {out_file}"\
+                        f" -min {UTHR} {out_file}"
+                evaluated_command=substitute_labels(command, labels_dict)
+                runCommand(evaluated_command,IFLOGGER)
+
+
     out_files=[]
     out_files.insert(0,out_file)
 
