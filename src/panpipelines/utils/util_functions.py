@@ -1232,7 +1232,7 @@ def process_exclusions(subject_exclusions=[]):
     return exclusion_list
 
 
-def get_projectmap(participants, participants_file,session_labels=[],sessions_file = None, subject_exclusions=[]):
+def get_projectmap(participants, participants_file,session_labels=[],sessions_file = None, subject_exclusions=[],sessions_given=[]):
 
     if sessions_file is not None:
         df = pd.read_table(sessions_file,sep="\t")
@@ -1289,8 +1289,28 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
         sessions_df = pd.read_table(sessions_file,sep="\t")
         # participants and sessions are defined
         if participants is not None and len(participants) > 0:
+            pidx=-1
             for participant in participants:
-                if session_labels[0]=="ALL_SESSIONS":
+                pidx = pidx + 1
+                if sessions_given:
+                    session_label = sessions_given[pidx]
+                    search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant)) & (sessions_df["bids_session_id"].str.contains(session_label))]
+                    if search_df.empty:
+                        UTLOGGER.info(f"No values found for {participant} and {session_label} in {sessions_file}")
+                        sub=[]
+                        ses=[]
+                        proj=[]
+                        shared_proj=[]
+                    else:
+                        ses=[drop_ses(ses) for ses in list(search_df.bids_session_id.values)]
+                        sub=[drop_sub(sub) for sub in list(search_df.bids_participant_id.values)]
+                        proj=[proj for proj in list(search_df.project.values)]
+                        shared_proj=[]
+                        if 'shared_projects' in df.columns:
+                            shared_proj=[shared_proj for shared_proj in list(search_df.shared_projects.values)]
+
+
+                elif session_labels[0]=="ALL_SESSIONS":
                     search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant))]
                     ses=[drop_ses(ses) for ses in list(search_df.bids_session_id.values)]                 
                     sub=[drop_sub(sub) for sub in list(search_df.bids_participant_id.values)]                   

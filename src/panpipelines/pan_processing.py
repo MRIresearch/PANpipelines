@@ -33,6 +33,7 @@ def parse_params():
     parser.add_argument("--pipeline_exclude", nargs="+")
     parser.add_argument("--projects", nargs="+")
     parser.add_argument("--participant_label", nargs="*", type=drop_sub, help="filter by subject label (the sub- prefix can be removed).")
+    parser.add_argument("--participant_session_list", nargs="*", help="filter by subject label and session label (sub-ddd_ses-ddd).")    
     parser.add_argument("--participant_label_fromfile", type=PathExists, help="participants from file.")    
     parser.add_argument("--incremental", default="False")
     parser.add_argument("--info_delta", default="False", help="what are the subjects that are left to process")
@@ -199,23 +200,41 @@ def main():
         new_targetdir=bids_incremental_dir
         info_delta_suffix = f"latest-{datelabel}"
         new_participants_file = newfile(outputdir=new_targetdir, assocfile=participants_file,suffix=info_delta_suffix )
+        new_sessions_file = newfile(outputdir=new_targetdir, assocfile=sessions_file,suffix=info_delta_suffix )
 
-        LOGGER.info(f"Comparing latest participants file on XNAT with current participants file to determine subjects that require downloading.")
-        LOGGER.info(f"Downloading latest participants file to {new_targetdir} with suffix of {info_delta_suffix}")
-        getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",new_participants_file,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST)
-        
-        df1 = pd.read_table(new_participants_file,sep="\t")
-        participants_list1 = df1["hml_id"].tolist()
-        df2 = pd.read_table(participants_file,sep="\t")
-        participants_list2 = df2["hml_id"].tolist()
-        participant_incremental = [ drop_sub(x) for x in list(set(participants_list1).difference(set(participants_list2)))]
-        LOGGER.info(f"Incremental participants found {participant_incremental}")
-        mask = df1["hml_id"].isin(participant_incremental)
+        LOGGER.info(f"Comparing latest sessions file on XNAT with current sessions file to determine subjects that require downloading.")
+        LOGGER.info(f"Downloading latest participants sessions file to {new_targetdir} with suffix of {info_delta_suffix}")
+        getBidsTSV(xnat_host,cred_user,cred_password,projects,"BIDS-AACAZ",new_participants_file,sessionsTSV=new_sessions_file,demographics=False,shared_project_list=SHARED_PROJECT_LIST,phantom_list=PHANTOM_LIST)
+
+        df1 = pd.read_table(sessions_file,sep="\t")
+        sessions_list1 = (df1["bids_participant_id"] + "_" + df1["bids_session_id"]).tolist()
+        df2 = pd.read_table(old_sessions_file,sep="\t")
+        sessions_list2 = (df2["bids_participant_id"] + "_" + df2["bids_session_id"]).tolist()
+        sessions_incremental = [ x for x in list(set(sessions_list1).difference(set(sessions_list2)))]
+        sessions_incremental = [x for x in sessions_incremental if pd.notna(x)]
+        LOGGER.info(f"Incremental participants session found {sessions_incremental}")
+
+        new_targetdir=bids_incremental_dir
+        info_delta_suffix = f"latest-{datelabel}"
+        mask = (df1["bids_participant_id"] + "_" + df1["bids_session_id"]).isin(sessions_incremental)
         incremental_df = df1[mask]
-        incremental_tsv = newfile(assocfile=new_participants_file,suffix="delta")
-        LOGGER.info(f"Saving delta participant information to {incremental_tsv}.")
+        incremental_tsv = newfile(outputdir= new_targetdir, assocfile=sessions_file,suffix=info_delta_suffix + "-" + "delta")
+        LOGGER.info(f"Saving delta participant session information to {incremental_tsv}.")
         incremental_df.to_csv(incremental_tsv,sep="\t",header=True, index=False)
         panpipe_labels = updateParams(panpipe_labels,"INCREMENTAL_PARTICIPANTS_FILE",incremental_tsv)
+
+        #df1 = pd.read_table(new_participants_file,sep="\t")
+        #participants_list1 = df1["hml_id"].tolist()
+        #df2 = pd.read_table(participants_file,sep="\t")
+        #participants_list2 = df2["hml_id"].tolist()
+        #participant_incremental = [ drop_sub(x) for x in list(set(participants_list1).difference(set(participants_list2)))]
+        #LOGGER.info(f"Incremental participants found {participant_incremental}")
+        #mask = df1["hml_id"].isin(participant_incremental)
+        #incremental_df = df1[mask]
+        #incremental_tsv = newfile(assocfile=new_participants_file,suffix="delta")
+        #LOGGER.info(f"Saving delta participant information to {incremental_tsv}.")
+        #incremental_df.to_csv(incremental_tsv,sep="\t",header=True, index=False)
+        #panpipe_labels = updateParams(panpipe_labels,"INCREMENTAL_PARTICIPANTS_FILE",incremental_tsv)
         LOGGER.info(f"Quitting.")
         sys.exit(0)
 
@@ -327,6 +346,7 @@ def main():
     else:
         participant_label = getParams(panpipe_labels,"PARTICIPANTS")
 
+    participant_session_list = args.participant_session_list
     participant_label_fromfile = args.participant_label_fromfile
     if participant_label_fromfile:
         with open(participant_label_fromfile, 'r') as infile:
@@ -364,24 +384,28 @@ def main():
 
     if INCREMENTAL:
         LOGGER.info("Running in incremental mode. Identifying participants to run")
-        df1 = pd.read_table(participants_file,sep="\t")
-        participants_list1 = df1["hml_id"].tolist()
-        df2 = pd.read_table(old_participants_file,sep="\t")
-        participants_list2 = df2["hml_id"].tolist()
-        participant_incremental = [ drop_sub(x) for x in list(set(participants_list1).difference(set(participants_list2)))]
-        LOGGER.info(f"Incremental participants found {participant_incremental}")
+        df1 = pd.read_table(sessions_file,sep="\t")
+        sessions_list1 = (df1["bids_participant_id"] + "_" + df1["bids_session_id"]).tolist()
+        df2 = pd.read_table(old_sessions_file,sep="\t")
+        sessions_list2 = (df2["bids_participant_id"] + "_" + df2["bids_session_id"]).tolist()
+        sessions_incremental = [ x for x in list(set(sessions_list1).difference(set(sessions_list2)))]
+        sessions_incremental = [x for x in sessions_incremental if pd.notna(x)]
+        LOGGER.info(f"Incremental participants session found {sessions_incremental}")
 
         new_targetdir=bids_incremental_dir
         info_delta_suffix = f"latest-{datelabel}"
-        mask = df1["hml_id"].isin(participant_incremental)
+        mask = (df1["bids_participant_id"] + "_" + df1["bids_session_id"]).isin(sessions_incremental)
         incremental_df = df1[mask]
-        incremental_tsv = newfile(outputdir= new_targetdir, assocfile=participants_file,suffix=info_delta_suffix + "-" + "delta")
-        LOGGER.info(f"Saving delta participant information to {incremental_tsv}.")
+        incremental_tsv = newfile(outputdir= new_targetdir, assocfile=sessions_file,suffix=info_delta_suffix + "-" + "delta")
+        LOGGER.info(f"Saving delta participant session information to {incremental_tsv}.")
         incremental_df.to_csv(incremental_tsv,sep="\t",header=True, index=False)
         panpipe_labels = updateParams(panpipe_labels,"INCREMENTAL_PARTICIPANTS_FILE",incremental_tsv)
 
-        participant_label.extend(participant_incremental)
-        LOGGER.info(f"Participants to process {participant_label}")
+        if participant_session_list:
+            participant_session_list.extend(sessions_incremental)
+        else:
+            participant_session_list = sessions_incremental
+        LOGGER.info(f"Participant Sessions to process {sessions_incremental}")
 
     # take snapshot of the runtime labels for all pipelines
     runtime_labels = panpipe_labels.copy()
@@ -398,10 +422,14 @@ def main():
                 pipelines.add("ftp_upload_bids")
 
     LOGGER.info(f"participants to be processed:\n {participant_label}.\n Note that additional subject exclusions may be applied at the pipeline level.\n")
+    sessions_given=[]
     if not participant_query:
         subject_exclusions=[]
-        subject_exclusions.extend(participant_exclusions)            
-        projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+        subject_exclusions.extend(participant_exclusions)
+        if participant_session_list:        
+            participant_label = [drop_sub(x.split("_")[0]) for x in participant_session_list]
+            sessions_given = [drop_ses(x.split("_")[1]) for x in participant_session_list]            
+        projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions,sessions_given = sessions_given)  
     else:
         projectmap = get_projectmap_query(sessions_file,participant_query,participants=orig_participant_label)
 
@@ -473,7 +501,7 @@ def main():
         
         if not PARTICIPANT_OVERRIDE:
             if not participant_query:
-                projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+                projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions,sessions_given = sessions_given)
             else:
                 projectmap = get_projectmap_query(sessions_file,participant_query,subject_exclusions=subject_exclusions,participants=orig_participant_label)
 
