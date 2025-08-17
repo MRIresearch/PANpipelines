@@ -16,6 +16,7 @@ from nilearn.maskers import NiftiLabelsMasker
 from nilearn.maskers import NiftiMapsMasker
 from nilearn import image
 from panpipelines.utils.report_functions import createRoiExtractReport
+import sys
 
 IFLOGGER=nlogging.getLogger('nipype.interface')
 
@@ -344,7 +345,13 @@ def roi_extract_proc(labels_dict,input_file,atlas_file,atlas_index, mask_file):
                 roi_coverage = np.sum(check != 0)
                 roi_coverage_list.append(f"{str(roi_coverage)}")   
     
-   
+    DONT_FAIL_IF_NAN = isTrue(getParams(labels_dict,"DONT_FAIL_IF_NAN"))
+
+    if np.any(np.isnan(reconciled_signals)) and not DONT_FAIL_IF_NAN:
+        UTLOGGER.warn(f"WARNING: There are ROIs with NaNs - with strict failure applied we are exiting the program.")
+        UTLOGGER.info(f"signal : {np.isnan(reconciled_signals)} has {np.sum(np.isnan(reconciled_signals))} NaNs")
+
+        sys.exit(1)
 
     if len(reconciled_signals.shape) > 1:
         df2=pd.DataFrame(reconciled_signals,columns=reconciled_labels)
