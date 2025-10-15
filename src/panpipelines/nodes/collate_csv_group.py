@@ -613,9 +613,16 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         IFLOGGER.info("Group Filter: Attempting to filter out specific participant and session from dataframe using subject_id and session_id")
         filter_set = set(zip([f"sub-{x}" for x in participants_label],[f"ses-{x}" for x in participants_session]))
 
+    TABLE_HEADER_FORMAT = getParams(labels_dict,"TABLE_HEADER_FORMAT")
+
     # replace hyphens with underscores
     if not cum_df_inner_right.empty:
         cum_df_inner_right.columns = cum_df_inner_right.columns.str.replace("-", "_", regex=True)
+        if TABLE_HEADER_FORMAT:
+            cum_df_inner_right.columns = cum_df_inner_right.columns.str.lower()
+            for itemkey,itemvalue in TABLE_HEADER_FORMAT.items():
+                cum_df_inner_right.columns = cum_df_inner_right.columns.str.replace(itemkey, itemvalue)
+
         if filter_set:
             cum_df_inner_right = cum_df_inner_right[cum_df_inner_right[['subject_id', 'session_id']].apply(tuple, axis=1).isin(filter_set)]
         extra_field_exceptions = getParams(labels_dict,"RIGHT_FILTER_EXCEPTIONS")
@@ -628,6 +635,11 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     
     if not cum_df_inner_left.empty:
         cum_df_inner_left.columns = cum_df_inner_left.columns.str.replace("-", "_", regex=True)
+        if TABLE_HEADER_FORMAT:
+            cum_df_inner_left.columns = cum_df_inner_left.columns.str.lower()
+            for itemkey,itemvalue in TABLE_HEADER_FORMAT.items():
+                cum_df_inner_left.columns = cum_df_inner_left.columns.str.replace(itemkey, itemvalue)
+
         if filter_set:
             cum_df_inner_left = cum_df_inner_left[cum_df_inner_left[['subject_id', 'session_id']].apply(tuple, axis=1).isin(filter_set)]
         extra_field_exceptions = getParams(labels_dict,"LEFT_FILTER_EXCEPTIONS")
@@ -640,6 +652,11 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
     if not cum_df_outer_right.empty:
         cum_df_outer_right.columns = cum_df_outer_right.columns.str.replace("-", "_", regex=True)
+        if TABLE_HEADER_FORMAT:
+            cum_df_outer_right.columns = cum_df_outer_right.columns.str.lower()
+            for itemkey,itemvalue in TABLE_HEADER_FORMAT.items():
+                cum_df_outer_right.columns = cum_df_outer_right.columns.str.replace(itemkey, itemvalue)
+
         if filter_set:
             cum_df_outer_right = cum_df_outer_right[cum_df_outer_right[['subject_id', 'session_id']].apply(tuple, axis=1).isin(filter_set)]
         extra_field_exceptions = getParams(labels_dict,"RIGHT_FILTER_EXCEPTIONS")
@@ -652,6 +669,13 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     
     if not cum_df_outer_left.empty:
         cum_df_outer_left.columns = cum_df_outer_left.columns.str.replace("-", "_", regex=True)
+
+        if TABLE_HEADER_FORMAT:
+            cum_df_outer_left.columns = cum_df_outer_left.columns.str.lower()
+            cum_df_outer_left.columns = cum_df_outer_left.columns.str.lower().str.replace(".", "_")
+            for itemkey,itemvalue in TABLE_HEADER_FORMAT.items():
+                cum_df_outer_left.columns = cum_df_outer_left.columns.str.replace(itemkey, itemvalue)
+
         if filter_set:
             cum_df_outer_left = cum_df_outer_left[cum_df_outer_left[['subject_id', 'session_id']].apply(tuple, axis=1).isin(filter_set)]
         extra_field_exceptions = getParams(labels_dict,"LEFT_FILTER_EXCEPTIONS")
