@@ -134,6 +134,16 @@ def tensor_proc(labels_dict,input_dir):
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
 
+    if isTrue(getParams(labels_dict,"CLIP_FA")):
+        fsl_command_base, fslcontainer = getContainer(labels_dict,nodename="tensor",SPECIFIC="FSL_CONTAINER",LOGGER=IFLOGGER)
+
+        command=f"{fsl_command_base} fslmaths {fa_fsl}"\
+                f" -min 1"\
+                f" -max 0 {fa_fsl}"
+        evaluated_command=substitute_labels(command, labels_dict)
+        runCommand(evaluated_command,IFLOGGER)
+
+
     params=adc_mrtrix+" "+ adc_fsl
     command=f"{command_base} mrconvert"\
             " "+params
