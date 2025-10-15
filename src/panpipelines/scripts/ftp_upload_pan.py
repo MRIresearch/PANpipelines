@@ -44,7 +44,7 @@ if __name__ == "__main__":
         hostname=parsed_url.hostname
         username=parsed_url.username
         password=parsed_url.password
-        port=parsed_url.port
+        port=int(parsed_url.port)
         if not port:
             port = 22
 

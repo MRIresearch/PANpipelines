@@ -94,6 +94,67 @@ def ftp_uploaddir_custom_recursive(source_local_path, remote_path,hostname=None,
     except Exception as err:
         raise Exception(err)
 
+def paramiko_uploaddir_custom_recursive(source_local_path, remote_path,hostname=None,username=None,password=None,port=None):
+    import paramiko
+    try:
+        transport = paramiko.Transport((hostname,port))
+        transport.connect(username=username, password=password)
+        sftp = paramiko.SFTPClient.from_transport(transport)
+
+        # helper to mkdir -p style
+        def _mkdir_p(path):
+            parts = []
+            while len(path) > 1:
+                parts.append(path)
+                path, _ = os.path.split(path)
+            parts.reverse()
+            for p in parts:
+                try:
+                    sftp.stat(p)
+                except FileNotFoundError:
+                    sftp.mkdir(p)
+
+        # make sure root remote_path exists
+        _mkdir_p(remote_path)
+
+        for root, dirs, files in os.walk(source_local_path):
+            rel_path = os.path.relpath(root, source_local_path)
+            remote_path_local = os.path.join(remote_path, rel_path).replace("\\", "/")
+
+            # create remote dirs if needed
+            try:
+                _mkdir_p(remote_path_local)
+            except Exception:
+                pass  # may already exist
+
+            # upload files
+            for file in files:
+                local_file = os.path.join(root, file)
+                if not os.path.islink(local_file):
+                    remote_file = os.path.join(remote_path_local, file).replace("\\", "/")
+                    try:
+                        sftp.put(local_file, remote_file, confirm=False)
+                    except OSError as err:
+                        if "failure" in str(err).lower():
+                            # fallback to chunked upload
+                            with open(local_file, 'rb') as lf, sftp.file(remote_file, 'wb') as rf:
+                                while True:
+                                    data = lf.read(32768)  # 32 KB chunks
+                                    if not data:
+                                        break
+                                    rf.write(data)
+                        else:
+                            raise RuntimeError(f"SFTP upload failed: {err}") from err
+
+
+        # --- close connection ---
+        sftp.close()
+        transport.close()
+
+    except Exception as err:
+        raise Exception(err)
+
+
 def ftp_upload_subjectbids(subject_dir, remote_path,hostname=None,username=None,password=None, port=None, replace=True):
     subject = os.path.basename(subject_dir)
     print(f"uploading {subject} from {subject_dir} to {remote_path}.")
@@ -102,7 +163,7 @@ def ftp_upload_subjectbids(subject_dir, remote_path,hostname=None,username=None,
         ftp_deletedir_recursive(remote_path,hostname,username,password,port)
         print(f"{remote_path} successfully deleted.")
         
-    ftp_uploaddir_recursive(subject_dir, remote_path,hostname=hostname,username=username,password=password,port=port)
+    paramiko_uploaddir_custom_recursive(subject_dir, remote_path,hostname=hostname,username=username,password=password,port=port)
     print(f"{subject} successfully uploaded.")
 
 def ftp_upload_allbids(bids_dir, remote_path,hostname=None,username=None,password=None,port=None):

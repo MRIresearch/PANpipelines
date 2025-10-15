@@ -25,7 +25,7 @@ def upload_proc(labels_dict,source_path,remote_path, ftpcredentials):
             username=ftpcred["username"]
             password=ftpcred["password"]
             if "port" in ftpcred.keys():
-                port=int(ftpcred["password"])
+                port=int(ftpcred["port"])
             else:
                 port = 22
 
