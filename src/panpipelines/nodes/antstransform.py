@@ -483,7 +483,9 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     else:
         orig_ref_file_ori=""
 
-    if ref_ori:
+    if transform_target_ori:
+        target_ori = transform_target_ori
+    elif ref_ori:
         target_ori = ref_ori
     elif orig_ref_file_ori:
         target_ori = orig_ref_file_ori
@@ -497,7 +499,7 @@ def antstransform_proc(labels_dict,input_file,trans_mat,ref_file):
     IFLOGGER.info(f"out_file: {out_file}")
     IFLOGGER.info(f"transform_list: {transform_list}")
     IFLOGGER.info(f"transform_ori: {transform_ori}")
-    IFLOGGER.info(f"target_ori: {trans_ori}")
+    IFLOGGER.info(f"target_ori: {target_ori}")
     IFLOGGER.info(f"costfunction: {costfunction}")
     IFLOGGER.info(f"output_type: {output_type}")
     IFLOGGER.info(f"reverse_list: {reverse_list}")

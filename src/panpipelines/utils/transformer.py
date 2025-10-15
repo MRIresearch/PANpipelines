@@ -110,12 +110,12 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBA
     
     # Ensure input_file, reference_file and transform are in the same orientation
     ref_ori = get_orientation_from_file(ref_file,"image")
-    if expected_ref_ori and ref_ori[0] and not ref_ori[0] == expected_ref_ori:
+    if not expected_ref_ori == "NA" and expected_ref_ori and ref_ori[0] and not ref_ori[0] == expected_ref_ori:
         print("reorienting  ref_file {} from ref_ori {} to expected_ref_ori {}".format(ref_file, ref_ori, expected_ref_ori))
         ref_file=reorient(ref_file, expected_ref_ori, os.path.dirname(out_file))
 
     mov_ori = get_orientation_from_file(input_file,"image")
-    if expected_mov_ori  and mov_ori[0] and not mov_ori[0] == expected_mov_ori:
+    if not expected_mov_ori == "NA" and expected_mov_ori  and mov_ori[0] and not mov_ori[0] == expected_mov_ori:
         print("reorienting input_file (moving) {} from mov_ori {} to expected_mov_ori {}".format(input_file, mov_ori, expected_mov_ori))
         input_file=reorient(input_file, expected_mov_ori, os.path.dirname(out_file))
 
@@ -181,7 +181,7 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBA
     # Transform to target orientation
     # Ensure input_file, reference_file and transform are in the same orientation
     actual_target_ori = get_orientation_from_file(out_file,"image")
-    if target_ori and not actual_target_ori[0] == target_ori:
+    if not target_ori == "NA" and target_ori and not actual_target_ori[0] == target_ori:
         print("reorienting  target_file {} from actual_target_ori {} to {}".format(out_file, actual_target_ori, target_ori))
         out_file=reorient(out_file, target_ori,out_file)
 
