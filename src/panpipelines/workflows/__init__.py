@@ -23,5 +23,6 @@ __all__ = [
     "xcpd_workflow",
     "getbids_workflow",
     "transform_workflow",
-    "registration_workflow"
+    "registration_workflow",
+    "qsirecon_workflow"
 ]

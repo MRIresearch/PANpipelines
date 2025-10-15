@@ -24,5 +24,6 @@ __all__ = [
     "xcpd_panpipeline",
     "getbids_panpipeline",
     "transform_panpipeline",
-    "registration_panpipeline"
+    "registration_panpipeline",
+    "qsirecon_panpipeline"
 ]

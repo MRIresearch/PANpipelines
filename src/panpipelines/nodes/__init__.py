@@ -31,5 +31,6 @@ __all__ = [
     "freesurferextra",
     "getbids",
     "postxcpd",
-    "registration"
+    "registration",
+    "qsirecon"
 ]

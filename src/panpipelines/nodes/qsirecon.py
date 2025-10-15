@@ -12,17 +12,25 @@ IFLOGGER=nlogging.getLogger('nipype.interface')
 IS_PRESENT="^^^"
 IGNORE="###"
 
-def noddi_proc(labels_dict,input_dir):
+def qsirecon_proc(labels_dict,input_dir):
 
     cwd=os.getcwd()
     labels_dict = updateParams(labels_dict,"CWD",cwd)
-    command_base, container = getContainer(labels_dict,nodename="qsiprep", SPECIFIC="QSIPREP_CONTAINER",LOGGER=IFLOGGER)
+    command_base, container = getContainer(labels_dict,nodename="qsirecon", SPECIFIC="QSIRECON_CONTAINER",LOGGER=IFLOGGER)
+
+    qsirecon_outdir=getParams(labels_dict,"QSIRECON_OUTDIR")
+    if not qsirecon_outdir:
+        qsirecon_outdir=f"{cwd}"
+        updateParams(labels_dict,"QSIRECON_OUTDIR",qsirecon_outdir)
+    else:
+        qsirecon_outdir=substitute_labels(qsirecon_outdir,labels_dict)
+        os.makedirs(qsirecon_outdir,exist_ok=True)
 
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=translate_binding(command_base,TEMPLATEFLOW_HOME)
     
-    IFLOGGER.info("Checking the qsiprep version:")
+    IFLOGGER.info("Checking the qsirecon version:")
     command = f"{command_base} --version"
     evaluated_command=substitute_labels(command, labels_dict)
     results = runCommand(evaluated_command,IFLOGGER)
@@ -41,17 +49,15 @@ def noddi_proc(labels_dict,input_dir):
     IFLOGGER.info(f"Specifying session filter: exporting {bids_filter_dict} to {bids_filter_file}")
 
     qsirecon_dict={}
-    qsirecon_dict = updateParams(qsirecon_dict,"--participant_label","<PARTICIPANT_LABEL>")
-    qsirecon_dict = updateParams(qsirecon_dict,"--recon_input",input_dir)
-    qsirecon_dict = updateParams(qsirecon_dict,"--recon_spec","<RECON_TYPE>")
-    qsirecon_dict = updateParams(qsirecon_dict,"--recon-only",IS_PRESENT)
+    qsirecon_dict = updateParams(qsirecon_dict,"--participant-label","<PARTICIPANT_LABEL>")
+    qsirecon_dict = updateParams(qsirecon_dict,"--recon-spec","<RECON_TYPE>")
     qsirecon_dict = updateParams(qsirecon_dict,"--bids-filter-file",bids_filter_file)
-    qsirecon_dict = updateParams(qsirecon_dict,"--mem_mb","<BIDSAPP_MEMORY>")
+    qsirecon_dict = updateParams(qsirecon_dict,"--mem","<BIDSAPP_MEMORY>")
     qsirecon_dict = updateParams(qsirecon_dict,"--nthreads","<BIDSAPP_THREADS>")
     qsirecon_dict = updateParams(qsirecon_dict,"--fs-license-file","<FSLICENSE>")
     qsirecon_dict = updateParams(qsirecon_dict,"--skip-odf-report",IS_PRESENT)
     qsirecon_dict = updateParams(qsirecon_dict,"--output-resolution","<OUTPUT_RES>")
-    qsirecon_dict = updateParams(qsirecon_dict,"-w","<CWD>/noddi_work")
+    qsirecon_dict = updateParams(qsirecon_dict,"-w","<CWD>/qsirecon_work")
 
     # Additional params
     QSIRECON_OVERRIDE_PARAMS = getParams(labels_dict,"QSIRECON_OVERRIDE_PARAMS")
@@ -76,8 +82,8 @@ def noddi_proc(labels_dict,input_dir):
             print(f"qsirecon tag {qsirecon_tag} not valid.") 
 
     command=f"{command_base}"\
-            " <BIDS_DIR>"\
-            " <CWD>"\
+            f" {input_dir}"\
+            f" {qsirecon_outdir}"\
             " participant"\
             " "+params
 
@@ -85,51 +91,30 @@ def noddi_proc(labels_dict,input_dir):
     results = runCommand(evaluated_command,IFLOGGER)
 
     participant_label = getParams(labels_dict,'PARTICIPANT_LABEL')
-    icvf = getGlob(os.path.join(cwd,'qsirecon','sub-{}'.format(participant_label),'ses-*','dwi','*ICVF_NODDI.nii.gz'))
-    isovf = getGlob(os.path.join(cwd,'qsirecon','sub-{}'.format(participant_label),'ses-*','dwi','*ISOVF_NODDI.nii.gz'))
-    od = getGlob(os.path.join(cwd,'qsirecon','sub-{}'.format(participant_label),'ses-*','dwi','*OD_NODDI.nii.gz'))
-    directions =  getGlob(os.path.join(cwd,'qsirecon','sub-{}'.format(participant_label),'ses-*','dwi','*directions_NODDI.nii.gz'))
     output_dir = cwd
 
     
-    out_files=[]
-    out_files.insert(0,icvf)
-    out_files.insert(1,isovf)
-    out_files.insert(2,od)
-    out_files.insert(3,directions)
-
-
     return {
-        "icvf":icvf,
-        "isovf":isovf,
-        "od":od,
-        "directions":directions,
         "output_dir":output_dir,
-        "out_files":out_files
     }
 
 
 
-class noddiInputSpec(BaseInterfaceInputSpec):
+class qsireconInputSpec(BaseInterfaceInputSpec):
     labels_dict = traits.Dict({},mandatory=False,desc='labels', usedefault=True)
     input_dir = traits.String("",desc="BIDS Directory", usedefault=True)
 
-class noddiOutputSpec(TraitedSpec):
-    icvf = File(desc='ICVF')
-    isovf = File(desc='ISOVF')
-    od = File(desc='OD')
-    directions = File(desc='Directions')
-    output_dir = traits.String(desc="NODDI output directory")
-    out_files = traits.List(desc='list of files')
+class qsireconOutputSpec(TraitedSpec):
+    output_dir = traits.String(desc="qsirecon output directory")
     
-class noddi_pan(BaseInterface):
-    input_spec = noddiInputSpec
-    output_spec = noddiOutputSpec
+class qsirecon_pan(BaseInterface):
+    input_spec = qsireconInputSpec
+    output_spec = qsireconOutputSpec
 
     def _run_interface(self, runtime):
 
         # Call our python code here:
-        outputs = noddi_proc(
+        outputs = qsirecon_proc(
             self.inputs.labels_dict,
             self.inputs.input_dir
         )
@@ -142,16 +127,14 @@ class noddi_pan(BaseInterface):
         return self._results
 
 
-def create(labels_dict,name="noddi_node",input_dir="", LOGGER=IFLOGGER):
+def create(labels_dict,name="qsirecon_node",input_dir="", LOGGER=IFLOGGER):
     # Create Node
-    pan_node = Node(noddi_pan(), name=name)
+    pan_node = Node(qsirecon_pan(), name=name)
 
     if LOGGER:
         LOGGER.info(f"Created Node {pan_node!r}") 
            
     # Specify node inputs
-    if not getParams(labels_dict,"RECON_TYPE"):
-        labels_dict = updateParams(labels_dict,"RECON_TYPE","amico_noddi")
     pan_node.inputs.labels_dict = labels_dict
 
     if input_dir is None or input_dir == "":

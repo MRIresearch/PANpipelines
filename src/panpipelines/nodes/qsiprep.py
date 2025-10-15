@@ -20,6 +20,14 @@ def qsiprep_proc(labels_dict,bids_dir=""):
     labels_dict = updateParams(labels_dict,"CWD",cwd)
     command_base, container = getContainer(labels_dict,nodename="qsiprep", SPECIFIC="QSIPREP_CONTAINER",LOGGER=IFLOGGER)
 
+    qsiprep_outdir=getParams(labels_dict,"QSIPREP_OUTDIR")
+    if not qsiprep_outdir:
+        qsiprep_outdir=f"{cwd}"
+        updateParams(labels_dict,"QSIPREP_OUTDIR",qsiprep_outdir)
+    else:
+        qsiprep_outdir=substitute_labels(qsiprep_outdir,labels_dict)
+        os.makedirs(qsiprep_outdir,exist_ok=True)
+
     TEMPLATEFLOW_HOME=getParams(labels_dict,"TEMPLATEFLOW_HOME")
     os.environ["TEMPLATEFLOW_HOME"]=TEMPLATEFLOW_HOME
     os.environ["SINGULARITYENV_TEMPLATEFLOW_HOME"]=translate_binding(command_base,TEMPLATEFLOW_HOME)
@@ -118,14 +126,6 @@ def qsiprep_proc(labels_dict,bids_dir=""):
 
         else:
             print(f"qsiprep tag {qsiprep_tag} not valid.") 
-
-
-    qsiprep_outdir=getParams(labels_dict,"QSIPREP_OUTDIR")
-    if not qsiprep_outdir:
-        qsiprep_outdir="<CWD>"
-    else:
-        qsiprep_outdir=substitute_labels(qsiprep_outdir,labels_dict)
-        os.makedirs(qsiprep_outdir,exist_ok=True)
 
 
     command=f"{command_base}"\
