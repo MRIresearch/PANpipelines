@@ -40,7 +40,7 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={}, LOGGER=N
 
     sinker_dir = getParams(labels_dict,"SINKDIR_GROUP")
     if sinker_dir:
-        last_output_files = glob.glob(os.path.join(sinker_dir,"*"))
+        last_output_files = glob.glob(os.path.join(sinker_dir,"*.csv"))
         if last_output_files:
             labels_dict = updateParams(labels_dict,"LAST_OUTPUT_FILES",last_output_files)
 

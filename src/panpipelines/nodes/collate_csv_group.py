@@ -283,6 +283,57 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         # Drop or rename columns as specififed by LEFT_DROP and LEFT_RENAME
         left_inner_cols=list(cum_df_inner_left.columns.values)
         left_outer_cols=list(cum_df_outer_left.columns.values)
+        
+        LEFT_RETAIN = getParams(labels_dict,"LEFT_RETAIN")
+        if LEFT_RETAIN:
+            left_retain_inner_cols = []
+            left_retain_outer_cols = []
+            left_retain_inner_cols.extend(collate_join_left)
+            left_retain_outer_cols.extend(collate_join_left)
+            LEFT_COL_INNER=False
+            LEFT_COL_OUTER=False
+            if not isinstance(LEFT_RETAIN,list):
+                LEFT_RETAIN=[LEFT_RETAIN]
+
+            LEFT_RETAIN_CANDIDATES=[]
+            for col_retain_candidate in LEFT_RETAIN:
+                if "*" not in col_retain_candidate:
+                    LEFT_RETAIN_CANDIDATES.append(col_retain_candidate)
+                else:
+                    left_retain_col_list = [ x for x in left_outer_cols if col_retain_candidate.replace("*","") in x]
+                    LEFT_RETAIN_CANDIDATES.extend(left_retain_col_list)
+
+            for col_retain in LEFT_RETAIN_CANDIDATES:
+                if col_retain in left_inner_cols:
+                    LEFT_COL_INNER = True
+                    left_retain_inner_cols.append(col_retain)
+                    IFLOGGER.debug(f"Will retain {col_retain} from left_inner_cols")
+                else:
+                    IFLOGGER.debug(f"{col_retain} is not a valid column in left_inner_cols and so will be skipped")
+
+                if col_retain in left_outer_cols:
+                    LEFT_COL_OUTER = True
+                    left_retain_outer_cols.append(col_retain)
+                    IFLOGGER.debug(f"Will retain {col_retain} from left_outer_cols")
+                else:
+                    IFLOGGER.debug(f"{col_retain} is not a valid column in left_outer_cols and so will be skipped")
+
+            if LEFT_COL_INNER:
+                left_retain_inner_cols = list(set(left_retain_inner_cols))
+                cum_df_inner_left=cum_df_inner_left[left_retain_inner_cols]
+                IFLOGGER.debug(f"Created cum_df_inner_left with columns {left_retain_inner_cols}")
+            else:
+                IFLOGGER.debug(f"Valid retained columns not provided - keeping all left inner columns {left_inner_cols}")
+
+            if LEFT_COL_OUTER:
+                left_retain_outer_cols = list(set(left_retain_outer_cols))
+                cum_df_outer_left=cum_df_outer_left[left_retain_outer_cols]
+                IFLOGGER.debug(f"Created cum_df_outer_left with columns {left_retain_outer_cols}")
+            else:
+                IFLOGGER.debug(f"Valid retained columns not provided - keeping all left inner columns {left_outer_cols}")
+
+        left_inner_cols=list(cum_df_inner_left.columns.values)
+        left_outer_cols=list(cum_df_outer_left.columns.values)
         LEFT_DROP = getParams(labels_dict,"LEFT_DROP")
         if LEFT_DROP:
             LEFT_COL_INNER=False
@@ -477,6 +528,58 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         cum_df_outer_right.to_csv(work_csv_outer_right,sep=",",header=True, index=False)
 
         # Drop or rename columns as specififed by RIGHT_DROP and RIGHT_RENAME
+
+        right_inner_cols=list(cum_df_inner_right.columns.values)
+        right_outer_cols=list(cum_df_outer_right.columns.values)
+        
+        RIGHT_RETAIN = getParams(labels_dict,"RIGHT_RETAIN")
+        if RIGHT_RETAIN:
+            right_retain_inner_cols = []
+            right_retain_outer_cols = []
+            right_retain_inner_cols.extend(collate_join_right)
+            right_retain_outer_cols.extend(collate_join_right)
+            RIGHT_COL_INNER=False
+            RIGHT_COL_OUTER=False
+            if not isinstance(RIGHT_RETAIN,list):
+                RIGHT_RETAIN=[RIGHT_RETAIN]
+
+            RIGHT_RETAIN_CANDIDATES=[]
+            for col_retain_candidate in RIGHT_RETAIN:
+                if "*" not in col_retain_candidate:
+                    RIGHT_RETAIN_CANDIDATES.append(col_retain_candidate)
+                else:
+                    right_retain_col_list = [ x for x in right_outer_cols if col_retain_candidate.replace("*","") in x]
+                    RIGHT_RETAIN_CANDIDATES.extend(right_retain_col_list)
+
+            for col_retain in RIGHT_RETAIN_CANDIDATES:
+                if col_retain in right_inner_cols:
+                    RIGHT_COL_INNER = True
+                    right_retain_inner_cols.append(col_retain)
+                    IFLOGGER.debug(f"Will retain {col_retain} from right_inner_cols")
+                else:
+                    IFLOGGER.debug(f"{col_retain} is not a valid column in right_inner_cols and so will be skipped")
+
+                if col_retain in right_outer_cols:
+                    RIGHT_COL_OUTER = True
+                    right_retain_outer_cols.append(col_retain)
+                    IFLOGGER.debug(f"Will retain {col_retain} from right_outer_cols")
+                else:
+                    IFLOGGER.debug(f"{col_retain} is not a valid column in right_outer_cols and so will be skipped")
+
+            if RIGHT_COL_INNER:
+                right_retain_inner_cols = list(set(right_retain_inner_cols))
+                cum_df_inner_right=cum_df_inner_right[right_retain_inner_cols]
+                IFLOGGER.debug(f"Created cum_df_inner_right with columns {right_retain_inner_cols}")
+            else:
+                IFLOGGER.debug(f"Valid retained columns not provided - keeping all right inner columns {right_inner_cols}")
+
+            if RIGHT_COL_OUTER:
+                right_retain_outer_cols = list(set(right_retain_outer_cols))
+                cum_df_outer_right=cum_df_outer_right[right_retain_outer_cols]
+                IFLOGGER.debug(f"Created cum_df_outer_right with columns {right_retain_outer_cols}")
+            else:
+                IFLOGGER.debug(f"Valid retained columns not provided - keeping all right inner columns {right_outer_cols}")
+
         right_inner_cols=list(cum_df_inner_right.columns.values)
         right_outer_cols=list(cum_df_outer_right.columns.values)
         RIGHT_DROP = getParams(labels_dict,"RIGHT_DROP")
@@ -604,7 +707,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
     # this flag currently also controls if cumulative group results are appended - need a better way to do this
     FILTER_GROUP = isTrue(getParams(labels_dict,"FILTER_GROUP"))
     LAST_OUTPUT_FILES = getParams(labels_dict,"LAST_OUTPUT_FILES")
-    ADD_CUMULATIVE = getParams(labels_dict,"ADD_CUMULATIVE")
+    ADD_CUMULATIVE = isTrue(getParams(labels_dict,"ADD_CUMULATIVE"))
 
     SORT_VALUES = getParams(labels_dict,"SORT_VALUES")
 
@@ -803,17 +906,27 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
         metadata = updateParams(metadata,"InputFiles",f"{roi_csv_outer}")
         roi_csv_outer_json = create_metadata(roi_csv_outer, created_datetime, metadata = metadata)
 
+    FILE_SUBSTITUTIONS=getParams(labels_dict,"FILE_SUBSTITUTIONS")
+    if not FILE_SUBSTITUTIONS:
+        FILE_SUBSTITUTIONS=[]
     # this workflow needs to be looked at !!!!
-    if not ALL_GROUP and LAST_OUTPUT_FILES and not FILTER_GROUP and ADD_CUMULATIVE:
+    if LAST_OUTPUT_FILES and ADD_CUMULATIVE:
         IFLOGGER.info("This is an update to the last group files. We will append results from this run to files at {LAST_OUTPUT_FILES}")
         for group_file in LAST_OUTPUT_FILES:
 
-            if os.path.basename(group_file) == os.path.basename(roi_csv_inner):
-                new_cum_df_inner = pd.DataFrame()
+            roi_csv_inner_substitution = [x.split(":")[1] for x in FILE_SUBSTITUTIONS if x.split(":")[0] in os.path.basename(roi_csv_inner)]
+            roi_csv_inner_substitution = [x for x in roi_csv_inner_substitution if x in os.path.basename(group_file)]
+            if os.path.basename(group_file) == os.path.basename(roi_csv_inner) or roi_csv_inner_substitution:
+
                 group_df = pd.read_table(group_file,sep=LSEP)
                 new_df = pd.read_table(roi_csv_inner,sep=LSEP)
-                new_cum_df_inner = pd.concat([group_df,new_df],join="inner").drop_duplicates(ignore_index=True)
 
+                new_rows = new_df.merge(group_df[collate_join_left], on=collate_join_left, how="left", indicator=True)
+                new_rows = new_rows[new_rows["_merge"] == "left_only"].drop(columns="_merge")
+
+                new_cum_df_inner = pd.DataFrame()
+                new_cum_df_inner = pd.concat([group_df, new_rows], ignore_index=True)
+           
                 if new_cum_df_inner.empty:
                     IFLOGGER.info("Problem reading files {group_file} or {roi_csv_inner}.")
                 else:
@@ -852,11 +965,17 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
 
 
-            if os.path.basename(group_file) == os.path.basename(roi_csv_outer):
-                new_cum_df_outer  = pd.DataFrame()
+            roi_csv_outer_substitution = [x.split(":")[1] for x in FILE_SUBSTITUTIONS if x.split(":")[0] in os.path.basename(roi_csv_outer)]
+            roi_csv_outer_substitution = [x for x in roi_csv_outer_substitution if x in os.path.basename(group_file)]
+            if os.path.basename(group_file) == os.path.basename(roi_csv_outer) or roi_csv_outer_substitution:
                 group_df = pd.read_table(group_file,sep=LSEP)
                 new_df = pd.read_table(roi_csv_outer,sep=LSEP)
-                new_cum_df_outer = pd.concat([group_df,new_df],join="outer").drop_duplicates(ignore_index=True)
+
+                new_rows = new_df.merge(group_df[collate_join_left], on=collate_join_left, how="left", indicator=True)
+                new_rows = new_rows[new_rows["_merge"] == "left_only"].drop(columns="_merge")
+
+                new_cum_df_outer = pd.DataFrame()
+                new_cum_df_outer = pd.concat([group_df, new_rows], ignore_index=True)
 
                 if new_cum_df_outer.empty:
                     IFLOGGER.info("Problem reading files {group_file} or {roi_csv_outer}.")
