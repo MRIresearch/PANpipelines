@@ -542,12 +542,18 @@ def main():
                 dependency_dir = f"<PIPELINE_DIR>/<DEPENDENCY>/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/<DEPENDENCY>_wf"
                 panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY_DIR",dependency_dir)
 
+                dependency_groupdir = f"<PIPELINE_DIR>/<DEPENDENCY>/group/<DEPENDENCY>_wf"
+                panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY_GROUPDIR",dependency_groupdir) 
+
             depcount=1
 
             for dependency in dependency_list:
                 panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}",dependency)
                 dependency_dir = f"<PIPELINE_DIR>/<DEPENDENCY{depcount}>/<PARTICIPANT_XNAT_PROJECT>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/<DEPENDENCY{depcount}>_wf"
                 panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}_DIR",dependency_dir)
+
+                dependency_groupdir = f"<PIPELINE_DIR>/<DEPENDENCY{depcount}>/group/<DEPENDENCY{depcount}>_wf"
+                panpipe_labels = updateParams(panpipe_labels,f"DEPENDENCY{depcount}_GROUPDIR",dependency_groupdir)                
                 depcount = depcount + 1
         
         # Now we can resolve all the references based on precedence in the pipeline section
