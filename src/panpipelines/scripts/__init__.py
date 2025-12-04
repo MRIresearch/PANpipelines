@@ -8,5 +8,6 @@ __all__ = [
     "paninfo_bidsqc",
     "additional_transforms",
     "ftp_upload_pan",
-    "pandb_download"
+    "pandb_download",
+    "wmh_measures_lstai"
 ]
