@@ -1,0 +1,1902 @@
+{
+    "all_pipelines":
+    {
+      "SESSION_LABEL": ["ALL_SESSIONS"],
+      "BIDS_SOURCE" : "XNAT",
+      "FORCE_BIDS_DOWNLOAD" : "N",
+      "FILTER_GROUP" : "Y",
+      "PROCESSING_ENVIRONMENT": "slurm", 
+      "ARRAY_INDEX": "SLURM_ARRAY_TASK_ID",
+      "ENV_PROCS": "SLURM_CPUS_ON_NODE",
+      "BIDSAPP_THREADS": "10",
+      "BIDSAPP_MEMORY": "50000",
+      "BIDSAPP_MEMORY_GB": "50",
+      "ANALYSIS_LEVEL": "participant",
+      "ANALYSIS_NODE": "cpu",
+      "PROC_DIR": "<PWD>",
+      "CREDENTIALS": "<PROC_DIR>/config/credentials/credentials.json",
+      "FTPCREDENTIALS": "<PROC_DIR>/config/credentials/ftpcredentials.json",
+      "PANDB_CERT": "<PROC_DIR>/config/credentials/pandb_root.crt",
+      "PANDB_CREDENTIALS": "<PROC_DIR>/config/credentials/pandb.json",
+      "FTP_RAW_PATH" : "/shared/PAN/PAN-Data/Core-E/Raw",
+      "FTP_PROCESSED_PATH" : "/shared/PAN/PAN-Data/Core-E/Processed",
+      "CONFIG": "<PROC_DIR>/config/panpipeconfig.json",
+      "STYLESHEET" : "<PROC_DIR>/config/style.css",
+      "PIPELINE_DIR": "<PROC_DIR>/pan_output",
+      "FSLICENSE": "<PROC_DIR>/config/license.txt",
+      "DATA_DIR": "<PROC_DIR>/ALLPAN_Data",
+      "DERIVATIVES_DIR": "<PIPELINE_DIR>/derivatives",
+      "SINKDIR": "<DERIVATIVES_DIR>/output_tables/<PIPELINE>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>",
+      "TRANSFORMDIR": "<DERIVATIVES_DIR>/transforms/<PIPELINE>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>",
+      "SINKDIR_GROUP": "<DERIVATIVES_DIR>/output_tables/<PIPELINE>",
+      "PARTICIPANTS_FILE": "<DATA_DIR>/tsv/participants.tsv",
+      "PHANTOM_LIST": ["9999HML","JHUTEST","Phantom"],
+      "BIDS_DIR": "<DATA_DIR>/BIDS",
+      "BIDS_DATASET_DESCRIPTION": "<PROC_DIR>/config/PAN_dataset_description.json",
+      "LOCK_DIR": "<DATA_DIR>/datalocks",
+      "MAXLOCKS" : "20",
+      "SESSIONS_FILE": "<DATA_DIR>/tsv/sessions.tsv",
+      "PAN_CONTAINER": "/groups/ryant/PANapps/panprocminimal-v0.2.sif",
+      "PAN_CONTAINER_RUN_OPTIONS": "singularity run --nv --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <PKG_DIR>/panpipelines:/opt/miniconda/lib/python3.10/site-packages/panpipelines  -B <CWD>:/cwd",
+      "PAN_CONTAINER_PRERUN" : "--home", 
+      "NEURO_CONTAINER": "/groups/ryant/PANapps/panprocminimal-v0.2.sif",
+      "CONTAINER": "<PAN_CONTAINER>",
+      "CONTAINER_RUN_OPTIONS": "<PAN_CONTAINER_RUN_OPTIONS>",
+      "CONTAINER_PRERUN" : "", 
+      "QSIPREP_CONTAINER": "/groups/ryant/PANapps/qsiprep-0.20.0.sif",
+      "QSIPREP_CONTAINER_RUN_OPTIONS": "singularity exec --nv --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <CWD>:/cwd",
+      "QSIPREP_CONTAINER_PRERUN" : "/usr/local/miniconda/bin/qsiprep", 
+      "FMRIPREP_CONTAINER": "/groups/ryant/PANapps/fmriprep-23.2.0.sif",
+      "FMRIPREP_CONTAINER_RUN_OPTIONS": "singularity run --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <CWD>:/cwd",
+      "FMRIPREP_CONTAINER_PRERUN" : " ",
+      "ASLPREP_CONTAINER": "/groups/ryant/PANapps/aslprep_0.5.1.sif",
+      "ASLPREP_CONTAINER_RUN_OPTIONS": "singularity run --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <CWD>:/cwd",
+      "ASLPREP_CONTAINER_PRERUN" : " ",
+      "MRIQC_CONTAINER": "/groups/ryant/PANapps/mriqc-24.0.2.sif",
+      "MRIQC_CONTAINER_RUN_OPTIONS": "singularity run --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <CWD>:/cwd",
+      "MRIQC_CONTAINER_PRERUN" : " ",
+      "LST_CONTAINER": "/groups/ryant/PANapps/nklab-spmjobman.sif",
+      "LST_CONTAINER_RUN_OPTIONS": "singularity run --cleanenv",
+      "LST_CONTAINER_PRERUN" : "--homedir=<LST_OUTPUT_DIR>",
+      "ANTS_CONTAINER": "<PAN_CONTAINER>",
+      "BASIL_CONTAINER": "<PAN_CONTAINER>",
+      "FREESURFER_CONTAINER": "<PAN_CONTAINER>",
+      "FREESURFER_LUTFILE" : "<PROC_DIR>/atlas/freesurfer_atlas/FreeSurferColorLUT.txt",
+      "FSL_CONTAINER": "<PAN_CONTAINER>",
+      "MRTRIX_CONTAINER": "<PAN_CONTAINER>",
+      "WB_CONTAINER": "<PAN_CONTAINER>",
+      "XNAT_HOST": "https://aacazxnat.arizona.edu",
+      "TEMPLATEFLOW_HOME": "<PROC_DIR>/TemplateFlow",
+      "SLURM_SCRIPT_DIR": "<PIPELINE_DIR>/<PIPELINE>/0_slurm_submit",
+      "SLURM_DEPENDENCY": "afterany",
+      "SLURM_HEADER_DIR": "<PROC_DIR>/batch_scripts/headers",
+      "SLURM_TEMPLATE_DIR": "<PROC_DIR>/batch_scripts",
+      "SLURM_PARTICIPANT_TEMPLATE": "<SLURM_TEMPLATE_DIR>/participant_template.pbs",
+      "SLURM_GROUP_TEMPLATE": "<SLURM_TEMPLATE_DIR>/group_template.pbs",
+      "CPUSUFFIX" : "hp",
+      "GPUSUFFIX" : "windfall",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_<CPUSUFFIX>.pbs",
+      "SLURM_GPU_HEADER": "<SLURM_HEADER_DIR>/gpu_<GPUSUFFIX>.pbs",
+      "NIPYPE_CONFIG" : {
+          "execution": {
+           "remove_unnecessary_outputs" : "false"
+          }
+
+      }
+    },
+    "lstai":
+    {
+       "PIPELINE_CLASS": "pancontainergroup_panpipeline",
+       "ANALYSIS_NODE": "gpu",
+       "DEPENDENCY" : ["dummy","dummy_replace"],
+       "SCRIPT_FILE" : "/xdisk/ryant/chidiugonna/PAN/PANALL_Deployment/external_scripts/wm_measures/wm_measures_lstai.sh",
+       "ANATDIR" : "<PROC_DIR>/config/lstai.sif <BIDS_DIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat",
+       "PANCONTAINER_PARAMS" : "<ANATDIR> sub-<PARTICIPANT_LABEL> ses-<PARTICIPANT_SESSION> <WORKFLOW_DIR> 8 0 '0.5 99.5'",
+       "PANCONTAINER_COMMANDS" : "bash",
+       "SCRIPT_INTERACTIVE" :  "Y",
+       "CONTAINER_TO_USE" : "DUMMY_CONTAINER"
+    },
+    "update_wmh_measures":
+    {
+       "PIPELINE_CLASS": "pancontainergroup_panpipeline",
+       "ANALYSIS_LEVEL": "group",
+       "ADD_CUMULATIVE" : "Y",
+       "LAST_OUTPUT_FILES" : "<DERIVATIVES_DIR>/output_tables/<PIPELINE>/update_coree_chen_wmh_measures.csv",
+       "DEPENDENCY" : ["lstai"],
+       "SCRIPT_CLASS" : "wmh_measures_lstai",
+       "PIPELINE_CONFIG_LOC" : "<CWD>/pipeline_config_pancontainer.json",
+       "PANCONTAINER_PARAMS" : "--output <WORKFLOW_DIR>/update_coree_chen_wmh_measures.csv --input '<DEPENDENCY1_DIR>/results' --pipeline_config_file <PIPELINE_CONFIG_LOC>",
+       "CONTAINER_TO_USE" : "DUMMY_CONTAINER"
+    },
+    "april2025_wmh_measures":
+    {
+       "ANALYSIS_LEVEL": "group",
+       "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+       "DEPENDENCY" : ["update_wmh_measures"],
+       "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+       "ENABLE_SORT_COLUMNS" : "N",
+       "ALL_GROUP" : "N",
+       "COLLATE_NAME_LEFT": "april2025",
+       "FILE_SUBSTITUTIONS": ["group_april2025_outer_left:coree_chen_wmh_measures"],
+       "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/hml_ids_list_241231.csv",
+       "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+       "MEASURES_TEMPLATE1": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY1>/update_coree_chen_wmh_measures.csv"]
+    },
+    "october2025_wmh_measures":
+    {
+       "ANALYSIS_LEVEL": "group",
+       "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+       "DEPENDENCY" : ["update_wmh_measures"],
+       "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+       "ENABLE_SORT_COLUMNS" : "N",
+       "ALL_GROUP" : "N",
+       "COLLATE_NAME_LEFT": "october2025",
+       "FILE_SUBSTITUTIONS": ["group_october2025_outer_left:coree_chen_wmh_measures_20251001"],
+       "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/april_october_combo.csv",
+       "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+       "MEASURES_TEMPLATE1": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY1>/update_coree_chen_wmh_measures.csv"]
+    },  
+    "mriqcmeasures_all":
+    {
+      "PIPELINE_CLASS": "textmeasures_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["mriqc"],
+       "MEASURES_TEMPLATE":["<DEPENDENCY1_DIR>/mriqc_node/mriqcout/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/*.json","<DEPENDENCY1_DIR>/mriqc_node/mriqcout/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat/*T1w.json","<DEPENDENCY1_DIR>/mriqc_node/mriqcout/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat/*_T2w.json","<DEPENDENCY1_DIR>/mriqc_node/mriqcout/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/func/*bold.json"],
+       "MRIQC_BOLD_COLS":["aor", "aqi", "dummy_trs", "dvars_nstd", "dvars_std", "dvars_vstd", "efc", "fber", "fd_mean", "fd_num", "fd_perc", "fwhm_avg", "fwhm_x", "fwhm_y", "fwhm_z", "gcor", "gsr_x", "gsr_y", "size_t", "size_x", "size_y", "size_z", "snr", "spacing_tr", "spacing_x", "spacing_y", "spacing_z", "summary_bg_k", "summary_bg_mad", "summary_bg_mean", "summary_bg_median", "summary_bg_n", "summary_bg_p05", "summary_bg_p95", "summary_bg_stdv", "summary_fg_k", "summary_fg_mad", "summary_fg_mean", "summary_fg_median", "summary_fg_n", "summary_fg_p05", "summary_fg_p95", "summary_fg_stdv", "tsnr" ],
+       "MRIQC_T1W_COLS":["cjv", "cnr", "efc", "fber", "fwhm_avg", "fwhm_x", "fwhm_y", "fwhm_z", "icvs_csf", "icvs_gm", "icvs_wm", "inu_med", "inu_range", "qi_1", "qi_2", "rpve_csf", "rpve_gm", "rpve_wm", "size_x", "size_y", "size_z", "snr_csf", "snr_gm", "snr_total", "snr_wm", "snrd_csf", "snrd_gm", "snrd_total", "snrd_wm", "spacing_x", "spacing_y", "spacing_z", "summary_bg_k", "summary_bg_mad", "summary_bg_mean", "summary_bg_median", "summary_bg_n", "summary_bg_p05", "summary_bg_p95", "summary_bg_stdv", "summary_csf_k", "summary_csf_mad", "summary_csf_mean", "summary_csf_median", "summary_csf_n", "summary_csf_p05", "summary_csf_p95", "summary_csf_stdv", "summary_gm_k", "summary_gm_mad", "summary_gm_mean", "summary_gm_median", "summary_gm_n", "summary_gm_p05", "summary_gm_p95", "summary_gm_stdv", "summary_wm_k", "summary_wm_mad", "summary_wm_mean", "summary_wm_median", "summary_wm_n", "summary_wm_p05", "summary_wm_p95", "summary_wm_stdv", "tpm_overlap_csf", "tpm_overlap_gm", "tpm_overlap_wm", "wm2max"],
+       "MRIQC_T2W_COLS":["cjv", "cnr", "efc", "fber", "fwhm_avg", "fwhm_x", "fwhm_y", "fwhm_z", "icvs_csf", "icvs_gm", "icvs_wm", "inu_med", "inu_range", "qi_1", "qi_2", "rpve_csf", "rpve_gm", "rpve_wm", "size_x", "size_y", "size_z", "snr_csf", "snr_gm", "snr_total", "snr_wm", "snrd_csf", "snrd_gm", "snrd_total", "snrd_wm", "spacing_x", "spacing_y", "spacing_z", "summary_bg_k", "summary_bg_mad", "summary_bg_mean", "summary_bg_median", "summary_bg_n", "summary_bg_p05", "summary_bg_p95", "summary_bg_stdv", "summary_csf_k", "summary_csf_mad", "summary_csf_mean", "summary_csf_median", "summary_csf_n", "summary_csf_p05", "summary_csf_p95", "summary_csf_stdv", "summary_gm_k", "summary_gm_mad", "summary_gm_mean", "summary_gm_median", "summary_gm_n", "summary_gm_p05", "summary_gm_p95", "summary_gm_stdv", "summary_wm_k", "summary_wm_mad", "summary_wm_mean", "summary_wm_median", "summary_wm_n", "summary_wm_p05", "summary_wm_p95", "summary_wm_stdv", "tpm_overlap_csf", "tpm_overlap_gm", "tpm_overlap_wm", "wm2max"],
+       "MRIQC_DWI_COLS":["bdiffs_max", "bdiffs_mean", "bdiffs_median", "bdiffs_min", "efc_shell01", "efc_shell02", "efc_shell03", "efc_shell04", "fa_degenerate", "fa_nans", "fber_shell01", "fber_shell02", "fber_shell03", "fber_shell04", "fd_mean", "fd_num", "fd_perc", "ndc", "sigma_cc", "sigma_pca", "sigma_piesno", "snr_cc_shell0", "snr_cc_shell1_best", "snr_cc_shell1_worst", "snr_cc_shell2_best", "snr_cc_shell2_worst", "snr_cc_shell3_best", "snr_cc_shell3_worst", "spikes_global", "spikes_slice_i", "spikes_slice_j", "spikes_slice_k", "summary_bg_k", "summary_bg_mad", "summary_bg_mean", "summary_bg_median", "summary_bg_n", "summary_bg_p05", "summary_bg_p95", "summary_bg_stdv", "summary_fg_k", "summary_fg_mad", "summary_fg_mean", "summary_fg_median", "summary_fg_n", "summary_fg_p05", "summary_fg_p95", "summary_fg_stdv", "summary_wm_k", "summary_wm_mad", "summary_wm_mean", "summary_wm_median", "summary_wm_n", "summary_wm_p05", "summary_wm_p95", "summary_wm_stdv"],
+      "MEASURES_PREFIXES": {
+        "bold.json":"mriqc_bold",
+        "dwi.json":"mriqc_dwi",
+        "T1w.json":"mriqc_t1w",
+        "acq-hippo_T2w.json":"mriqc_hippot2w",
+        "acq-space_T2w.json":"mriqc_spacet2w",
+        "acq-space_rec-defaced_T2w.json":"mriqc_spacet2w"
+      },
+      "MEASURES_TEXTTYPES": {
+        "bold.json":"mriqc_bold",
+        "dwi.json":"mriqc_dwi",
+        "T1w.json":"mriqc_t1w",
+        "acq-hippo_T2w.json":"mriqc_t2w",
+        "acq-space_T2w.json":"mriqc_t2w",
+        "acq-space_rec-defaced_T2w.json":"mriqc_t2w"
+      }
+    },
+    "collatesubject_aacqc":
+    {
+      "PIPELINE_CLASS": "collatecsv_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": [
+               "mriqcmeasures_all",
+               "qsiprep_v0214",
+               "freesurfer",
+               "mriqc"
+       ],
+      "COLLATE_NAME": "qc-measures",
+      "MEASURES_TEMPLATE": [
+                "<DEPENDENCY1_DIR>/subject_text_map/mapflow/_subject_text_map*/*_roi_output_dir/*t1w*.csv",
+                "<DEPENDENCY1_DIR>/subject_text_map/mapflow/_subject_text_map*/*_roi_output_dir/*dwi*.csv",
+                "<DEPENDENCY2_DIR>/qsiprep_node/qsiprep/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/*desc-ImageQC_dwi.csv"
+        ],
+      "MEASURES_PREFIXES": {
+        "<DEPENDENCY1>":"mriqc",
+        "<DEPENDENCY2>":"qsiprep"
+      },
+      "COLLATE_EXTRATEXT" : {
+          "<macro1>" : {
+              "Value" : "get_version_string",
+              "Process" : "qsiprep",
+              "ProcessFile" : "<DEPENDENCY2_DIR>/qsiprep_node/qsiprep/sub-<PARTICIPANT_LABEL>.html"
+          },
+          "<macro2>" : {
+              "Value" : "get_version_string",
+              "Process" : "mriqc",
+              "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY4>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
+          },
+          "<macro3>" : {
+              "Value" : "get_version_string",
+              "Process" : "freesurfer",
+              "ProcessFile" : "<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/scripts/recon-all.done"
+          },
+          "<macro4>" : {
+              "Value" : "get_version_string",
+              "Process" : "freesurfer",
+              "ProcessCommand" : "defects",
+              "ProcessFile" : "<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/scripts/recon-all.log"
+          },
+          "site" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Translation" : {
+                  "001_HML" : "UA",
+                  "002_HML" : "UM",
+                  "003_HML" : "EU",
+                  "004_HML" : "JH"             
+                  }
+          },
+          "site_id" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+          },
+          "hml_id" : {
+              "Value" : "<PARTICIPANT_LABEL>"
+          }
+      }
+    },
+    "collatesubject_comprehensive_qc":
+    {
+      "PIPELINE_CLASS": "collatecsv_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": [
+               "mriqcmeasures_all",
+               "qsiprep_v0214",
+               "freesurfer",
+               "mriqc"
+       ],
+      "COLLATE_NAME": "qc-measures",
+      "MEASURES_TEMPLATE": [
+                "<DEPENDENCY1_DIR>/subject_text_map/mapflow/_subject_text_map*/*_roi_output_dir/*t1w*.csv",
+                "<DEPENDENCY1_DIR>/subject_text_map/mapflow/_subject_text_map*/*_roi_output_dir/*dwi*.csv",
+                "<DEPENDENCY1_DIR>/subject_text_map/mapflow/_subject_text_map*/*_roi_output_dir/*t2w*.csv",
+                "<DEPENDENCY1_DIR>/subject_text_map/mapflow/_subject_text_map*/*_roi_output_dir/*bold*.csv",
+                "<DEPENDENCY2_DIR>/qsiprep_node/qsiprep/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/*desc-ImageQC_dwi.csv"
+        ],
+      "MEASURES_PREFIXES": {
+        "<DEPENDENCY1>":"mriqc",
+        "<DEPENDENCY2>":"qsiprep"
+      },
+      "COLLATE_EXTRATEXT" : {
+          "<macro1>" : {
+              "Value" : "get_version_string",
+              "Process" : "qsiprep",
+              "ProcessFile" : "<DEPENDENCY2_DIR>/qsiprep_node/qsiprep/sub-<PARTICIPANT_LABEL>.html"
+          },
+          "<macro2>" : {
+              "Value" : "get_version_string",
+              "Process" : "mriqc",
+              "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY4>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
+          },
+          "<macro3>" : {
+              "Value" : "get_version_string",
+              "Process" : "freesurfer",
+              "ProcessFile" : "<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/scripts/recon-all.done"
+          },
+          "<macro4>" : {
+              "Value" : "get_version_string",
+              "Process" : "freesurfer",
+              "ProcessCommand" : "defects",
+              "ProcessFile" : "<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/scripts/recon-all.log"
+          },
+          "site" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Translation" : {
+                  "001_HML" : "Tucson",
+                  "002_HML" : "Miami",
+                  "003_HML" : "Atlanta",
+                  "004_HML" : "Baltimore"             
+                  }
+          },
+          "site_id" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+          },
+          "hml_id" : {
+              "Value" : "<PARTICIPANT_LABEL>"
+          }
+      }
+    },
+    "quality_measures_comprehensive":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["final-group_coree_chen-quality_measures_outer:coree_chen_mriquality_measures"],
+      "LEFT_DROP": ["row_creation_datetime","basil_date_processed","basil_version"],
+      "RIGHT_DROP": ["row_creation_datetime","basil_date_processed","basil_version"],
+      "COLLATE_NAME_LEFT": "coree_chen",
+      "COLLATE_NAME_RIGHT": "quality_measures",
+      "TABLE_HEADER_FORMAT" : {"." : "_","mriqc_mriqc_":"mriqc_","aslprep_aslprep_":"aslprep_","mriqc_miqc_":"mriqc_"},
+      "COLLATE_PREFIX_RIGHT" : "aslprep",
+      "ALL_GROUP" : "Y",
+      "LEFT_DROP": ["row_creation_datetime"],
+      "RIGHT_DROP": ["row_creation_datetime","site_id","site"],
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collategroup_comprehensive_qc","collategroup_aslprepqc"],
+      "SORT_VALUES" : "hml_id",
+      "MEASURES_TEMPLATE1": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY1>/pan_comprehensive_qc_measures.csv"],
+      "MEASURES_TEMPLATE2": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY2>/aslprep_measures.csv"]
+    },
+    "quality_measures_comprehensive_bold":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_coree_chen-quality_measures_bold_outer:coree_chen_mriquality_measures_bold"],
+      "COLLATE_NAME_LEFT": "coree_chen",
+      "COLLATE_NAME_RIGHT": "quality_measures_bold",
+      "LEFT_RETAIN" : ["hml_id","subject_id","session_id","site","site_id","mriqc_bold*"],
+      "ALL_GROUP" : "Y",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["quality_measures_comprehensive"],
+      "SORT_VALUES" : "hml_id",
+      "MEASURES_TEMPLATE1": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY1>/coree_chen_mriquality_measures.csv"]
+    },
+    "collategroup_comprehensive_qc":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "FILE_SUBSTITUTIONS": ["group_aacqcmeasures_outer_left:pan_comprehensive_qc_measures"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collatesubject_comprehensive_qc"],
+      "COLLATE_NAME_LEFT": "aacqcmeasures",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"]
+    },
+    "collategroup_aacqc":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "FILE_SUBSTITUTIONS": ["group_aacqcmeasures_outer_left:PAN_qc_measures"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collatesubject_aacqc"],
+      "COLLATE_NAME_LEFT": "aacqcmeasures",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"]
+    },
+    "aslprep_qc":
+    {
+       "PIPELINE_CLASS": "aslprep_panpipeline",
+       "DEPENDENCY": ["dummy_replace","dummy"],
+       "ASLPREP_OVERRIDE_PARAMS" : {
+       "--basil" : "^^^",
+       "--ignore" : "fieldmaps",
+       "--scorescrub" : "^^^",
+       "--output-spaces" :  "MNI152NLin6Asym:res-2"
+       },
+       "PIPELINE_DESC": "ignore fieldmaps and additionally use basil for CBF computation"
+    },
+    "collatesubject_aslprepqc":
+    {
+      "PIPELINE_CLASS": "collatecsv_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": [
+               "aslprep_qc"
+       ],
+      "COLLATE_NAME": "aslprepqc",
+      "MEASURES_TEMPLATE": [
+                "<DEPENDENCY1_DIR>/aslprep_node/aslprep/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/perf/*desc-qualitycontrol_cbf.csv"
+        ],
+      "COLLATE_EXTRATEXT" : {
+          "<macro1>" : {
+              "Value" : "get_version_string",
+              "Process" : "aslprep",
+              "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY1>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
+          },
+          "site" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Translation" : {
+                  "001_HML" : "UA",
+                  "002_HML" : "UM",
+                  "003_HML" : "EU",
+                  "004_HML" : "JH"             
+                  }
+          },
+          "site_id" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+          },
+          "hml_id" : {
+              "Value" : "<PARTICIPANT_LABEL>"
+          }
+      }
+    },
+    "collategroup_aslprepqc":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "FILE_SUBSTITUTIONS": ["group_aslprepqcmeasures_outer_left:aslprep_measures"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collatesubject_aslprepqc"],
+      "COLLATE_NAME_LEFT": "aslprepqcmeasures",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"]
+    },
+    "collatesubject_qc":
+    {
+      "PIPELINE_CLASS": "collatecsv_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": [
+               "mriqcmeasures",
+               "qsiprep_v0214",
+               "aslprep_qc",
+               "mriqc"
+       ],
+      "COLLATE_NAME": "qc-measures",
+      "MEASURES_TEMPLATE": [
+                "<DEPENDENCY1_DIR>/subject_text_map/mapflow/_subject_text_map*/*_roi_output_dir/*.csv",
+                "<DEPENDENCY2_DIR>/qsiprep_node/qsiprep/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/*desc-ImageQC_dwi.csv",
+                "<DEPENDENCY3_DIR>/aslprep_node/aslprep/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/perf/*desc-qualitycontrol_cbf.csv"
+        ],
+      "MEASURES_PREFIXES": {
+        "<DEPENDENCY1>":"mriqc",
+        "<DEPENDENCY2>":"qsiprep",
+        "<DEPENDENCY3>":"aslprep"
+      },
+      "COLLATE_EXTRATEXT" : {
+          "<macro1>" : {
+              "Value" : "get_version_string",
+              "Process" : "qsiprep",
+              "ProcessFile" : "<DEPENDENCY2_DIR>/qsiprep_node/qsiprep/sub-<PARTICIPANT_LABEL>.html"
+          },
+          "<macro2>" : {
+              "Value" : "get_version_string",
+              "Process" : "mriqc",
+              "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY4>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
+          },
+          "<macro3>" : {
+              "Value" : "get_version_string",
+              "Process" : "aslprep",
+              "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY3>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
+          },
+          "site" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Translation" : {
+                  "001_HML" : "UA",
+                  "002_HML" : "UM",
+                  "003_HML" : "EU",
+                  "004_HML" : "JH"             
+                  }
+          },
+          "site_id" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+          },
+          "hml_id" : {
+              "Value" : "<PARTICIPANT_LABEL>"
+          }
+      }
+    },
+    "collategroup_qcmeasures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collatesubject_qc"],
+      "COLLATE_NAME_LEFT": "qcmeasures",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"]
+    },        
+    "mriqc":
+    {
+       "PIPELINE_CLASS": "mriqc_panpipeline",
+       "DEPENDENCY": ["dummy_replace","dummy"],
+       "ANATCODE_HOST" : "<PROC_DIR>/config/anatomical.py",
+       "ANATCODE_IMAGE" : "/opt/conda/lib/python3.11/site-packages/mriqc/qc/anatomical.py",
+       "ANATCODEINT_HOST" : "<PROC_DIR>/config/anatomical_interface.py",
+       "ANATCODEINT_IMAGE" : "/opt/conda/lib/python3.11/site-packages/mriqc/interfaces/anatomical.py",
+       "MRIQC_CONTAINER_RUN_OPTIONS": "singularity run --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <CWD>:/cwd -B <ANATCODE_HOST>:<ANATCODE_IMAGE> -B <ANATCODEINT_HOST>:<ANATCODEINT_IMAGE>"
+    },
+    "mriqcmeasures":
+    {
+      "PIPELINE_CLASS": "textmeasures_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["mriqc"],
+       "MEASURES_TEMPLATE":["<DEPENDENCY1_DIR>/mriqc_node/mriqcout/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/*.json","<DEPENDENCY1_DIR>/mriqc_node/mriqcout/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat/*T1w.json","<DEPENDENCY1_DIR>/mriqc_node/mriqcout/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat/*_T2w.json","<DEPENDENCY1_DIR>/mriqc_node/mriqcout/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/func/*bold.json"],
+       "MRIQC_BOLD_COLS":["aor","aqi","snr","tsnr","fd_mean","fd_num","fwhm_avg","gcor","gsr_x","gsr_y"],
+       "MRIQC_T1W_COLS":["efc","fber","cjv","cnr","fwhm_avg","snr_total","snr_gm","snr_wm","snr_csf","snrd_total","snrd_gm","snrd_wm","snrd_csf"],
+       "MRIQC_T2W_COLS":["efc","fber","cjv","cnr","fwhm_avg","snr_total","snr_gm","snr_wm","snr_csf","snrd_total","snrd_gm","snrd_wm","snrd_csf"],
+       "MRIQC_DWI_COLS":["fa_degenerate","ndc","sigma_piesno","spikes_global","snr_cc_shell0","snr_cc_shell1_best","snr_cc_shell1_worst","snr_cc_shell2_bestt","snr_cc_shell2_worst","snr_cc_shell3_best","snr_cc_shell3_worst"],
+      "MEASURES_PREFIXES": {
+        "bold.json":"bold-mriqc",
+        "dwi.json":"dwi-mriqc",
+        "T1w.json":"t1w-mriqc",
+        "acq-hippo_T2w.json":"hippot2w-mriqc",
+        "acq-space_T2w.json":"spacet2w-mriqc",
+        "acq-space_rec-defaced_T2w.json":"spacet2w-mriqc"
+      },
+      "MEASURES_TEXTTYPES": {
+        "bold.json":"mriqc_bold",
+        "dwi.json":"mriqc_dwi",
+        "T1w.json":"mriqc_t1w",
+        "acq-hippo_T2w.json":"mriqc_t2w",
+        "acq-space_T2w.json":"mriqc_t2w",
+        "acq-space_rec-defaced_T2w.json":"mriqc_t2w"
+      }
+    },
+    "collatesubject_basilmeasures_hemi":
+    {
+      "PIPELINE_CLASS": "collatecsv_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": [
+               "basilmeasures_gmhemi_tissue_native_pvcorr_maskchem",
+               "basilmeasures_gmcort_tissue_native_pvcorr_maskchem",
+               "basilmeasures_wmhemi_tissue_native_pvcorr_maskchem",
+               "basilmeasures_wmintra_tissue_native_pvcorr_maskchem"
+       ],
+      "COLLATE_NAME": "hemi-measures",
+      "MEASURES_TEMPLATE": [
+                "<DEPENDENCY1_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY2_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY3_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY4_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv"
+
+        ],
+      "MEASURES_PREFIXES": {
+        "<DEPENDENCY1>":"basil_pvcorr_gm_chemshift",
+        "<DEPENDENCY2>":"basil_pvcorr_gm_chemshift",
+        "<DEPENDENCY3>":"basil_pvcorr_wm_chemshift",
+        "<DEPENDENCY4>":"basil_pvcorr_wm_chemshift"
+
+      }
+    },
+     "basilmeasures_multipld_gmhemi_tissue_native_pvcorr_maskchem":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "DEPENDENCY": ["basil_voxel_mansdc","preproc","freesurfer"],
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & (df.bids_session_id == 'ses-follow01')",
+      "CHEMSHIFT_DIRNAME": "<DEPENDENCY2>",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "MASKDIR": "<DERIVATIVES_DIR>/<CHEMSHIFT_DIRNAME>",
+      "MASK_TEMPLATE": ["<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_1.nii.gz","<MASKDIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dir-AP/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_asl_chemical_shift_artefact.nii.gz","<MASKDIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dir-PA/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_asl_chemical_shift_artefact.nii.gz"],
+      "MASK_INDEX": [ "gm","asl_chemical_shift_AP","asl_chemical_shift_PA"],
+      "MASK_NAME": "grey-matter-chemshift",
+      "MASK_INVERTROI": ["N","Y","Y"],
+      "MASK_PROBTHRESH": ["0.8","0.5","0.5"],
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/perfusion_calib.nii.gz",
+      "MASK_TRANSFORM_MAT": [["<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/fsl_*/struct2asl.mat:--premat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_0.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/perfusion_calib.nii.gz"],["identity:::::RAS^RAS^LAS"]],
+      "NEWATLAS_TEMPLATE": ["special_atlas:gmhemi"],
+      "ATLAS_NAME": "gmhemi",
+      "NEWATLAS_INDEX": [ "gmhemi"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/perfusion_calib.nii.gz",
+      "SUBJECTS_DIR":"<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:fsl_affine_concat:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/fsl_*/struct2asl.mat:fsl_affine_concat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/perfusion.nii.gz"]],
+      "MEASURES_TEMPLATE": ["<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/pvcorr/perfusion_calib.nii.gz"]
+    },  
+     "basilmeasures_gmhemi_tissue_native_pvcorr_maskchem":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "DEPENDENCY": ["basil_voxel_mansdc","preproc","freesurfer"],
+      "CHEMSHIFT_DIRNAME": "<DEPENDENCY2>",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "MASKDIR": "<DERIVATIVES_DIR>/<CHEMSHIFT_DIRNAME>",
+      "MASK_TEMPLATE": ["<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_1.nii.gz","<MASKDIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_asl_chemical_shift_artefact.nii.gz"],
+      "MASK_INDEX": [ "gm","asl_chemical_shift"],
+      "MASK_NAME": "grey-matter-chemshift",
+      "MASK_INVERTROI": ["N","Y"],
+      "MASK_PROBTHRESH": ["0.8","0.5"],
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "MASK_TRANSFORM_MAT": [["<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:--premat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_0.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz"],["identity:::::RAS^RAS^LAS"]],
+      "NEWATLAS_TEMPLATE": ["special_atlas:gmhemi"],
+      "ATLAS_NAME": "gmhemi",
+      "NEWATLAS_INDEX": [ "gmhemi"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "SUBJECTS_DIR":"<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:fsl_affine_concat:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:fsl_affine_concat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion.nii.gz"]],
+      "MEASURES_TEMPLATE": ["<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/pvcorr/perfusion_calib.nii.gz"]
+    },
+     "basilmeasures_gmcort_tissue_native_pvcorr_maskchem":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "DEPENDENCY": ["basil_voxel_mansdc","preproc","freesurfer"],
+      "CHEMSHIFT_DIRNAME": "<DEPENDENCY2>",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "MASKDIR": "<DERIVATIVES_DIR>/<CHEMSHIFT_DIRNAME>",
+      "MASK_TEMPLATE": ["<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_1.nii.gz","<MASKDIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_asl_chemical_shift_artefact.nii.gz"],
+      "MASK_INDEX": [ "gm","asl_chemical_shift"],
+      "MASK_NAME": "grey-matter-chemshift",
+      "MASK_INVERTROI": ["N","Y"],
+      "MASK_PROBTHRESH": ["0.8","0.5"],
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "MASK_TRANSFORM_MAT": [["<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:--premat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_0.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz"],["identity:::::RAS^RAS^LAS"]],
+      "NEWATLAS_TEMPLATE": ["special_atlas:gmcort"],
+      "ATLAS_NAME": "gmcort",
+      "NEWATLAS_INDEX": [ "gmcort"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "SUBJECTS_DIR":"<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:fsl_affine_concat:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:fsl_affine_concat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion.nii.gz"]],
+      "MEASURES_TEMPLATE": ["<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/pvcorr/perfusion_calib.nii.gz"]
+    },
+     "basilmeasures_wmhemi_tissue_native_pvcorr_maskchem":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "DEPENDENCY": ["basil_voxel_mansdc","preproc","freesurfer"],
+      "CHEMSHIFT_DIRNAME": "<DEPENDENCY2>",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "MASKDIR": "<DERIVATIVES_DIR>/<CHEMSHIFT_DIRNAME>",
+      "MASK_TEMPLATE": ["<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_2.nii.gz","<MASKDIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_asl_chemical_shift_artefact.nii.gz"],
+      "MASK_INDEX": [ "wm","asl_chemical_shift"],
+      "MASK_NAME": "white-matter-chemshift",
+      "MASK_INVERTROI": ["N","Y"],
+      "MASK_PROBTHRESH": ["0.9","0.5"],
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "MASK_TRANSFORM_MAT": [["<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:--premat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_0.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz"],["identity:::::RAS^RAS^LAS"]],
+      "NEWATLAS_TEMPLATE": ["special_atlas:wmhemi"],
+      "ATLAS_NAME": "wmhemi",
+      "NEWATLAS_INDEX": [ "wmhemi"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "SUBJECTS_DIR":"<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:fsl_affine_concat:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:fsl_affine_concat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion.nii.gz"]],
+      "MEASURES_TEMPLATE": ["<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/pvcorr/perfusion_wm_calib.nii.gz"]
+    },
+     "basilmeasures_wmintra_tissue_native_pvcorr_maskchem":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "DEPENDENCY": ["basil_voxel_mansdc","preproc","freesurfer"],
+      "CHEMSHIFT_DIRNAME": "<DEPENDENCY2>",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "MASKDIR": "<DERIVATIVES_DIR>/<CHEMSHIFT_DIRNAME>",
+      "MASK_TEMPLATE": ["<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_2.nii.gz","<MASKDIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_asl_chemical_shift_artefact.nii.gz"],
+      "MASK_INDEX": [ "wm","asl_chemical_shift"],
+      "MASK_NAME": "white-matter-chemshift",
+      "MASK_INVERTROI": ["N","Y"],
+      "MASK_PROBTHRESH": ["0.9","0.5"],
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "MASK_TRANSFORM_MAT": [["<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:--premat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_0.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz"],["identity:::::RAS^RAS^LAS"]],
+      "NEWATLAS_TEMPLATE": ["special_atlas:wmintra"],
+      "ATLAS_NAME": "wmintra",
+      "NEWATLAS_INDEX": [ "wmintra"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "SUBJECTS_DIR":"<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:fsl_affine_concat:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:fsl_affine_concat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion.nii.gz"]],
+      "MEASURES_TEMPLATE": ["<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/pvcorr/perfusion_wm_calib.nii.gz"]
+    },
+    "april2025_anat_measures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_freemeasures_outer_left:coree_chen_anat_measures"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/hml_ids_list_241231.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collategroup_freesurfermeasures"],
+      "SORT_VALUES" : "hml_id",
+      "LEFT_FILTER_FILE" : "<PROC_DIR>/config/freesurfer_outputs_april.csv",
+      "LEFT_FILTER_EXCEPTIONS" : ["hml_id","site","site_id"],
+      "COLLATE_NAME_LEFT": "freemeasures",
+      "MEASURES_TEMPLATE1": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY1>/*outer*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0092;02","HML0096;02","HML0102;02","HML0111;02","HML0282;02","HML0301;02","HML0502;02","HML0509;02","HML0575;02"]
+    },
+    "october2025_anat_measures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_freemeasures_outer_left:coree_chen_anat_measures_20251001"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/april_october_combo.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collategroup_freesurfermeasures", "release2"],
+      "SORT_VALUES" : "hml_id",
+      "LEFT_FILTER_FILE" : "<PROC_DIR>/config/freesurfer_outputs_april.csv",
+      "LEFT_FILTER_EXCEPTIONS" : ["hml_id","site","site_id"],
+      "COLLATE_NAME_LEFT": "freemeasures",
+      "MEASURES_TEMPLATE1": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY1>/*outer*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0092;02","HML0096;02","HML0102;02","HML0111;02","HML0282;02","HML0301;02","HML0502;02","HML0509;02","HML0575;02","HML0705;02","HML0739;02","HML0752;02","HML0858;02"]
+    },
+    "update_anat_measures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_freemeasures_outer_left:update_coree_chen_anat_measures"],
+      "ALL_GROUP" : "Y",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collategroup_freesurfermeasures"],
+      "SORT_VALUES" : "hml_id",
+      "LEFT_FILTER_FILE" : "<PROC_DIR>/config/freesurfer_outputs_april.csv",
+      "LEFT_FILTER_EXCEPTIONS" : ["hml_id","site","site_id"],
+      "COLLATE_NAME_LEFT": "freemeasures",
+      "MEASURES_TEMPLATE1": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY1>/*outer*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0092;02","HML0096;02","HML0102;02","HML0111;02","HML0282;02","HML0301;02","HML0502;02","HML0509;02","HML0575;02"]
+    },
+    "april2025_dwi_measures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "SORT_VALUES" : "hml_id",
+      "FILE_SUBSTITUTIONS": ["final-group_tractsegmeasures-dwihemimeasures_outer:coree_chen_dwi_measures"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/hml_ids_list_241231.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "LEFT_DROP" : ["qsiprep_date_processed","qsiprep_version","row_creation_datetime","tensor_date_processed","tensor_version","tractseg_date_processed","tractseg_version"],
+      "RIGHT_DROP" : ["qsiprep_date_processed","qsiprep_version","row_creation_datetime","tensor_date_processed","tensor_version","tractseg_date_processed","tractseg_version"],
+      "DEPENDENCY": ["collatesubject_tractsegmeasures","collatesubject_dwimeasures_hemi"],
+      "COLLATE_NAME_LEFT": "tractsegmeasures",
+      "COLLATE_NAME_RIGHT": "dwihemimeasures",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"],
+      "MEASURES_TEMPLATE2": ["<DEPENDENCY2_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0575;01","HML0815;01","HML0859;01","HML0810;01"]
+    },
+    "october2025_dwi_measures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "SORT_VALUES" : "hml_id",
+      "FILE_SUBSTITUTIONS": ["final-group_tractsegmeasures-dwihemimeasures_outer:coree_chen_dwi_measures_20251001"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/april_october_combo.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "LEFT_DROP" : ["qsiprep_date_processed","qsiprep_version","row_creation_datetime","tensor_date_processed","tensor_version","tractseg_date_processed","tractseg_version"],
+      "RIGHT_DROP" : ["qsiprep_date_processed","qsiprep_version","row_creation_datetime","tensor_date_processed","tensor_version","tractseg_date_processed","tractseg_version"],
+      "DEPENDENCY": ["collatesubject_tractsegmeasures","collatesubject_dwimeasures_hemi", "release2"],
+      "COLLATE_NAME_LEFT": "tractsegmeasures",
+      "COLLATE_NAME_RIGHT": "dwihemimeasures",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"],
+      "MEASURES_TEMPLATE2": ["<DEPENDENCY2_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0575;01","HML0815;01","HML0859;01","HML0810;01","HML0858;02"]
+    },
+    "update_dwi_measures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "SORT_VALUES" : "hml_id",
+      "FILE_SUBSTITUTIONS": ["final-group_tractsegmeasures-dwihemimeasures_outer:update_coree_chen_dwi_measures"],
+      "ALL_GROUP" : "Y",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "LEFT_DROP" : ["qsiprep_date_processed","qsiprep_version","row_creation_datetime","tensor_date_processed","tensor_version","tractseg_date_processed","tractseg_version"],
+      "RIGHT_DROP" : ["qsiprep_date_processed","qsiprep_version","row_creation_datetime","tensor_date_processed","tensor_version","tractseg_date_processed","tractseg_version"],
+      "DEPENDENCY": ["collatesubject_tractsegmeasures","collatesubject_dwimeasures_hemi"],
+      "COLLATE_NAME_LEFT": "tractsegmeasures",
+      "COLLATE_NAME_RIGHT": "dwihemimeasures",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"],
+      "MEASURES_TEMPLATE2": ["<DEPENDENCY2_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0575;01","HML0815;01","HML0859;01","HML0810;01"]
+    },
+    "april2025_asl_measures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["final-group_coree_chen-asl_measures_outer:coree_chen_asl_measures"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/hml_ids_list_241231.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "SORT_VALUES" : "hml_id",
+      "FILTER_GROUP" : "Y",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collategroup_basilmeasures_arterial6","collategroup_basilmeasures_hemi"],
+      "COLLATE_NAME_LEFT": "coree_chen",
+      "COLLATE_NAME_RIGHT": "asl_measures",
+      "LEFT_DROP": ["row_creation_datetime","basil_date_processed","basil_version"],
+      "RIGHT_DROP": ["row_creation_datetime","basil_date_processed","basil_version"],
+      "MEASURES_TEMPLATE1": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY1>/*outer*.csv"],
+      "MEASURES_TEMPLATE2": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY2>/*outer*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0301;01","HML0509;01","HML0001","HML0003","HML0012","HML0037","HML0148","HML0240","HML0441","HML0448","HML0585","HML0663","HML0046","HML0048","HML0049","HML0050","HML0051","HML0195","HML0720","HML0735","HML0752;01","HML0705;01","HML0202","HML0819;01"]
+    },
+    "october2025_asl_measures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["final-group_coree_chen-asl_measures_outer:coree_chen_asl_measures_20251001"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/april_october_combo.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "SORT_VALUES" : "hml_id",
+      "FILTER_GROUP" : "Y",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collategroup_basilmeasures_arterial6","collategroup_basilmeasures_hemi", "release2"],
+      "COLLATE_NAME_LEFT": "coree_chen",
+      "COLLATE_NAME_RIGHT": "asl_measures",
+      "LEFT_DROP": ["row_creation_datetime","basil_date_processed","basil_version"],
+      "RIGHT_DROP": ["row_creation_datetime","basil_date_processed","basil_version"],
+      "MEASURES_TEMPLATE1": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY1>/*outer*.csv"],
+      "MEASURES_TEMPLATE2": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY2>/*outer*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0301;01","HML0509;01","HML0001","HML0003","HML0012","HML0037","HML0148","HML0240","HML0441","HML0448","HML0585","HML0663","HML0046","HML0048","HML0049","HML0050","HML0051","HML0195","HML0720","HML0735","HML0752;01","HML0705;01","HML0202","HML0819;01"]
+    },
+    "update_asl_measures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["final-group_coree_chen-asl_measures_outer:update_coree_chen_asl_measures"],
+      "ALL_GROUP" : "Y",
+      "SORT_VALUES" : "hml_id",
+      "FILTER_GROUP" : "Y",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collategroup_basilmeasures_arterial6","collategroup_basilmeasures_hemi"],
+      "COLLATE_NAME_LEFT": "coree_chen",
+      "COLLATE_NAME_RIGHT": "asl_measures",
+      "LEFT_DROP": ["row_creation_datetime","basil_date_processed","basil_version"],
+      "RIGHT_DROP": ["row_creation_datetime","basil_date_processed","basil_version"],
+      "MEASURES_TEMPLATE1": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY1>/*outer*.csv"],
+      "MEASURES_TEMPLATE2": ["<DERIVATIVES_DIR>/output_tables/<DEPENDENCY2>/*outer*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0301;01","HML0509;01","HML0001","HML0003","HML0012","HML0037","HML0148","HML0240","HML0441","HML0448","HML0585","HML0663","HML0046","HML0048","HML0049","HML0050","HML0051","HML0195","HML0720","HML0735","HML0752;01","HML0705;01","HML0202;01","HML0819;01"]
+    },
+    "tractseg":
+    {
+      "DEPENDENCY": ["dummy_replace","dummy","qsiprep_v0214"],
+      "ANALYSIS_NODE": "gpu",
+      "PIPELINE_CLASS": "tractseg_panpipeline",
+      "TRACTSEG_ALIGN_APPROACH" : "QSIPREP",
+      "LD_LIBRARY_PATH" : "/usr/lib/fsl/5.0:/usr/lib/x86_64-linux-gnu:/usr/lib64:/.singularity.d/libs",
+      "TRACTSEG_HOME" :"<PROC_DIR>/tractseg_home",
+      "QSIPREP_OUTPUT_DIR" : "<DEPENDENCY3_DIR>/qsiprep_node/qsiprep",
+      "TRACTSEG_CONTAINER": "/groups/ryant/PANapps/tractseg.sif",
+      "TRACTSEG_CONTAINER_PRERUN" : " ", 
+      "TRACTSEG_CONTAINER_RUN_OPTIONS": "apptainer run --nv --cleanenv --env LD_LIBRARY_PATH=<LD_LIBRARY_PATH> -H <TRACTSEG_HOME>",
+      "EXTRA_TRACTSEG_PARAMS":"--super_resolution --get_probabilities"
+    },
+    "xcpd":
+    {
+      "DEPENDENCY": ["fmriprep_v2411"],
+      "PIPELINE_CLASS": "xcpd_panpipeline",
+      "FMRIPREP_OUTPUT_DIR" : "<DEPENDENCY1_DIR>/fmriprep_node/fmrioutput",
+      "XCPD_CUSTOM_ATLASES" : "<PROC_DIR>/atlas/xcpd_custom_atlases",
+      "XCPD_CONTAINER": "/groups/ryant/PANapps/xcpd-0.10.5.sif",
+      "XCPD_CONTAINER_PRERUN" : "/usr/local/miniconda/bin/xcp_d", 
+      "XCPD_CONTAINER_RUN_OPTIONS": "apptainer exec --nv -B <XCPD_CUSTOM_ATLASES>:/custom_atlases --cleanenv --no-home"
+    },
+    "postxcpd":
+    {
+      "DEPENDENCY": ["xcpd"],
+      "PIPELINE_CLASS": "postxcpd_proc",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "XCPD_DIR" : "<DEPENDENCY1_DIR>/xcpd_node/xcp_out",
+      "DIRECTPARAMS" : {
+      "input_dir" : "<XCPD_DIR>"
+      },
+      "DIRECTSTARTDIR": "<WORKFLOW_DIR>/postxcpd_node",
+      "yeobuckner131": {
+        "replacecol":{
+          "_" : ""
+        }
+      },
+      "yeobuckner58": {
+        "replacecol":{
+          "_" : ""
+        }
+      },
+      "AAL3": {
+        "replacecol":{
+          "_" : ""
+        }
+      },
+        "COLLATE_EXTRATEXT" : {
+          "site" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Translation" : {
+                  "001_HML" : "UA",
+                  "002_HML" : "UM",
+                  "003_HML" : "EU",
+                  "004_HML" : "JH"             
+                  }
+          },
+          "site_id" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+          },
+          "hml_id" : {
+              "Value" : "<PARTICIPANT_LABEL>"
+          }
+      }      
+    },
+    "collategroup_postxcpd_intrayeo131":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_intrayeo131_Networks7_outer_left:coree_chen_rsfmri_yeobuckner131_withinconn"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/hml_ids_list_241231.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SORT_VALUES" : "hml_id",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["postxcpd"],
+      "COLLATE_NAME_LEFT": "intrayeo131_Networks7",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_intraconnectivity.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060", "HML0575"]
+    },
+    "october2025_postxcpd_intrayeo131":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_intrayeo131_Networks7_outer_left:coree_chen_rsfmri_yeobuckner131_withinconn_20251001"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/april_october_combo.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SORT_VALUES" : "hml_id",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["postxcpd", "release2"],
+      "COLLATE_NAME_LEFT": "intrayeo131_Networks7",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_intraconnectivity.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060", "HML0575"]
+    },
+    "update_postxcpd_intrayeo131":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_intrayeo131_Networks7_outer_left:update_coree_chen_rsfmri_yeobuckner131_withinconn"],
+      "ALL_GROUP" : "Y",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SORT_VALUES" : "hml_id",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["postxcpd"],
+      "COLLATE_NAME_LEFT": "intrayeo131_Networks7",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_intraconnectivity.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060", "HML0575"]
+    },
+    "collategroup_postxcpd_yeo131wholeinter":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_yeo131wholeinter_outer_left:coree_chen_rsfmri_yeobuckner131_interconn_wholebrain"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/hml_ids_list_241231.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SORT_VALUES" : "hml_id",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["postxcpd"],
+      "COLLATE_NAME_LEFT": "yeo131wholeinter",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_wholebrain_interconnectivity.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060","HML0575"]
+    },
+    "october2025_postxcpd_yeo131wholeinter":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_yeo131wholeinter_outer_left:coree_chen_rsfmri_yeobuckner131_interconn_wholebrain_20251001"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/april_october_combo.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SORT_VALUES" : "hml_id",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["postxcpd", "release2"],
+      "COLLATE_NAME_LEFT": "yeo131wholeinter",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_wholebrain_interconnectivity.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060","HML0575"]
+    },
+    "update_postxcpd_yeo131wholeinter":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_yeo131wholeinter_outer_left:update_coree_chen_rsfmri_yeobuckner131_interconn_wholebrain"],
+      "ALL_GROUP" : "Y",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SORT_VALUES" : "hml_id",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["postxcpd"],
+      "COLLATE_NAME_LEFT": "yeo131wholeinter",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_wholebrain_interconnectivity.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060","HML0575"]
+    },
+    "collategroup_postxcpd_yeo131cortcerebinter":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_yeo131cortcerebinter_outer_left:coree_chen_rsfmri_yeobuckner131_interconn_corticocereb"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/hml_ids_list_241231.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SORT_VALUES" : "hml_id",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["postxcpd"],
+      "COLLATE_NAME_LEFT": "yeo131cortcerebinter",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_corticocerebellar_interconnectivity.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060", "HML0575"]
+    },
+    "october2025_postxcpd_yeo131cortcerebinter":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_yeo131cortcerebinter_outer_left:coree_chen_rsfmri_yeobuckner131_interconn_corticocereb_20251001"],
+      "ALL_GROUP" : "N",
+      "PARTICIPANT_OVERRIDE_FILE" : "<PROC_DIR>/config/april_october_combo.csv",
+      "PARTICIPANT_OVERRIDE_QUERY" : "(df.hml_id.isin([<PARTICIPANTS>])) & ~(df.bids_session_id == 'ses-follow01')",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SORT_VALUES" : "hml_id",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["postxcpd", "release2"],
+      "COLLATE_NAME_LEFT": "yeo131cortcerebinter",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_corticocerebellar_interconnectivity.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060", "HML0575"]
+    },
+    "update_postxcpd_yeo131cortcerebinter":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "FILE_SUBSTITUTIONS": ["group_yeo131cortcerebinter_outer_left:update_coree_chen_rsfmri_yeobuckner131_interconn_corticocereb"],
+      "ALL_GROUP" : "Y",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SORT_VALUES" : "hml_id",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["postxcpd"],
+      "COLLATE_NAME_LEFT": "yeo131cortcerebinter",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_Networks7_corticocerebellar_interconnectivity.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0858;01","HML0060", "HML0575"]
+    },
+    "collategroup_postxcpd_yeo131reho":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "COLUMNS_TO_FRONT": ["hml_id","subject_id","session_id","site","site_id"],
+      "SORT_VALUES" : "hml_id",
+      "ENABLE_SORT_COLUMNS" : "N",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["postxcpd"],
+      "COLLATE_NAME_LEFT": "yeo131reho",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/postxcpd_node/*outdir/*yeobuckner131_stat-reho_bold.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0068","HML0070","HML0092","HML0096","HML0097","HML0101","HML0102","HML0111","HML0282","HML0350","HML0502","HML0739","HML0194","HML0202;follow01","HML0858;01","HML0060", "HML0575"]
+    },
+    "fmriprep_v2411":
+    {
+      "PIPELINE_CLASS": "fmriprep_panpipeline",
+      "DEPENDENCY": ["dummy_replace","dummy"],
+      "FMRIPREP_CONTAINER": "/groups/ryant/PANapps/fmriprep-24.1.1.sif",
+      "FMRIPREP_OVERRIDE_PARAMS" : {
+            "--ignore": "t2w flair"
+        }
+    },
+    "qsiprep_v0214":
+    {
+      "EDDY_CONFIG": "<PROC_DIR>/config/pan_eddyparams_cuda.json",
+      "DEPENDENCY": ["dummy_replace","dummy"],
+      "PIPELINE_CLASS": "qsiprep_panpipeline",
+      "LD_LIBRARY_PATH" : "/opt/qt512/lib/x86_64-linux-gnu:/opt/qt512/lib:/opt/ants/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/opt/conda/envs/qsiprep/lib/python3.10/site-packages/nvidia/cudnn/lib:/usr/lib/x86_64-linux-gnu:/usr/lib64:/.singularity.d/libs",
+      "OUTPUT_RES": "2.0",
+      "ANALYSIS_NODE": "gpu",
+      "QSIPREP_CONTAINER": "/groups/ryant/PANapps/qsiprep-0.21.4.sif",
+      "QSIPREP_CONTAINER_PRERUN" : "/opt/conda/envs/qsiprep/bin/qsiprep", 
+      "QSIPREP_CONTAINER_RUN_OPTIONS": "singularity exec --nv --cleanenv --env LD_LIBRARY_PATH=<LD_LIBRARY_PATH> --no-home",
+      "QSIPREP_OVERRIDE_PARAMS" : {
+          "--anat-modality" : "T1w",
+          "--omp-nthreads" : "1"
+      }
+    },
+    "qsiprep_v101":
+    {
+      "EDDY_CONFIG": "<PROC_DIR>/config/pan_eddyparams_cuda_qsiprep101.json",
+      "QSIPREP_OUTDIR" : "<CWD>/qsiprep_out",
+      "DEPENDENCY": ["dummy_replace","dummy"],
+      "PIPELINE_CLASS": "qsiprep_panpipeline",
+      "LD_LIBRARY_PATH" : "/opt/qt512/lib/x86_64-linux-gnu:/opt/qt512/lib:/opt/ants/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/opt/conda/envs/qsiprep/lib/python3.10/site-packages/nvidia/cudnn/lib:/usr/lib/x86_64-linux-gnu:/usr/lib64:/.singularity.d/libs",
+      "OUTPUT_RES": "1.0",
+      "ANALYSIS_NODE": "gpu",
+      "QSIPREP_CONTAINER": "/groups/ryant/PANapps/qsiprep101.sif",
+      "QSIPREP_CONTAINER_PRERUN" : "/opt/conda/envs/qsiprep/bin/qsiprep", 
+      "QSIPREP_CONTAINER_RUN_OPTIONS": "singularity exec --nv --cleanenv --env LD_LIBRARY_PATH=<LD_LIBRARY_PATH> --no-home",
+      "QSIPREP_OVERRIDE_PARAMS" : {
+          "--mem_mb" : "###",
+          "--participant_label" : "###",
+          "--participant-label" : "<PARTICIPANT_LABEL>",
+          "--mem" : "<BIDSAPP_MEMORY>",
+          "--anat-modality" : "T1w",
+          "--omp-nthreads" : "1",
+          "--subject-anatomical-reference" : "sessionwise"
+      }
+    },
+    "basil_voxel_mansdc":
+    {
+      "PIPELINE_CLASS": "basil_panpipeline",
+      "DEPENDENCY": ["dummy_replace","dummy"],
+      "SDCFLOWS_CONTAINER_TO_USE": "SDCFLOWS_CONTAINER",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_verylong_<CPUSUFFIX>.pbs",
+      "SDCFLOWS_CONTAINER": "/groups/ryant/PANapps/fmriprep-23.2.1.sif",
+      "SDCFLOWS_CONTAINER_RUN_OPTIONS": "singularity exec ",
+      "SDCFLOWS_CONTAINER_PRERUN" : " ",
+      "ANALYSIS_NODE": "cpu",
+      "FIELDMAP_TYPE" : {
+          "acq-prod" : "fsl_prepare_fieldmap",
+          "acq-pcasl" : "fsl_prepare_fieldmap",
+          "acq-plusM0" : "fsl_prepare_fieldmap"
+      },
+      "SDCFLOWS_FIELDMAP_DIR" : {
+           "acq-prod" : "<WORKFLOW_DIR>/sdcflows/fmap",
+           "acq-pcasl" : "<WORKFLOW_DIR>/sdcflows/fmap",
+           "acq-plusM0" : "<WORKFLOW_DIR>/sdcflows/fmap"
+      },
+      "ASL_ECHOSPACING" : {
+           "acq-prod" : {
+               "default": "0.0005",
+               "003_HML": "0.00049"
+           },
+           "acq-pcasl" : "0.0002519",
+           "acq-plusM0" : "0.0005"
+      },
+      "ASLCONTEXT" : {
+        "acq-prod" : "control:label",
+        "acq-pcasl" : "control:label",
+        "acq-plusM0" : "m0scan:control:label"
+      },
+      "CMETHOD_OPTS" : {
+        "acq-prod" : "voxel",
+        "acq-pcasl" : "voxel",
+        "acq-plusM0" : "voxel"
+      }
+    },
+    "basil_htmlreport":
+    {
+       "PIPELINE_CLASS": "reports_panpipeline",
+       "DEPENDENCY": ["basil_voxel_mansdc"],
+       "ANALYSIS_LEVEL": "participant",    
+       "REPORTS_PIPELINECLASS" : "basil_panpipeline",
+       "REPORTS_PIPELINE" : "<DEPENDENCY1>",
+       "REPORTS_SOURCE": "<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl*"
+    },
+    "freesurfer":
+    {
+      "PIPELINE_CLASS": "freesurfer_panpipeline",
+      "DEPENDENCY": ["dummy_replace","dummy"],
+      "T1W": {
+       "reconstruction": "defaced",
+       "suffix": "T1w"
+      }
+    },
+    "freesurferextra_direct":
+    {
+      "PIPELINE_CLASS": "freesurferextra_proc",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY" :["freesurfer"],
+      "SUBJECTS_DIR" : "<DEPENDENCY1_DIR>/freesurfer_node/subjects_dir",
+      "DIRECTPARAMS" : {
+      "subjects_dir" : "<SUBJECTS_DIR>"
+      },
+      "DIRECTSTARTDIR": "<WORKFLOW_DIR>/freesurferextra_node"
+    },
+    "freesurfer_measures_lobe":
+    {
+      "PIPELINE_CLASS": "textmeasures_panpipeline",
+      "DEPENDENCY": ["freesurfer","freesurferextra_direct"],
+      "MEASURES_TEMPLATE": [
+          "<DEPENDENCY1_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/stats/*.lobe.stats"
+      ],
+      "MEASURES_PREFIXES": {
+          "lh.lobe.stats":"LeftLobes",
+          "rh.lobe.stats":"RightLobes"
+      }
+    },
+    "freesurfer_measures":
+    {
+      "PIPELINE_CLASS": "textmeasures_panpipeline",
+      "DEPENDENCY": ["freesurfer"],
+      "MEASURES_TEMPLATE": [
+          "<DEPENDENCY1_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/mri/*hippoSfVolumes-T1*.txt",
+          "<DEPENDENCY1_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/mri/*amygNucVolumes-T1*.txt",
+          "<DEPENDENCY1_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/mri/*brainstem*.txt",
+          "<DEPENDENCY1_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/mri/*ThalamicNuclei*T1*.txt",
+          "<DEPENDENCY1_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/stats/aseg.stats", 
+          "<DEPENDENCY1_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/stats/*.aparc.stats",
+          "<DEPENDENCY1_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/stats/*aparc.a2009s.stats"
+      ],
+      "MEASURES_PREFIXES": {
+          "lh.hippoSfVolume":"LeftHippo",
+          "rh.hippoSfVolume":"RightHippo",
+          "lh.amygNuc":"LeftAmyg",
+          "rh.amygNuc":"RightAmyg",
+          "brainstem":"brainstem",
+          "ThalamicNuclei":"thalamus",
+          "aseg.stats":"aseg",
+          "lh.aparc.stats":"LeftDK",
+          "rh.aparc.stats":"RightDK",
+          "lh.aparc.a2009s.stats":"LeftDesx",
+          "rh.aparc.a2009s.stats":"RightDesx"
+      }
+    },
+    "collatesubject_freesurfer":
+    {
+      "PIPELINE_CLASS": "collatecsv_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": [
+               "freesurfer_measures", 
+               "freesurfer",
+               "freesurfer_measures_lobe"
+       ],
+      "COLLATE_NAME": "freesurfer-measures",
+      "MEASURES_TEMPLATE": [
+                "<DEPENDENCY1_DIR>/subject_text_map/mapflow/_subject_text_map*/*_roi_output_dir/*.csv",
+                "<DEPENDENCY3_DIR>/subject_text_map/mapflow/_subject_text_map*/*_roi_output_dir/*.csv"
+        ],
+      "MEASURES_PREFIXES": {
+        "<DEPENDENCY1>":"freesurfer",
+        "<DEPENDENCY3>":"freesurfer"
+      },
+      "COLLATE_EXTRATEXT" : {
+          "<macro>" : {
+              "Value" : "get_version_string",
+              "Process" : "freesurfer",
+              "ProcessFile" : "<DEPENDENCY2_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/scripts/recon-all.done"
+          },
+          "site" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Translation" : {
+                  "001_HML" : "UA",
+                  "002_HML" : "UM",
+                  "003_HML" : "EU",
+                  "004_HML" : "JH"             
+                  }
+          },
+          "site_id" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+          },
+          "hml_id" : {
+              "Value" : "<PARTICIPANT_LABEL>"
+          }
+      }
+    },
+    "collategroup_freesurfermeasures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "DEPENDENCY": ["collatesubject_freesurfer"],
+      "COLLATE_NAME_LEFT": "freesurfermeasures",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"]
+    },
+    "preproc":
+    {
+        "PIPELINE_CLASS": "preproc_panpipeline",
+        "DEPENDENCY": ["basil_voxel_mansdc","freesurfer"],
+        "CHEMSHIFT_DIRNAME" : "<PIPELINE>",
+        "SUBJECTS_DIR" : "<DEPENDENCY2_DIR>/freesurfer_node/subjects_dir",
+        "TRANSFORM_MAT" : ["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/asl2struct.mat:FSL:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion.nii.gz:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz:True:LAS"],
+        "TRANSFORM_REF" : "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion.nii.gz",
+        "AP_TRANSFORM_MAT" : ["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/fsl_*/asl2struct.mat:FSL:<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/perfusion.nii.gz:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz:True:LAS"],
+        "AP_TRANSFORM_REF" : "<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/perfusion.nii.gz",
+        "PA_TRANSFORM_MAT" : ["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/fsl_*/asl2struct.mat:FSL:<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/perfusion.nii.gz:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz:True:LAS"],
+        "PA_TRANSFORM_REF" : "<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/perfusion.nii.gz",
+        "PREPROC_CONTAINER_TO_USE": "PREPROC_CONTAINER",
+        "PREPROC_CONTAINER" : "/groups/ryant/PANapps/panprocminimal-v0.2.sif",
+        "PREPROC_CONTAINER_RUN_OPTIONS": "singularity run",
+        "PREPROC_CONTAINER_PRERUN" : " ",
+        "PHASESHIFT" : {
+               "acq-prod" : "12",
+               "acq-pcasl" : "9",
+               "acq-plusM0" : "12",
+               "default" : "12"
+        }
+    },
+    "basilmeasures_arterial6_native_pvcorr_gm_maskchem":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["basil_voxel_mansdc","preproc"],
+      "CHEMSHIFT_DIRNAME": "<DEPENDENCY2>",
+      "MASKDIR": "<DERIVATIVES_DIR>/<CHEMSHIFT_DIRNAME>",
+      "MASK_TEMPLATE": ["<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_1.nii.gz", "<MASKDIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_asl_chemical_shift_artefact.nii.gz"],
+      "MASK_INDEX": [ "gm","asl_chemical_shift"],
+      "MASK_NAME": "grey-matter-chemshift",
+      "MASK_INVERTROI": ["N","Y"],
+      "MASK_PROBTHRESH": ["0.8","0.5"],
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "MASK_TRANSFORM_MAT": [["<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:--premat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_0.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz"],["identity:::::RAS^RAS^LAS"]],
+      "ATLAS_NAME": "arterial_6nodes",
+      "ATLAS_FILE": "<PROC_DIR>/atlas/Arterial/MNI152NLin6Asym/atlas-arterial6_space-MNI152NLin6Asym_res-01_dseg.nii.gz",
+      "ATLAS_INDEX": "<PROC_DIR>/atlas/Arterial/atlas-arterial6_dseg.tsv",
+      "ATLAS_TRANSFORM_MAT": [
+        "<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/MNI_to_T1_nonlin_field.nii.gz:--warp1:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/MNI152_T1_2mm_brain_mask_dil1.nii.gz:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz",
+        "<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:--postmat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_0.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz"
+      ],
+      "ATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "MEASURES_TEMPLATE": ["<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/pvcorr/perfusion_calib.nii.gz"]
+    },
+    "basilmeasures_arterial6_native_pvcorr_wm_maskchem":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["basil_voxel_mansdc","preproc"],
+      "CHEMSHIFT_DIRNAME": "<DEPENDENCY2>",
+      "MASKDIR": "<DERIVATIVES_DIR>/<CHEMSHIFT_DIRNAME>",
+      "MASK_TEMPLATE": ["<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_2.nii.gz", "<MASKDIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_asl_chemical_shift_artefact.nii.gz"],
+      "MASK_INDEX": [ "wm","asl_chemical_shift"],
+      "MASK_NAME": "white-matter-chemshift",
+      "MASK_INVERTROI": ["N","Y"],
+      "MASK_PROBTHRESH": ["0.9","0.5"],
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "MASK_TRANSFORM_MAT": [["<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:--premat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_0.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz"],["identity:::::RAS^RAS^LAS"]],
+      "ATLAS_NAME": "arterial_6nodes",
+      "ATLAS_FILE": "<PROC_DIR>/atlas/Arterial/MNI152NLin6Asym/atlas-arterial6_space-MNI152NLin6Asym_res-01_dseg.nii.gz",
+      "ATLAS_INDEX": "<PROC_DIR>/atlas/Arterial/atlas-arterial6_dseg.tsv",
+      "ATLAS_TRANSFORM_MAT": [
+        "<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/MNI_to_T1_nonlin_field.nii.gz:--warp1:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/MNI152_T1_2mm_brain_mask_dil1.nii.gz:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz",
+        "<DEPENDENCY1_DIR>/basil_node/basiloutput/fsl_*/struct2asl.mat:--postmat:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_0.nii.gz:<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz"
+      ],
+      "ATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/perfusion_calib.nii.gz",
+      "MEASURES_TEMPLATE": ["<DEPENDENCY1_DIR>/basil_node/basiloutput/native_space/pvcorr/perfusion_wm_calib.nii.gz"]
+    },
+    "collatesubject_basilmeasures_arterial6":
+    {
+      "PIPELINE_CLASS": "collatecsv_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": [
+               "basilmeasures_arterial6_native_pvcorr_gm_maskchem",
+               "basilmeasures_arterial6_native_pvcorr_wm_maskchem",
+               "basil_voxel_mansdc"
+       ],
+      "COLLATE_NAME": "arterial6-measures",
+      "MEASURES_TEMPLATE": [
+                "<DEPENDENCY1_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY2_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv"
+        ],
+      "MEASURES_PREFIXES": {
+        "<DEPENDENCY1>":"basil_pvcorr_gm_chemshift",
+        "<DEPENDENCY2>":"basil_pvcorr_wm_chemshift"
+
+      },
+      "COLLATE_EXTRATEXT" : {
+          "<macro1>" : {
+              "Value" : "get_version_string",
+              "Process" : "basil",
+              "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY3>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
+          },
+          "site" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Translation" : {
+                  "001_HML" : "UA",
+                  "002_HML" : "UM",
+                  "003_HML" : "EU",
+                  "004_HML" : "JH"             
+                  }
+          },
+          "site_id" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+          },
+          "hml_id" : {
+              "Value" : "<PARTICIPANT_LABEL>"
+          }
+      }
+    },
+    "collategroup_sessionsfile_bidsparticipants":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["dummy","dummy_replace"],
+      "COLLATE_NAME_LEFT": "xnatsessions",
+      "COLLATECOLS_JOIN_LEFT":["xnat_subject_id","xnat_session_id"],
+      "COLLATE_NAME_RIGHT": "bidsparticipants",
+      "COLLATECOLS_JOIN_RIGHT":["xnat_subject_id","xnat_session_id"],
+      "MEASURES_TEMPLATE1": ["<SESSIONS_FILE>"],
+      "LSEP" : "\t",
+      "LEFT_RENAME" : {"project":"project_id"},
+      "LEFT_COPY" : {"project_id":"site_id","site_id":"site"},
+      "LEFT_TRANSLATE" : {
+            "site" : {
+                  "001_HML" : "UA",
+                  "002_HML" : "UM",
+                  "003_HML" : "EU",
+                  "004_HML" : "JH"             
+                  }
+            },
+      "LEFT_DROP" : ["shared_projects", "gender",  "age" , "scan_date" ],
+      "MEASURES_TEMPLATE2": ["<BIDS_DIR>/participants.tsv"],
+      "RSEP" : "\t",
+      "RIGHT_DROP" : ["hml_id","xnat_subject_label","xnat_session_label","gender_dcm","gender_xnat", "age_dcm", "age_xnat",  "init_project",  "config_project", "pan_project", "command_call", "command_start", "bids_convert_utility",  "container_name",  "container_version", "BIDSVersion", "last_git_commit", "bids_creation_date"],
+      "RIGHT_RENAME" : {"participant_id":"subject_id"}
+    },
+    "xnat_mri_sessions":
+    {
+       "PIPELINE_CLASS": "pancontainergroup_panpipeline",
+       "ANALYSIS_LEVEL": "group",
+       "SCRIPT_CLASS" : "paninfo_bidsqc",
+       "PIPELINE_CONFIG_LOC" : "<CWD>/pipeline_config_pancontainer.json",
+       "PANCONTAINER_PARAMS" : "<WORKFLOW_DIR>/bidsqc_out/paninfo_release_250_bidsqc.csv --host <XNAT_HOST> --projects <GROUP_PARTICIPANTS_XNAT_PROJECT> --credentials <CREDENTIALS> --excluded_participants <EXCLUDED_PARTICIPANTS> --pipeline_config_file <PIPELINE_CONFIG_LOC>",
+       "CONTAINER_TO_USE" : "DUMMY_CONTAINER"
+    },
+    "collategroup_basilmeasures_hemi":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collatesubject_basilmeasures_hemi"],
+      "COLLATE_NAME_LEFT": "basilmeasures_hemi",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0301;01","HML0509;01"]
+    },
+    "collategroup_basilmeasures_arterial6":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collatesubject_basilmeasures_arterial6"],
+      "COLLATE_NAME_LEFT": "basilmeasures_arterial6",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"],
+      "PARTICIPANT_PIPELINE_EXCLUSIONS" : ["HML0301;01","HML0509;01"]
+    },
+    "amiconoddi_gm":
+    {
+       "PIPELINE_CLASS": "pancontainergroup_panpipeline",
+       "DEPENDENCY":"qsiprep_v0214",
+       "SINKDIR_GROUP": "<DERIVATIVES_DIR>/output_tables/<PIPELINE>",
+       "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+       "CHANGEDIR":"N",
+       "SCRIPT_FILE" : "/groups/ryant/PANapps/PANpipelines/external_scripts/amico/amico_noddi.py",
+       "PIPELINE_CONFIG_LOC" : "<CWD>/pipeline_config_pancontainer.json",
+       "QSIPREP_OUTPUT_DIR" : "<DEPENDENCY_DIR>/qsiprep_node/qsiprep",
+       "PANCONTAINER_PARAMS" : "--participant <PARTICIPANT_LABEL> --session <PARTICIPANT_SESSION> --qsiprep_dir <QSIPREP_OUTPUT_DIR> --model_config <PROC_DIR>/config/gm_model.json --output_path <CWD>/amico_output",
+       "CONTAINER_TO_USE" : "PANAPPS_CONTAINER",
+       "PANCONTAINER_COMMANDS" : "python",
+       "PANAPPS_CONTAINER": "/groups/ryant/PANapps/panapps.sif",
+       "PANAPPS_CONTAINER_RUN_OPTIONS": "singularity run",
+       "PANAPPS_CONTAINER_PRERUN" : "--condaenv=amico"
+    },
+    "noddi_v0214":
+    {
+      "DEPENDENCY": "qsiprep_v0214",
+      "PIPELINE_CLASS": "noddi_panpipeline",
+      "RECON_TYPE": "amico_noddi",
+      "QSIPREP_OUTPUT_DIR" : "<DEPENDENCY_DIR>/qsiprep_node/qsiprep",
+      "OUTPUT_RES": "2.0"
+    },
+    "tensor_v0214":
+    {
+      "DEPENDENCY": "qsiprep_v0214",
+      "PIPELINE_CLASS": "tensor_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "QSIPREP_OUTPUT_DIR" : "<DEPENDENCY_DIR>/qsiprep_node/qsiprep"
+    },
+    "qsiprep_v0214_affine_transform":
+    {
+       "PIPELINE_CLASS": "pancontainergroup_panpipeline",
+       "DEPENDENCY": ["qsiprep_v0214"],
+       "ANALYSIS_LEVEL": "participant",
+       "SCRIPT_CLASS" : "additional_transforms",
+       "T1W_T1ACPC" : "<WORKFLOW_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc",
+       "QSIANAT" : "<DEPENDENCY1_DIR>/qsiprep_node/qsiprep/sub-<PARTICIPANT_LABEL>/anat/sub-<PARTICIPANT_LABEL>_desc-preproc_T1w.nii*",
+       "PIPELINE_CONFIG_LOC" : "<CWD>/pipeline_config_pancontainer.json",
+       "PANCONTAINER_PARAMS" : "<PIPELINE_CONFIG_LOC>"
+    },
+     "noddimeasures_gmcort_tissue_native":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["amiconoddi_gm","qsiprep_v0214","basil_voxel_mansdc","qsiprep_v0214_affine_transform","freesurfer"],
+      "MASK_TEMPLATE": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_1.nii.gz",
+      "T1W_T1ACPC" : "<DEPENDENCY4_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "MASK_INDEX": ["gm"],
+      "MASK_NAME": "grey-matter",
+      "MASK_PROBTHRESH": "0.8",
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_NDI.nii.gz",
+      "MASK_TRANSFORM_MAT": [[ "<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "SUBJECTS_DIR":"<DEPENDENCY5_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TEMPLATE": ["special_atlas:gmcort"],
+      "ATLAS_NAME": "gmcort",
+      "NEWATLAS_INDEX": [ "gmcort"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_NDI.nii.gz",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "MEASURES_TEMPLATE": ["<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_NDI.nii.gz", "<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_FWF.nii.gz","<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_ODI.nii.gz"]
+    },
+    "noddimeasures_gmhemi_tissue_native":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["amiconoddi_gm","qsiprep_v0214","basil_voxel_mansdc","qsiprep_v0214_affine_transform","freesurfer"],
+      "MASK_TEMPLATE": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_1.nii.gz",
+      "T1W_T1ACPC" : "<DEPENDENCY4_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "MASK_INDEX": ["gm"],
+      "MASK_NAME": "grey-matter",
+      "MASK_PROBTHRESH": "0.8",
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_NDI.nii.gz",
+      "MASK_TRANSFORM_MAT": [[ "<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "SUBJECTS_DIR":"<DEPENDENCY5_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TEMPLATE": ["special_atlas:gmhemi"],
+      "ATLAS_NAME": "gmhemi",
+      "NEWATLAS_INDEX": [ "gmhemi"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_NDI.nii.gz",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "MEASURES_TEMPLATE": ["<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_NDI.nii.gz", "<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_FWF.nii.gz","<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_ODI.nii.gz"]
+    },
+    "noddimeasures_wmhemi_tissue_native":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["noddi_v0214","qsiprep_v0214","basil_voxel_mansdc","qsiprep_v0214_affine_transform","freesurfer"],
+      "MASK_TEMPLATE": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_2.nii.gz",
+      "T1W_T1ACPC" : "<DEPENDENCY4_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "MASK_INDEX": ["wm"],
+      "MASK_NAME": "white-matter",
+      "MASK_PROBTHRESH": "0.9",
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-OD_NODDI.nii.gz",
+      "MASK_TRANSFORM_MAT": [[ "<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "SUBJECTS_DIR":"<DEPENDENCY5_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TEMPLATE": ["special_atlas:wmhemi"],
+      "ATLAS_NAME": "wmhemi",
+      "NEWATLAS_INDEX": [ "wmhemi"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-OD_NODDI.nii.gz",
+      "MEASURES_TEMPLATE": [ "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-ICVF*.nii.gz", "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-ISOVF*.nii.gz","<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-OD*.nii.gz"]
+    },
+    "noddimeasures_wmintra_tissue_native":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["noddi_v0214","qsiprep_v0214","basil_voxel_mansdc","qsiprep_v0214_affine_transform","freesurfer"],
+      "MASK_TEMPLATE": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_2.nii.gz",
+      "T1W_T1ACPC" : "<DEPENDENCY4_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "MASK_INDEX": ["wm"],
+      "MASK_NAME": "white-matter",
+      "MASK_PROBTHRESH": "0.9",
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-OD_NODDI.nii.gz",
+      "MASK_TRANSFORM_MAT": [[ "<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "SUBJECTS_DIR":"<DEPENDENCY5_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TEMPLATE": ["special_atlas:wmintra"],
+      "ATLAS_NAME": "wmintra",
+      "NEWATLAS_INDEX": [ "wmintra"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-OD_NODDI.nii.gz",
+      "MEASURES_TEMPLATE": [ "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-ICVF*.nii.gz", "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-ISOVF*.nii.gz","<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-OD*.nii.gz"]
+    },
+    "noddimeasures_v0214_tractseg_native_wm":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["noddi_v0214","tractseg","basil_voxel_mansdc","qsiprep_v0214_affine_transform"],
+      "T1W_T1ACPC" : "<DEPENDENCY4_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "MASK_TEMPLATE": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_2.nii.gz",
+      "MASK_INDEX": ["wm"],
+      "MASK_NAME": "white-matter",
+      "MASK_PROBTHRESH": "0.9",
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-OD_NODDI.nii.gz",
+      "MASK_TRANSFORM_MAT": [[ "<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "NEWATLAS_TEMPLATE": ["<DEPENDENCY2_DIR>/tractseg_node/tractseg_out/bundles_segmentations_native_bin/*.nii.gz"],
+      "NEWATLAS_TEMPLATE_SORT": "Y",
+      "ATLAS_NAME": "tractseg_native",
+      "NEWATLAS_TYPE" : "4D",
+      "NEWATLAS_INDEX": ["generate_from_file:<PROC_DIR>/atlas/tractseg/april2025_tractseg_labels.tsv"],
+      "USE_LABEL_SUBSET" : "Y",
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/dwi/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-OD_NODDI.nii.gz",
+      "MEASURES_TEMPLATE": ["<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-ICVF*.nii.gz", "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-ISOVF*.nii.gz","<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-OD*.nii.gz"]
+    },
+     "tensormeasures_gmcort_tissue_native":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["tensor_v0214","qsiprep_v0214","basil_voxel_mansdc","qsiprep_v0214_affine_transform","freesurfer"],
+      "MASK_TEMPLATE": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_1.nii.gz",
+      "T1W_T1ACPC" : "<DEPENDENCY4_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "MASK_INDEX": ["gm"],
+      "MASK_NAME": "grey-matter",
+      "MASK_PROBTHRESH": "0.8",
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-fa.nii.gz",
+      "MASK_TRANSFORM_MAT": [[ "<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "SUBJECTS_DIR":"<DEPENDENCY5_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TEMPLATE": ["special_atlas:gmcort"],
+      "ATLAS_NAME": "gmcort",
+      "NEWATLAS_INDEX": [ "gmcort"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-fa.nii.gz",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "MEASURES_TEMPLATE": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>*_desc-preproc_desc-*.nii.gz"
+    },
+    "tensormeasures_gmhemi_tissue_native":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["tensor_v0214","qsiprep_v0214","basil_voxel_mansdc","qsiprep_v0214_affine_transform","freesurfer"],
+      "MASK_TEMPLATE": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_1.nii.gz",
+      "T1W_T1ACPC" : "<DEPENDENCY4_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "MASK_INDEX": ["gm"],
+      "MASK_NAME": "grey-matter",
+      "MASK_PROBTHRESH": "0.8",
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-fa.nii.gz",
+      "MASK_TRANSFORM_MAT": [[ "<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "SUBJECTS_DIR":"<DEPENDENCY5_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TEMPLATE": ["special_atlas:gmhemi"],
+      "ATLAS_NAME": "gmhemi",
+      "NEWATLAS_INDEX": [ "gmhemi"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-fa.nii.gz",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "MEASURES_TEMPLATE": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>*_desc-preproc_desc-*.nii.gz"
+    },
+    "tensormeasures_wmhemi_tissue_native":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["tensor_v0214","qsiprep_v0214","basil_voxel_mansdc","qsiprep_v0214_affine_transform","freesurfer"],
+      "MASK_TEMPLATE": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_2.nii.gz",
+      "T1W_T1ACPC" : "<DEPENDENCY4_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "MASK_INDEX": ["wm"],
+      "MASK_NAME": "white-matter",
+      "MASK_PROBTHRESH": "0.9",
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-fa.nii.gz",
+      "MASK_TRANSFORM_MAT": [[ "<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "SUBJECTS_DIR":"<DEPENDENCY5_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TEMPLATE": ["special_atlas:wmhemi"],
+      "ATLAS_NAME": "wmhemi",
+      "NEWATLAS_INDEX": [ "wmhemi"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-fa.nii.gz",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "MEASURES_TEMPLATE": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>*_desc-preproc_desc-*.nii.gz"
+    },
+    "tensormeasures_wmintra_tissue_native":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["tensor_v0214","qsiprep_v0214","basil_voxel_mansdc","qsiprep_v0214_affine_transform","freesurfer"],
+      "MASK_TEMPLATE": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_2.nii.gz",
+      "T1W_T1ACPC" : "<DEPENDENCY4_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "MASK_INDEX": ["wm"],
+      "MASK_NAME": "white-matter",
+      "MASK_PROBTHRESH": "0.9",
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-fa.nii.gz",
+      "MASK_TRANSFORM_MAT": [[ "<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "SUBJECTS_DIR":"<DEPENDENCY5_DIR>/freesurfer_node/subjects_dir",
+      "NEWATLAS_TEMPLATE": ["special_atlas:wmintra"],
+      "ATLAS_NAME": "wmintra",
+      "NEWATLAS_INDEX": [ "wmintra"],
+      "NEWATLAS_PROBTHRESH": ["0.8"],
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-fa.nii.gz",
+      "NEWATLAS_TRANSFORM_MAT": [["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "MEASURES_TEMPLATE": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>*_desc-preproc_desc-*.nii.gz"
+    },
+     "tensormeasures_v0214_tractseg_native_wm":
+    {
+      "PIPELINE_CLASS": "roiextract_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["tensor_v0214","tractseg","basil_voxel_mansdc","qsiprep_v0214_affine_transform"],
+      "T1W_T1ACPC" : "<DEPENDENCY4_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "MASK_TEMPLATE": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1_fast_pve_2.nii.gz",
+      "MASK_INDEX": ["wm"],
+      "MASK_NAME": "white-matter",
+      "MASK_PROBTHRESH": "0.9",
+      "MASK_TRANSFORM_REF": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-fa.nii.gz",
+      "MASK_TRANSFORM_MAT": [[ "<T1W_T1ACPC>:::::RAS^RAS^LPS"]],
+      "NEWATLAS_TEMPLATE": ["<DEPENDENCY2_DIR>/tractseg_node/tractseg_out/bundles_segmentations_native_bin/*.nii.gz"],
+      "NEWATLAS_TEMPLATE_SORT": "Y",
+      "ATLAS_NAME": "tractseg_native",
+      "NEWATLAS_TYPE" : "4D",
+      "NEWATLAS_INDEX": ["generate_from_file:<PROC_DIR>/atlas/tractseg/april2025_tractseg_labels.tsv"],
+      "USE_LABEL_SUBSET" : "Y",
+      "NEWATLAS_TRANSFORM_REF": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_space-T1w_desc-preproc_desc-fa.nii.gz",
+      "MEASURES_TEMPLATE": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>*_desc-preproc_desc-*.nii.gz"
+    },
+    "collatesubject_dwimeasures_hemi":
+    {
+      "PIPELINE_CLASS": "collatecsv_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": [
+              "noddimeasures_gmcort_tissue_native",
+              "noddimeasures_gmhemi_tissue_native",
+              "noddimeasures_wmhemi_tissue_native",
+              "noddimeasures_wmintra_tissue_native",
+              "tensormeasures_gmcort_tissue_native",
+              "tensormeasures_gmhemi_tissue_native",
+              "tensormeasures_wmhemi_tissue_native",
+              "tensormeasures_wmintra_tissue_native",
+              "qsiprep_v0214",
+              "tensor_v0214"
+       ],
+      "COLLATE_NAME": "dwimeasures_hemi",
+      "MEASURES_TEMPLATE": [
+                "<DEPENDENCY1_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY2_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY3_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY4_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY5_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY6_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY7_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY8_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv"
+        ],
+      "MEASURES_PREFIXES": {
+        "<DEPENDENCY1>":"noddi-gm",
+        "<DEPENDENCY2>":"noddi-gm",
+        "<DEPENDENCY3>":"noddi-wm",
+        "<DEPENDENCY4>":"noddi-wm",
+        "<DEPENDENCY5>":"tensor-gm",
+        "<DEPENDENCY6>":"tensor-gm",
+        "<DEPENDENCY7>":"tensor-wm",
+        "<DEPENDENCY8>":"tensor-wm"
+      },
+      "COLLATE_EXTRATEXT" : {
+          "<macro1>" : {
+              "Value" : "get_version_string",
+              "Process" : "qsiprep",
+              "ProcessFile" : "<DEPENDENCY9_DIR>/qsiprep_node/qsiprep/sub-<PARTICIPANT_LABEL>.html"
+          },
+          "<macro2>" : {
+              "Value" : "get_version_string",
+              "Process" : "tensor",
+              "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY10/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
+          },
+          "site" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Translation" : {
+                  "001_HML" : "UA",
+                  "002_HML" : "UM",
+                  "003_HML" : "EU",
+                  "004_HML" : "JH"             
+                  }
+          },
+          "site_id" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+          },
+          "hml_id" : {
+              "Value" : "<PARTICIPANT_LABEL>"
+          }
+      }
+    },
+    "collatesubject_tractsegmeasures":
+    {
+      "PIPELINE_CLASS": "collatecsv_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": [
+               "tensormeasures_v0214_tractseg_native_wm",
+               "noddimeasures_v0214_tractseg_native_wm",
+               "qsiprep_v0214",
+               "tensor_v0214",
+               "tractseg"
+       ],
+      "COLLATE_NAME": "tractseg-measures",
+      "MEASURES_TEMPLATE": [
+                "<DEPENDENCY1_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv",
+                "<DEPENDENCY2_DIR>/subject_metrics_map/mapflow/_subject_metrics_map*/*_roi_output_dir/*measures.csv"
+        ],
+      "MEASURES_PREFIXES": {
+        "<DEPENDENCY1>":"tensor-wm",
+        "<DEPENDENCY2>":"noddi-wm"
+      },
+      "COLLATE_EXTRATEXT" : {
+          "<macro1>" : {
+              "Value" : "get_version_string",
+              "Process" : "qsiprep",
+              "ProcessFile" : "<DEPENDENCY3_DIR>/qsiprep_node/qsiprep/sub-<PARTICIPANT_LABEL>.html"
+          },
+          "<macro2>" : {
+              "Value" : "get_version_string",
+              "Process" : "tensor",
+              "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY4>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
+          },
+          "<macro3>" : {
+              "Value" : "get_version_string",
+              "Process" : "tractseg",
+              "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY5>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
+          },
+          "site" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Translation" : {
+                  "001_HML" : "UA",
+                  "002_HML" : "UM",
+                  "003_HML" : "EU",
+                  "004_HML" : "JH"             
+                  }
+          },
+          "site_id" : {
+              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+          },
+          "hml_id" : {
+              "Value" : "<PARTICIPANT_LABEL>"
+          }
+      }
+    },
+    "collategroup_tractsegmeasures":
+    {
+      "ANALYSIS_LEVEL": "group",
+      "PIPELINE_CLASS": "collatecsvgroup_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["collatesubject_tractsegmeasures"],
+      "COLLATE_NAME_LEFT": "tractsegmeasures",
+      "MEASURES_TEMPLATE1": ["<DEPENDENCY1_DIR>/collate_csv_single_node/*_roi_output_dir/*.csv"]
+    },
+    "dummy":
+    {
+       "PIPELINE_CLASS": "dummy_panpipeline",
+       "ANALYSIS_LEVEL": "participant",
+       "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs"
+    },
+    "dummy_replace":
+    {
+       "PIPELINE_CLASS": "dummy_panpipeline",
+       "ANALYSIS_LEVEL": "participant",
+       "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+       "FORCE_BIDS_DOWNLOAD" : "Y"
+    },
+    "pandb_download_demographics":
+    {
+       "PIPELINE_CLASS": "pancontainergroup_panpipeline",
+       "SINKDIR_GROUP": "<DERIVATIVES_DIR>/input_tables/<PIPELINE>",
+       "ANALYSIS_LEVEL": "group",
+       "SCRIPT_CLASS" : "pandb_download",
+       "PANDB_QUERY" : "SELECT * FROM p2_redcap_demographics A LEFT JOIN p2_redcap_biometrics B ON A.hml_id = B.hml_id",
+       "PIPELINE_CONFIG_LOC" : "<CWD>/pipeline_config_pancontainer.json",
+       "PANCONTAINER_PARAMS" : "--query <PANDB_QUERY> --output demographics_biometrics.csv --cert <PANDB_CERT> --connargs <PANDB_CREDENTIALS> --pipeline_config_file <PIPELINE_CONFIG_LOC>",
+       "CONTAINER_TO_USE" : "DUMMY_CONTAINER"
+    },
+    "tensor_to_t1wspace":
+    {
+      "PIPELINE_CLASS": "transform_panpipeline",
+      "COST_FUNCTION" : "Bspline",
+      "CLIP_MEASURE" : {
+          "desc-fa" : {
+             "LTHR" : "0",
+             "UTHR" : "1"
+          }
+      },
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["tensor_v0214","qsiprep_v0214_affine_transform","basil_voxel_mansdc"],
+      "T1W_T1ACPC" : "<DEPENDENCY2_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "TRANSFORM_REF": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz",
+      "TRANSFORM_MAT": [[ "<T1W_T1ACPC>::::True:RAS^RAS^RAS"]],
+      "REPLACE_STRINGS" : { "T1w" : "T1wNative" },
+      "MOVING_FILES": "<DEPENDENCY1_DIR>/tensor_node/tensor_metrics/sub-<PARTICIPANT_LABEL>*_desc-preproc_desc-*.nii.gz"
+    },
+    "noddiwm_to_t1wspace":
+    {
+      "PIPELINE_CLASS": "transform_panpipeline",
+      "CLIP_MEASURE" : {
+          "desc-ICVF" : {
+             "LTHR" : "0",
+             "UTHR" : "1"
+          },
+          "desc-ISOVF" : {
+             "LTHR" : "0",
+             "UTHR" : "1"
+          },
+          "desc-OD" : {
+             "LTHR" : "0",
+             "UTHR" : "1"
+          }
+      },
+      "COST_FUNCTION" : "Bspline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["noddi_v0214","qsiprep_v0214_affine_transform","basil_voxel_mansdc"],
+      "T1W_T1ACPC" : "<DEPENDENCY2_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "TRANSFORM_REF": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz",
+      "TRANSFORM_MAT": [[ "<T1W_T1ACPC>::::True:RAS^RAS^RAS"]],
+      "REPLACE_STRINGS" : { "T1w" : "T1wNative" },
+      "MOVING_FILES": [ "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-ICVF*.nii.gz", "<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-ISOVF*.nii.gz","<DEPENDENCY1_DIR>/noddi_node/qsirecon/sub-<PARTICIPANT_LABEL>/ses-*/dwi/*_desc-preproc_desc-OD*.nii.gz"]
+    },
+    "noddigm_to_t1wspace":
+    {
+      "PIPELINE_CLASS": "transform_panpipeline",
+      "CLIP_MEASURE" : {
+          "ALL_MEASURES" : {
+             "LTHR" : "0",
+             "UTHR" : "1"
+          }
+      },
+      "COST_FUNCTION" : "Bspline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["amiconoddi_gm","qsiprep_v0214_affine_transform","basil_voxel_mansdc"],
+      "T1W_T1ACPC" : "<DEPENDENCY2_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "TRANSFORM_REF": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz",
+      "TRANSFORM_MAT": [[ "<T1W_T1ACPC>::::True:RAS^RAS^RAS"]],
+      "REPLACE_STRINGS" : { "fit" : "space-T1wNative" },
+      "MOVING_FILES": ["<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_NDI.nii.gz", "<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_FWF.nii.gz","<DEPENDENCY1_DIR>/pancontainergroup_node/amico_output/fit_ODI.nii.gz"]
+    },
+    "register_flair_to_t1wspace":
+    {
+      "PIPELINE_CLASS": "registration_panpipeline",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["basil_voxel_mansdc"],
+      "MOVING" : "<BIDS_DIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_*FLAIR.nii.gz",
+      "REFERENCE": "<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz",
+      "REGISTRATION_TYPE": "ants_registration_rigid",
+      "TRANSFORM_NAME" : "from-flair_to-t1w"
+    },
+    "flair_to_t1wspace":
+    {
+      "PIPELINE_CLASS": "transform_panpipeline",
+      "COST_FUNCTION": "Bspline",
+      "DEPENDENCY": ["register_flair_to_t1wspace"],
+      "FLAIR_T1W": "<DEPENDENCY1_DIR>/subject_register/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_transform_from-flair_to-t1w0GenericAffine.mat",
+      "TRANSFORM_REF": "<BIDS_DIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_*T1w.nii.gz",
+      "TRANSFORM_MAT": [["<FLAIR_T1W>:::::RAS^RAS^RAS"]],
+      "REPLACE_STRINGS": { "FLAIR": "space-T1wNative_FLAIR"},
+      "MOVING_FILES": ["<BIDS_DIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_*FLAIR.nii.gz"]    
+    },
+    "tractseg_to_t1wspace":
+    {
+      "PIPELINE_CLASS": "transform_panpipeline",
+      "COST_FUNCTION" : "NearestNeighbor",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["tractseg","qsiprep_v0214_affine_transform","basil_voxel_mansdc"],
+      "T1W_T1ACPC" : "<DEPENDENCY2_DIR>/sub-<PARTICIPANT_LABEL>_qsiprep_t1-t1acpc0GenericAffine.mat",
+      "TRANSFORM_REF": "<DEPENDENCY3_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz",
+      "TRANSFORM_MAT": [[ "<T1W_T1ACPC>::::True:RAS^RAS^RAS"]],
+      "REPLACE_STRINGS" : { ".nii.gz" : "_space-T1wNative.nii.gz" },
+      "MOVING_FILES": ["<DEPENDENCY1_DIR>/tractseg_node/tractseg_out/bundles_segmentations_native_bin/*.nii.gz"]
+    }
+}
