@@ -20,8 +20,8 @@ def create(name, wf_base_dir,labels_dict,createGraph=True,execution={},LOGGER=No
     transform_node = antstransform.create(labels_dict,name="subject_transform",LOGGER=LOGGER)
     transform_map_node = MapNode(transform_node.interface,name="subject_transform_map",iterfield=['input_file'])
 
-    transform_mat=getParams(labels_dict,"TRANSFORM_MAT") 
-    transform_ref=getParams(labels_dict,"TRANSFORM_REF")
+    transform_mat=getGlob(substitute_labels(getParams(labels_dict,"TRANSFORM_MAT"),labels_dict)) 
+    transform_ref=getGlob(substitute_labels(getParams(labels_dict,"TRANSFORM_REF"),labels_dict))
 
     transform_map_node.inputs.trans_mat = transform_mat
     transform_map_node.inputs.ref_file = transform_ref
