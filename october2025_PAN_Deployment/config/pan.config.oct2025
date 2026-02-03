@@ -25,6 +25,7 @@
       "PIPELINE_DIR": "<PROC_DIR>/pan_output",
       "FSLICENSE": "<PROC_DIR>/config/license.txt",
       "DATA_DIR": "<PROC_DIR>/ALLPAN_Data",
+      "EXTERNAL_SCRIPTS" : "<PROC_DIR>/external_scripts",
       "DERIVATIVES_DIR": "<PIPELINE_DIR>/derivatives",
       "SINKDIR": "<DERIVATIVES_DIR>/output_tables/<PIPELINE>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>",
       "TRANSFORMDIR": "<DERIVATIVES_DIR>/transforms/<PIPELINE>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>",
@@ -36,26 +37,27 @@
       "LOCK_DIR": "<DATA_DIR>/datalocks",
       "MAXLOCKS" : "20",
       "SESSIONS_FILE": "<DATA_DIR>/tsv/sessions.tsv",
-      "PAN_CONTAINER": "/groups/ryant/PANapps/panprocminimal-v0.2.sif",
+      "CONTAINER_DIR" : "<PROC_DIR>/containers",
+      "PAN_CONTAINER": "<CONTAINER_DIR>/panprocminimal-v0.2.sif",
       "PAN_CONTAINER_RUN_OPTIONS": "singularity run --nv --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <PKG_DIR>/panpipelines:/opt/miniconda/lib/python3.10/site-packages/panpipelines  -B <CWD>:/cwd",
       "PAN_CONTAINER_PRERUN" : "--home", 
-      "NEURO_CONTAINER": "/groups/ryant/PANapps/panprocminimal-v0.2.sif",
+      "NEURO_CONTAINER": "<CONTAINER_DIR>/panprocminimal-v0.2.sif",
       "CONTAINER": "<PAN_CONTAINER>",
       "CONTAINER_RUN_OPTIONS": "<PAN_CONTAINER_RUN_OPTIONS>",
       "CONTAINER_PRERUN" : "", 
-      "QSIPREP_CONTAINER": "/groups/ryant/PANapps/qsiprep-0.20.0.sif",
+      "QSIPREP_CONTAINER": "<CONTAINER_DIR>/qsiprep-0.20.0.sif",
       "QSIPREP_CONTAINER_RUN_OPTIONS": "singularity exec --nv --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <CWD>:/cwd",
       "QSIPREP_CONTAINER_PRERUN" : "/usr/local/miniconda/bin/qsiprep", 
-      "FMRIPREP_CONTAINER": "/groups/ryant/PANapps/fmriprep-23.2.0.sif",
+      "FMRIPREP_CONTAINER": "<CONTAINER_DIR>/fmriprep-23.2.0.sif",
       "FMRIPREP_CONTAINER_RUN_OPTIONS": "singularity run --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <CWD>:/cwd",
       "FMRIPREP_CONTAINER_PRERUN" : " ",
-      "ASLPREP_CONTAINER": "/groups/ryant/PANapps/aslprep_0.5.1.sif",
+      "ASLPREP_CONTAINER": "<CONTAINER_DIR>/aslprep_0.5.1.sif",
       "ASLPREP_CONTAINER_RUN_OPTIONS": "singularity run --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <CWD>:/cwd",
       "ASLPREP_CONTAINER_PRERUN" : " ",
-      "MRIQC_CONTAINER": "/groups/ryant/PANapps/mriqc-24.0.2.sif",
+      "MRIQC_CONTAINER": "<CONTAINER_DIR>/mriqc-24.0.2.sif",
       "MRIQC_CONTAINER_RUN_OPTIONS": "singularity run --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <CWD>:/cwd",
       "MRIQC_CONTAINER_PRERUN" : " ",
-      "LST_CONTAINER": "/groups/ryant/PANapps/nklab-spmjobman.sif",
+      "LST_CONTAINER": "<CONTAINER_DIR>/nklab-spmjobman.sif",
       "LST_CONTAINER_RUN_OPTIONS": "singularity run --cleanenv",
       "LST_CONTAINER_PRERUN" : "--homedir=<LST_OUTPUT_DIR>",
       "ANTS_CONTAINER": "<PAN_CONTAINER>",
@@ -89,8 +91,9 @@
        "PIPELINE_CLASS": "pancontainergroup_panpipeline",
        "ANALYSIS_NODE": "gpu",
        "DEPENDENCY" : ["dummy","dummy_replace"],
-       "SCRIPT_FILE" : "/xdisk/ryant/chidiugonna/PAN/PANALL_Deployment/external_scripts/wm_measures/wm_measures_lstai.sh",
-       "ANATDIR" : "<PROC_DIR>/config/lstai.sif <BIDS_DIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat",
+       "SCRIPT_FILE" : "<EXTERNAL_SCRIPTS>/wm_measures/wm_measures_lstai.sh",
+       "LSTAI_CONTAINER" : "<CONTAINER_DIR>/lstai.sif",
+       "ANATDIR" : "<LSTAI_CONTAINER> <BIDS_DIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat",
        "PANCONTAINER_PARAMS" : "<ANATDIR> sub-<PARTICIPANT_LABEL> ses-<PARTICIPANT_SESSION> <WORKFLOW_DIR> 8 0 '0.5 99.5'",
        "PANCONTAINER_COMMANDS" : "bash",
        "SCRIPT_INTERACTIVE" :  "Y",
@@ -206,7 +209,7 @@
               "ProcessFile" : "<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/scripts/recon-all.log"
           },
           "site" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>",
               "Translation" : {
                   "001_HML" : "UA",
                   "002_HML" : "UM",
@@ -215,7 +218,7 @@
                   }
           },
           "site_id" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>"
           },
           "hml_id" : {
               "Value" : "<PARTICIPANT_LABEL>"
@@ -267,7 +270,7 @@
               "ProcessFile" : "<DEPENDENCY3_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/scripts/recon-all.log"
           },
           "site" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>",
               "Translation" : {
                   "001_HML" : "Tucson",
                   "002_HML" : "Miami",
@@ -276,7 +279,7 @@
                   }
           },
           "site_id" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>"
           },
           "hml_id" : {
               "Value" : "<PARTICIPANT_LABEL>"
@@ -369,7 +372,7 @@
               "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY1>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
           },
           "site" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>",
               "Translation" : {
                   "001_HML" : "UA",
                   "002_HML" : "UM",
@@ -378,7 +381,7 @@
                   }
           },
           "site_id" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>"
           },
           "hml_id" : {
               "Value" : "<PARTICIPANT_LABEL>"
@@ -433,7 +436,7 @@
               "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY3>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
           },
           "site" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>",
               "Translation" : {
                   "001_HML" : "UA",
                   "002_HML" : "UM",
@@ -442,7 +445,7 @@
                   }
           },
           "site_id" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>"
           },
           "hml_id" : {
               "Value" : "<PARTICIPANT_LABEL>"
@@ -817,7 +820,7 @@
       "LD_LIBRARY_PATH" : "/usr/lib/fsl/5.0:/usr/lib/x86_64-linux-gnu:/usr/lib64:/.singularity.d/libs",
       "TRACTSEG_HOME" :"<PROC_DIR>/tractseg_home",
       "QSIPREP_OUTPUT_DIR" : "<DEPENDENCY3_DIR>/qsiprep_node/qsiprep",
-      "TRACTSEG_CONTAINER": "/groups/ryant/PANapps/tractseg.sif",
+      "TRACTSEG_CONTAINER": "<CONTAINER_DIR>/tractseg.sif",
       "TRACTSEG_CONTAINER_PRERUN" : " ", 
       "TRACTSEG_CONTAINER_RUN_OPTIONS": "apptainer run --nv --cleanenv --env LD_LIBRARY_PATH=<LD_LIBRARY_PATH> -H <TRACTSEG_HOME>",
       "EXTRA_TRACTSEG_PARAMS":"--super_resolution --get_probabilities"
@@ -828,7 +831,7 @@
       "PIPELINE_CLASS": "xcpd_panpipeline",
       "FMRIPREP_OUTPUT_DIR" : "<DEPENDENCY1_DIR>/fmriprep_node/fmrioutput",
       "XCPD_CUSTOM_ATLASES" : "<PROC_DIR>/atlas/xcpd_custom_atlases",
-      "XCPD_CONTAINER": "/groups/ryant/PANapps/xcpd-0.10.5.sif",
+      "XCPD_CONTAINER": "<CONTAINER_DIR>/xcpd-0.10.5.sif",
       "XCPD_CONTAINER_PRERUN" : "/usr/local/miniconda/bin/xcp_d", 
       "XCPD_CONTAINER_RUN_OPTIONS": "apptainer exec --nv -B <XCPD_CUSTOM_ATLASES>:/custom_atlases --cleanenv --no-home"
     },
@@ -859,7 +862,7 @@
       },
         "COLLATE_EXTRATEXT" : {
           "site" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>",
               "Translation" : {
                   "001_HML" : "UA",
                   "002_HML" : "UM",
@@ -868,7 +871,7 @@
                   }
           },
           "site_id" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>"
           },
           "hml_id" : {
               "Value" : "<PARTICIPANT_LABEL>"
@@ -1030,7 +1033,7 @@
     {
       "PIPELINE_CLASS": "fmriprep_panpipeline",
       "DEPENDENCY": ["dummy_replace","dummy"],
-      "FMRIPREP_CONTAINER": "/groups/ryant/PANapps/fmriprep-24.1.1.sif",
+      "FMRIPREP_CONTAINER": "<CONTAINER_DIR>/fmriprep-24.1.1.sif",
       "FMRIPREP_OVERRIDE_PARAMS" : {
             "--ignore": "t2w flair"
         }
@@ -1043,7 +1046,7 @@
       "LD_LIBRARY_PATH" : "/opt/qt512/lib/x86_64-linux-gnu:/opt/qt512/lib:/opt/ants/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/opt/conda/envs/qsiprep/lib/python3.10/site-packages/nvidia/cudnn/lib:/usr/lib/x86_64-linux-gnu:/usr/lib64:/.singularity.d/libs",
       "OUTPUT_RES": "2.0",
       "ANALYSIS_NODE": "gpu",
-      "QSIPREP_CONTAINER": "/groups/ryant/PANapps/qsiprep-0.21.4.sif",
+      "QSIPREP_CONTAINER": "<CONTAINER_DIR>/qsiprep-0.21.4.sif",
       "QSIPREP_CONTAINER_PRERUN" : "/opt/conda/envs/qsiprep/bin/qsiprep", 
       "QSIPREP_CONTAINER_RUN_OPTIONS": "singularity exec --nv --cleanenv --env LD_LIBRARY_PATH=<LD_LIBRARY_PATH> --no-home",
       "QSIPREP_OVERRIDE_PARAMS" : {
@@ -1051,47 +1054,16 @@
           "--omp-nthreads" : "1"
       }
     },
-    "qsiprep_v101":
-    {
-      "EDDY_CONFIG": "<PROC_DIR>/config/pan_eddyparams_cuda_qsiprep101.json",
-      "QSIPREP_OUTDIR" : "<CWD>/qsiprep_out",
-      "DEPENDENCY": ["dummy_replace","dummy"],
-      "PIPELINE_CLASS": "qsiprep_panpipeline",
-      "LD_LIBRARY_PATH" : "/opt/qt512/lib/x86_64-linux-gnu:/opt/qt512/lib:/opt/ants/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/opt/conda/envs/qsiprep/lib/python3.10/site-packages/nvidia/cudnn/lib:/usr/lib/x86_64-linux-gnu:/usr/lib64:/.singularity.d/libs",
-      "OUTPUT_RES": "1.0",
-      "ANALYSIS_NODE": "gpu",
-      "QSIPREP_CONTAINER": "/groups/ryant/PANapps/qsiprep101.sif",
-      "QSIPREP_CONTAINER_PRERUN" : "/opt/conda/envs/qsiprep/bin/qsiprep", 
-      "QSIPREP_CONTAINER_RUN_OPTIONS": "singularity exec --nv --cleanenv --env LD_LIBRARY_PATH=<LD_LIBRARY_PATH> --no-home",
-      "QSIPREP_OVERRIDE_PARAMS" : {
-          "--mem_mb" : "###",
-          "--participant_label" : "###",
-          "--participant-label" : "<PARTICIPANT_LABEL>",
-          "--mem" : "<BIDSAPP_MEMORY>",
-          "--anat-modality" : "T1w",
-          "--omp-nthreads" : "1",
-          "--subject-anatomical-reference" : "sessionwise"
-      }
-    },
     "basil_voxel_mansdc":
     {
       "PIPELINE_CLASS": "basil_panpipeline",
       "DEPENDENCY": ["dummy_replace","dummy"],
-      "SDCFLOWS_CONTAINER_TO_USE": "SDCFLOWS_CONTAINER",
       "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_verylong_<CPUSUFFIX>.pbs",
-      "SDCFLOWS_CONTAINER": "/groups/ryant/PANapps/fmriprep-23.2.1.sif",
-      "SDCFLOWS_CONTAINER_RUN_OPTIONS": "singularity exec ",
-      "SDCFLOWS_CONTAINER_PRERUN" : " ",
       "ANALYSIS_NODE": "cpu",
       "FIELDMAP_TYPE" : {
           "acq-prod" : "fsl_prepare_fieldmap",
           "acq-pcasl" : "fsl_prepare_fieldmap",
           "acq-plusM0" : "fsl_prepare_fieldmap"
-      },
-      "SDCFLOWS_FIELDMAP_DIR" : {
-           "acq-prod" : "<WORKFLOW_DIR>/sdcflows/fmap",
-           "acq-pcasl" : "<WORKFLOW_DIR>/sdcflows/fmap",
-           "acq-plusM0" : "<WORKFLOW_DIR>/sdcflows/fmap"
       },
       "ASL_ECHOSPACING" : {
            "acq-prod" : {
@@ -1205,7 +1177,7 @@
               "ProcessFile" : "<DEPENDENCY2_DIR>/freesurfer_node/subjects_dir/sub-<PARTICIPANT_LABEL>/scripts/recon-all.done"
           },
           "site" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>",
               "Translation" : {
                   "001_HML" : "UA",
                   "002_HML" : "UM",
@@ -1214,7 +1186,7 @@
                   }
           },
           "site_id" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>"
           },
           "hml_id" : {
               "Value" : "<PARTICIPANT_LABEL>"
@@ -1243,7 +1215,7 @@
         "PA_TRANSFORM_MAT" : ["tkregister2_fslout:FSL:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/T1.mgz:<SUBJECTS_DIR>/sub-<PARTICIPANT_LABEL>/mri/rawavg.mgz","<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/fsl_*/asl2struct.mat:FSL:<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/perfusion.nii.gz:<DEPENDENCY1_DIR>/fslanat_node/<PARTICIPANT_LABEL>_struct.anat/T1.nii.gz:True:LAS"],
         "PA_TRANSFORM_REF" : "<DEPENDENCY1_DIR>/basil_node/basiloutput_multipld/native_space/perfusion.nii.gz",
         "PREPROC_CONTAINER_TO_USE": "PREPROC_CONTAINER",
-        "PREPROC_CONTAINER" : "/groups/ryant/PANapps/panprocminimal-v0.2.sif",
+        "PREPROC_CONTAINER" : "<CONTAINER_DIR>/panprocminimal-v0.2.sif",
         "PREPROC_CONTAINER_RUN_OPTIONS": "singularity run",
         "PREPROC_CONTAINER_PRERUN" : " ",
         "PHASESHIFT" : {
@@ -1327,7 +1299,7 @@
               "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY3>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
           },
           "site" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>",
               "Translation" : {
                   "001_HML" : "UA",
                   "002_HML" : "UM",
@@ -1336,7 +1308,7 @@
                   }
           },
           "site_id" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>"
           },
           "hml_id" : {
               "Value" : "<PARTICIPANT_LABEL>"
@@ -1407,13 +1379,13 @@
        "SINKDIR_GROUP": "<DERIVATIVES_DIR>/output_tables/<PIPELINE>",
        "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
        "CHANGEDIR":"N",
-       "SCRIPT_FILE" : "/groups/ryant/PANapps/PANpipelines/external_scripts/amico/amico_noddi.py",
+       "SCRIPT_FILE" : "<EXTERNAL_SCRIPTS>/amico/amico_noddi.py",
        "PIPELINE_CONFIG_LOC" : "<CWD>/pipeline_config_pancontainer.json",
        "QSIPREP_OUTPUT_DIR" : "<DEPENDENCY_DIR>/qsiprep_node/qsiprep",
        "PANCONTAINER_PARAMS" : "--participant <PARTICIPANT_LABEL> --session <PARTICIPANT_SESSION> --qsiprep_dir <QSIPREP_OUTPUT_DIR> --model_config <PROC_DIR>/config/gm_model.json --output_path <CWD>/amico_output",
        "CONTAINER_TO_USE" : "PANAPPS_CONTAINER",
        "PANCONTAINER_COMMANDS" : "python",
-       "PANAPPS_CONTAINER": "/groups/ryant/PANapps/panapps.sif",
+       "PANAPPS_CONTAINER": "<CONTAINER_DIR>/panapps.sif",
        "PANAPPS_CONTAINER_RUN_OPTIONS": "singularity run",
        "PANAPPS_CONTAINER_PRERUN" : "--condaenv=amico"
     },
@@ -1702,7 +1674,7 @@
               "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY10/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
           },
           "site" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>",
               "Translation" : {
                   "001_HML" : "UA",
                   "002_HML" : "UM",
@@ -1711,7 +1683,7 @@
                   }
           },
           "site_id" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>"
           },
           "hml_id" : {
               "Value" : "<PARTICIPANT_LABEL>"
@@ -1755,7 +1727,7 @@
               "ProcessFile" : "<PIPELINE_DIR>/<DEPENDENCY5>/<PARTICIPANT_XNAT_PROJECT>/<PARTICIPANT_LABEL>_*_<PARTICIPANT_SESSION>_*.log"
           },
           "site" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>",
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>",
               "Translation" : {
                   "001_HML" : "UA",
                   "002_HML" : "UM",
@@ -1764,7 +1736,7 @@
                   }
           },
           "site_id" : {
-              "Value" : "<PARTICIPANT_XNAT_PROJECT>"
+              "Value" : "<PARTICIPANT_XNAT_SHARED_PROJECT>"
           },
           "hml_id" : {
               "Value" : "<PARTICIPANT_LABEL>"
@@ -1792,17 +1764,6 @@
        "ANALYSIS_LEVEL": "participant",
        "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
        "FORCE_BIDS_DOWNLOAD" : "Y"
-    },
-    "pandb_download_demographics":
-    {
-       "PIPELINE_CLASS": "pancontainergroup_panpipeline",
-       "SINKDIR_GROUP": "<DERIVATIVES_DIR>/input_tables/<PIPELINE>",
-       "ANALYSIS_LEVEL": "group",
-       "SCRIPT_CLASS" : "pandb_download",
-       "PANDB_QUERY" : "SELECT * FROM p2_redcap_demographics A LEFT JOIN p2_redcap_biometrics B ON A.hml_id = B.hml_id",
-       "PIPELINE_CONFIG_LOC" : "<CWD>/pipeline_config_pancontainer.json",
-       "PANCONTAINER_PARAMS" : "--query <PANDB_QUERY> --output demographics_biometrics.csv --cert <PANDB_CERT> --connargs <PANDB_CREDENTIALS> --pipeline_config_file <PIPELINE_CONFIG_LOC>",
-       "CONTAINER_TO_USE" : "DUMMY_CONTAINER"
     },
     "tensor_to_t1wspace":
     {
@@ -1898,5 +1859,17 @@
       "TRANSFORM_MAT": [[ "<T1W_T1ACPC>::::True:RAS^RAS^RAS"]],
       "REPLACE_STRINGS" : { ".nii.gz" : "_space-T1wNative.nii.gz" },
       "MOVING_FILES": ["<DEPENDENCY1_DIR>/tractseg_node/tractseg_out/bundles_segmentations_native_bin/*.nii.gz"]
+    },
+    "lstai_lesion_to_t1wspace":
+    {
+      "PIPELINE_CLASS": "transform_panpipeline",
+      "COST_FUNCTION" : "NearestNeighbor",
+      "SLURM_CPU_HEADER": "<SLURM_HEADER_DIR>/cpu_small_<CPUSUFFIX>.pbs",
+      "DEPENDENCY": ["lstai","register_flair_to_t1wspace"],
+      "FLAIR_T1W": "<DEPENDENCY2_DIR>/subject_register/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_transform_from-flair_to-t1w0GenericAffine.mat",
+      "TRANSFORM_REF": "<BIDS_DIR>/sub-<PARTICIPANT_LABEL>/ses-<PARTICIPANT_SESSION>/anat/sub-<PARTICIPANT_LABEL>_ses-<PARTICIPANT_SESSION>_*T1w.nii.gz",
+      "TRANSFORM_MAT": [["<FLAIR_T1W>:::::RAS^RAS^RAS"]],
+      "REPLACE_STRINGS": { "space-flair": "space-T1wNative"},
+      "MOVING_FILES": ["<DEPENDENCY1_DIR>/results/space-flair_desc-annotated_seg-lst.nii.gz","<DEPENDENCY1_DIR>/results/space-flair_seg-lst.nii.gz"]  
     }
 }

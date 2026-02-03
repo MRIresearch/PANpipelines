@@ -1,19 +1,18 @@
 # Reproducing October 2025 MRI PAN Measures
-The following [instructions](https://github.com/MRIresearch/PANpipelines/tree/main/october2025_PAN_Deployment) can be followed to replicate the results provided as part of the October 2025 data release on a slurm-based HPC environment. This release also made some amendments to the April 2025 release
+The following [instructions](https://github.com/MRIresearch/PANpipelines/tree/main/october2025_PAN_Deployment) can be followed to replicate the results provided as part of the October 2025 data release on a slurm-based HPC environment. This release also made some amendments to the April 2025 release.
 
 ## Changes to April 2025 release
-* New White Matter Hyperintensities (WMH) measures provided for April 2025 release
-* Subject HML0163 renamed to HML0162 for consistency with rest of Pan DB release
-* Subject HML0700 
+* New White Matter Hyperintensities (WMH) measures provided for April 2025 release.
+* Subject HML0163 renamed to HML0162 for consistency with rest of Pan DB release.
+* Subject HML0700 added to release.
 
 ## October 2025 release
-* Updates provided for all previous tablles released in April 2025
-* New White Matter Hyperintensities (WMH) measures provided for October 2025 release
+* Updates provided for all previous tablles released in April 2025.
+* New White Matter Hyperintensities (WMH) measures provided for October 2025 release.
 
 ## Tables released
-
-* coree_chen_anat_measures.csv
-* coree_chen_anat_measures_20251001.csv
+* coree_chen_anat_measures.csv   (updated April 2025 release)
+* coree_chen_anat_measures_20251001.csv (new October 2025 release)
 * coree_chen_asl_measures.csv
 * coree_chen_asl_measures_20251001.csv
 * coree_chen_dwi_measures.csv
@@ -27,47 +26,58 @@ The following [instructions](https://github.com/MRIresearch/PANpipelines/tree/ma
 * coree_chen_wmh_measures.csv
 * coree_chen_wmh_measures_20251001.csv
 
+## Create Root Directory
+Create a root directory `ROOTDIR`from which you will reproduce the analysis. For this example we will create a directory in our Home directory.
+```
+ROOTDIR=$HOME/PanOctober
+mkdir -p $ROOTDIR
+```
+
 ## Create Python environment
-Use a python virtual environment manager to create an environment for the panpipelines 1.1.5 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
+Use a python virtual environment manager to create an environment for the panpipelines 1.1.6 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
 
 ### Install `virtualenv` and prepare virtual environment
 Install `virtualenv` in python environment:
-
 ```
 module load python/3.11/3.11.4
 pip install --user virtualenv
 ```
 
-Create a virtual environment called `pan_october2025_env` in a location defined by `ENVLOC`
-
+Create a virtual environment (in our example we shall call it `pan_october2025_env`)  in a location defined by `ENVLOC`
 ```
 ENVNAME=pan_october2025_env
-ENVLOC=/xdisk/trouard/$USER/PAN/october2025_repro/venvs
+ENVLOC=/$ROOTDIR/venvs
 mkdir -p $ENVLOC
 module load python/3.11/3.11.4
 virtualenv -p python3 $ENVLOC/$ENVNAME
 ```
 
-Activate environment and Install version 1.1.5 of PAN pipelines using `pip`
+Activate environment and Install version 1.1.6 of PAN pipelines using `pip`
 ```
 module load python/3.11/3.11.4
 source $ENVLOC/$ENVNAME/bin/activate
-pip install panpipelines==1.1.5
+pip install panpipelines==1.1.6
 ```
 
 ## Deployment Folder Structure
-Create a root directory from which you will reproduce the analysis. For the October 2025 release we will be copying the data first from the `april2025_PAN_Deployment` folder and then appending additional files from `october2025_PAN_Deployment`
+For the October 2025 release we will be copying the data first from the `april2025_PAN_Deployment` folder and then appending additional files from `october2025_PAN_Deployment`
 
 ## Clone Panpipelines repository and copy folders
-In a separate folder clone the Panpipelines repository and from the `april2025_PAN_Deployment` folder copy the folders   **atlas**,**batch_scripts** , **config**, **containers**, **external_scripts** and the run script `runpan.sh` to your root directory.
+In a separate folder clone the Panpipelines repository and from the `april2025_PAN_Deployment` folder copy the folders   **atlas**, **batch_scripts** , **config**, **containers** and  **external_scripts** to your root directory.
 
-Obtain the weights for the tractseg container from its github page or alternatively Download `tractseg_home.zip` from `https://osf.io/fpbkn/files/osfstorage` to the root directory and unzip it.
+Obtain the weights for the tractseg container by downloading  `tractseg_home.zip` from  the OSF PANpipeline repositiry at`https://osf.io/fpbkn/files/osfstorage` to the root directory and unzip it.
 
-From `october2025_PAN_Deployment`, merge in the following **config**, **containers** and `runpan_october.sh` into your root directory. Two files will be overriden namely `config/sessions.tsv` and `containers/build_all.sh`
+From `october2025_PAN_Deployment`, merge in the following **config**, **containers**, **external_scripts** and `runpan_october.sh` into your root directory. The file `containers/build_all.sh` will be overwritten.
+
+## Prune unnecessary files
+The following files should be removed as they are not necessary. If you decide to retain them then that is fine too as they will not be used. These files are as follows:
+
+`runpan.sh` in the `ROOTDIR`.
+`sessions.tsv` in `config` directory.
+`pan.config.april2025` in `config` directory.
 
 
 Your root directory should look like this now:
-
 
  <br/>
 ├── atlas<br/>
@@ -80,23 +90,27 @@ Your root directory should look like this now:
 │   ├── headers <br/>
 │   └── participant_template.pbs <br/>
 ├── config <br/>
+│   ├── PAN_dataset_description.json <br/>
+│   ├── anatomical.py <br/>
+│   ├── anatomical_interface.py <br/>
+│   ├── april_october_combo.csv <br/>
+│   ├── credentials
+│   │   └── credentials.json
 │   ├── freesurfer_outputs_april.csv <br/>
 │   ├── gm_model.json <br/>
 │   ├── hml_ids_list_241231.csv <br/>
-│   ├── april_october_combo.csv <br/>
 │   ├── license.txt <br/>
-│   ├── pan.config.april2025 <br/>
 │   ├── pan.config.oct2025 <br/>
 │   ├── pan_eddyparams_cuda.json <br/>
-│   ├── sessions.tsv <br/>
 │   └── style.css <br/>
 ├── containers <br/>
 │   ├── build_all.sh<br/>
 ├── external_scripts <br/>
 │   └── amico <br/>
-├── runpan.sh <br/>
+│   └── wm_measures <br/>
 ├── runpan_october.sh <br/>
 ├── tractseg_home <br/>
+├── venvs <br/>
 
 ## Create associated Apptainers
 The PAN pipelines rely on a number of apptainer images which are required to successfully run the pipelines. These are available as docker images which can be converted to singularity images. Provided is an example for panprocminimal-v0.2.sif
@@ -130,16 +144,17 @@ The following singularity images should be generated and stored in an accessible
 ## Apptainer Provenance
 Details of all the apptainers except 2 are provided in relevant references from the associated institutions. The other two apptainers  (`aacazxnat/panproc-minimal:0.2` and `aacazxnat/panproc-apps:0.1`) are custom made containers, the recipes for which are provided here https://github.com/MRIresearch/panproc-minimal (using v0.2 tag for this release) and https://github.com/MRIresearch/panproc-minimal/tree/main/panproc-apps respectively.
 
-
 ## Edit `pan.config.oct2025`
-If the above folder configuration is used then there should be no required changes in the the config file. If paths to containers and scripts are an issue then you may need to change this here.
+If the above folder configuration is used then there should be minimal changes in the the config file.  Please update the `CONTAINER_DIR` reference for example if you have built the containers in another location other than `<rootdir>/containers`
 
+## Edit `credentials.json` in `credentials` directory
+Change `USERNAME` and `PASSWORD` to your XNAT access credentials. You may also want to change the access permissions of the `credentials` folder to `500` and the `credentials.json` file to `400` if you are on a shared system.
 
 ## Freesurfer license
-Update the provided freesurfer license in `./config/license.txt` with your personal license if you have one. The pipeline will run with the existing license but it is good practice to use your own license. You can get a license from the Freesurfer main website.
+Update the provided freesurfer license in `<rootdir>/config/license.txt` with your personal license if you have one. The pipeline will run with the existing license but it is good practice to use your own license. You can get a license from the Freesurfer main website.
 
 ## Edit runpan_october.sh
-Add commands required to instantiate your python environment e.g. module load env, conda activate env etc.
+Add/amend commands required to instantiate your python environment e.g. module load env, conda activate env, source env etc. In the provided example `source /xdisk/trouard/chidiugonna/PAN/oct2025_repro/venvs/pan_oct2025_env/bin/activate` is defined and this will need to be changed to match your own environment.
 
 Change the call to PYTHON depending on how it is invoked in your environment. Some environments require Python version 3 to be invoked as `python3`. In that case set `PYTHON=python3`
 
@@ -152,7 +167,7 @@ export PYTHONPATH=${PKG_DIR}:$PYTHONPATH
 ```
 
 ## Edit  slurm templates in ./batch_script
-Edit `group_template.pbs` and `participant_template.pbs` and add commands required to instantiate your python environment e.g. module load env, conda activate env etc.
+Edit `group_template.pbs` and `participant_template.pbs` and add commands required to instantiate your python environment e.g. module load env, conda activate env, source env  etc. In the provided examples `source /xdisk/trouard/chidiugonna/PAN/oct2025_repro/venvs/pan_oct2025_env/bin/activate` is defined and this will need to be changed to match your own environment.
 
 Also change the call to PYTHON depending on how it is invoked in your environment. Some environments require Python version 3 to be invoked as `python3`. In that case set `PYTHON=python3`
 

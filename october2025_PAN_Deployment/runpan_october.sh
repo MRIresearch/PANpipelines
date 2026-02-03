@@ -4,12 +4,12 @@
 # e.g. module load python//3.11/3.11.4and source /path/to/activate, or conda activate [ENVNAME]. 
 module load python/3.11/3.11.4
 
-source /xdisk/trouard/chidiugonna/PAN/oct2025_repro/venvs/pan_oct2025_env/bin/activate
+source /xdisk/ryant/chidiugonna/PAN/PAN_recreate/venvs/pan_october2025_env/bin/activate
 CURRDIR=$(readlink -f $PWD)
 
 # 2. Change PYTHON=python3 if this is required to access python version.
 PYTHON=python
-PKG_DIR=/xdisk/trouard/chidiugonna/PAN/oct2025_repro/venvs/pan_oct2025_env/lib/python3.11/site-packages/
+PKG_DIR=/xdisk/ryant/chidiugonna/PAN/PAN_recreate/venvs/pan_october2025_env/lib/python3.11/site-packages/
 
 LOCPY=${PKG_DIR}/panpipelines
 
@@ -18,15 +18,15 @@ LOCPY=${PKG_DIR}/panpipelines
 #export PYTHONPATH=${PKG_DIR}:$PYTHONPATH
 
 CONFIG=$CURRDIR/config/pan.config.oct2025
-SESSIONSFILE="--sessions_file $CURRDIR/config/sessions.tsv"
-PARTICIPANTS="HML0033 HML0227 HML0633 HML0130 HML0560 HML0191 HML0179 HML0490"
-#PARTICIPANTS="ALL_SUBJECTS"
+#SESSIONSFILE="--sessions_file $CURRDIR/config/sessions.tsv"
+PARTICIPANTS="HML0112 HML0315 HML0605 HML0511 HML0368 HML0853 HML0460 HML0778"
+#PARTICIPANTS="ALL_SUBJECTS_ORDERED"
 
-PROJECTS="001_HML 002_HML 003_HML 004_HML"
+PROJECTS="PAN_October_2025"
 
 OUTDIR="$CURRDIR/october2025_processing_outputs"
 
-#PIPELINES="--pipelines "
+PIPELINES="--pipelines mriqc"
 #DEPENDENT="--run_dependent_pipelines "
 
 FORCERUN="--force_run True"
@@ -35,4 +35,7 @@ FORCERUN=""
 DEBUG="-m pdb"
 DEBUG=""
 
-${PYTHON} ${DEBUG} ${LOCPY}/pan_processing.py $CONFIG $DEPENDENT $SESSIONSFILE $FORCERUN --participant_label $PARTICIPANTS  $PIPELINES --pipeline_outdir $OUTDIR --projects $PROJECTS
+NOCHECK=""
+NOCHECK="--run_interactive False"
+
+${PYTHON} ${DEBUG} ${LOCPY}/pan_processing.py $CONFIG $DEPENDENT $SESSIONSFILE $FORCERUN --participant_label $PARTICIPANTS  $PIPELINES --pipeline_outdir $OUTDIR --projects $PROJECTS $NOCHECK
