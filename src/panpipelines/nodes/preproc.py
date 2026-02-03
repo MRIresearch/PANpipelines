@@ -614,18 +614,22 @@ def preproc_proc(labels_dict,bids_dir=""):
             if not artefact_outputdir:
                 artefact_outputdir = output_dir
 
+            try:
+                if VERSION_TO_RUN == "2":
+                    derive_asl_artefact_v2(asl_acq,labels_dict,command_base, participant_label,participant_session,artefact_outputdir)
+                else:
+                    m0_entities = asl_entities.copy()
+                    m0_entities["suffix"]="m0scan"
+                    m0  = layout.get(return_type='file', invalid_filters='allow', **m0_entities)
+                    if len(m0) > 0:
+                        m0_file=m0[0]
+                        m0_file_brain = newfile(work_dir,assocfile=m0_file,suffix="brain")
+                        m0_file_brain_mask = newfile(work_dir,assocfile=m0_file_brain,suffix="mask")
+                        derive_asl_artefact_v1(asl_acq,labels_dict, command_base, m0_file,m0_file_brain,m0_file_brain_mask,work_dir,artefact_outputdir)
 
-            if VERSION_TO_RUN == "2":
-                derive_asl_artefact_v2(asl_acq,labels_dict,command_base, participant_label,participant_session,artefact_outputdir)
-            else:
-                m0_entities = asl_entities.copy()
-                m0_entities["suffix"]="m0scan"
-                m0  = layout.get(return_type='file', invalid_filters='allow', **m0_entities)
-                if len(m0) > 0:
-                    m0_file=m0[0]
-                    m0_file_brain = newfile(work_dir,assocfile=m0_file,suffix="brain")
-                    m0_file_brain_mask = newfile(work_dir,assocfile=m0_file_brain,suffix="mask")
-                    derive_asl_artefact_v1(asl_acq,labels_dict, command_base, m0_file,m0_file_brain,m0_file_brain_mask,work_dir,artefact_outputdir)
+            except Exception as exp:
+                IFLOGGER.info(f"Problem calculating mask for {asl}: Did Basil run successfully?")
+
 
     return {
         "output_dir":output_dir
