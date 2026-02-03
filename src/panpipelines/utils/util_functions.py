@@ -1143,20 +1143,88 @@ def create_array(participants, participants_file, projects_list = None, sessions
     if participants is not None and len(participants) > 0 and sessions_list and projects_list and sessions_file:
         for part_count in range(len(participants)):
             array_index = df.loc[(df["bids_participant_id"] == "sub-" + drop_sub(participants[part_count])) & (df["project"] == projects_list[part_count]) & (df["bids_session_id"].str.contains(sessions_list[part_count]))].index.values[0] + 1
-            array.append(str(array_index))
+            array.append(array_index)
         array.sort()
-        return  ",".join(array)
+        array_list = [str(x) for x in array]
+        arraystring = ",".join(array_list)
+        compressed = slurm_array_compress_preserve_order(arraystring)
+        return compressed
     elif participants is not None and len(participants) > 0:
         for participant in participants:
             try:
-                array.append(str(df[df["bids_participant_id"]== "sub" + drop_sub(participant)].index.values[0] + 1))
+                array_index = df[df["bids_participant_id"]== "sub" + drop_sub(participant)].index.values[0] + 1
+                array.append(array_index)
             except Exception as exp:
                 UTLOGGER.debug(f"problem finding participant: {participant}")
-
         array.sort()
-        return  ",".join(array)
+        array_list = [str(x) for x in array]
+        arraystring = ",".join(array_list)
+        compressed = slurm_array_compress_preserve_order(arraystring)
+        return compressed
     else:
         return "1:" + str(len(df))
+
+from typing import Iterable, List, Union
+
+IntSeqLike = Union[str, Iterable[int]]
+
+def _parse_ints(seq: IntSeqLike) -> List[int]:
+    """
+    Accept either:
+      - a comma-separated string of ints (may contain whitespace/newlines), or
+      - any iterable of ints
+    Return a list of ints.
+    """
+    if isinstance(seq, str):
+        parts = [p.strip() for p in seq.replace("\n", ",").split(",")]
+        return [int(p) for p in parts if p]
+    return [int(x) for x in seq]
+
+
+def slurm_array_compress_preserve_order(
+    seq: IntSeqLike,
+    dedupe: bool = True,
+    min_range_len: int = 2,
+) -> str:
+    """
+    Dedupe (first occurrence wins), preserve order, and compress ONLY adjacent +1 runs.
+
+    Example:
+      "10,100,100,1000,1001,1002,101,1010,1011"
+      -> "10,100,1000-1002,101,1010-1011"
+    """
+    vals = _parse_ints(seq)
+    if not vals:
+        return ""
+
+    if dedupe:
+        seen = set()
+        uniq = []
+        for v in vals:
+            if v not in seen:
+                uniq.append(v)
+                seen.add(v)
+        vals = uniq
+
+    tokens: List[str] = []
+    i = 0
+    n = len(vals)
+
+    while i < n:
+        start = vals[i]
+        j = i
+        while j + 1 < n and vals[j + 1] == vals[j] + 1:
+            j += 1
+
+        run_len = j - i + 1
+        if run_len >= min_range_len:
+            tokens.append(f"{start}-{vals[j]}")
+        else:
+            tokens.append(str(start))
+
+        i = j + 1
+
+    return ",".join(tokens)
 
 def mask_excludedrows(df, subject_exclusions,columns):
     for excluded in subject_exclusions:

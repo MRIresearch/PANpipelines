@@ -440,6 +440,7 @@ def main():
 
     ### account for updates
     orig_participant_label = participant_list
+    orig_session_list = session_list
 
 
     LOGGER.info(f"Participant Details:\n {pretty_participant_list}.\n")
@@ -497,11 +498,12 @@ def main():
         else:
             PARTICIPANT_OVERRIDE=False
             participant_label = orig_participant_label
+            session_list = orig_session_list
             panpipe_labels = updateParams(panpipe_labels, "PARTICIPANTS",participant_label)
         
         if not PARTICIPANT_OVERRIDE:
             if not participant_query:
-                projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions,sessions_given = sessions_given)
+                projectmap = get_projectmap(participant_label, participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions,sessions_given = session_list)
             else:
                 projectmap = get_projectmap_query(sessions_file,participant_query,subject_exclusions=subject_exclusions,participants=orig_participant_label)
 
