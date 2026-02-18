@@ -46,7 +46,7 @@ pip install --user virtualenv
 Create a virtual environment (in our example we shall call it `pan_october2025_env`)  in a location defined by `ENVLOC`
 ```
 ENVNAME=pan_october2025_env
-ENVLOC=/$ROOTDIR/venvs
+ENVLOC=$ROOTDIR/venvs
 mkdir -p $ENVLOC
 module load python/3.11/3.11.4
 virtualenv -p python3 $ENVLOC/$ENVNAME
@@ -67,7 +67,7 @@ In a separate folder clone the Panpipelines repository and from the `april2025_P
 
 Obtain the weights for the tractseg container by downloading  `tractseg_home.zip` from  the OSF PANpipeline repositiry at`https://osf.io/fpbkn/files/osfstorage` to the root directory and unzip it.
 
-From `october2025_PAN_Deployment`, merge in the following **config**, **containers**, **external_scripts** and `runpan_october.sh` into your root directory. The file `containers/build_all.sh` will be overwritten.
+From `october2025_PAN_Deployment`, merge in the following **config**, **containers**, **external_scripts** and `runpan_october.sh` into your root directory. The files `external_scripts/amico/amico_noddi.py` and `containers/build_all.sh` will be overwritten.
 
 ## Prune unnecessary files
 The following files should be removed as they are not necessary. If you decide to retain them then that is fine too as they will not be used. These files are as follows:
@@ -180,7 +180,9 @@ export PYTHONPATH=${PKG_DIR}:$PYTHONPATH
 Go through each of the different slurm headers to adjust times and credentials as necessary. These are referenced in the config entries as `SLURM_CPU_HEADER` and `SLURM_GPU_HEADER` as required.
 
 ##  Deploy
-run as `./runpan_october.sh`. The script is currently set to run a selection of 10 subjects. To run all subjects then use "ALL_SUBJECTS" in the participant variable. Please note that some SLURM configurations place limits on the numbers of jobs that can be run. Each subject will require about 40 jobs for the single subject pipeline. And there are 11 group jobs. So for N subjects a total of `40*N + 11` Jobs will be required. To run all the subjects you may need to run them in batches of Nmax depending on your SLURM constraints and pass different participants to run using the setting `SESSIONSFILE="--sessions_file $CURRDIR/config/sessions.tsv"` with a different `sessions.tsv` file for each batch. 
+run as `./runpan_october.sh`. The script is currently set to run a selection of 10 subjects. To run all subjects then use "ALL_SUBJECTS" in the participant variable. Please note that some SLURM configurations place limits on the numbers of jobs that can be run. Each subject will require about 40 jobs for the single subject pipeline. And there are 11 group jobs. So for N subjects a total of `40*N + 11` Jobs will be required. To run all the subjects you may need to run them in batches of Nmax depending on your SLURM constraints and pass different participants to run using the setting `SESSIONSFILE="--sessions_file $CURRDIR/config/sessions.tsv"` with a different `sessions.tsv` file for each batch.
+
+Another approach is to use the `--participant_query` parameter. For example this parameter `-participant_query (df.hml_id.isin([<PARTICIPANTS>])) & (df.index > 0) & (df.index < 41)` will select all patients specified in the `--participants_label` parameter and that have index between `1` and `40`.
 
 
 ## Troubleshooting
