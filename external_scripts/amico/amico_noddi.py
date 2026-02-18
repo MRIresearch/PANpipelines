@@ -6,6 +6,7 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from pathlib import Path
 from functools import partial
 import logging
+from shutil import rmtree
 import sys
 
 loglevel=logging.INFO
@@ -35,6 +36,8 @@ def run_amico(participant, session, qsiprep_dir, output_path=None,path_suffix=""
                 ae.set_config(itemkey,itemvalue)
 
     ae.set_model(amico_model)
+    tmp_dir=os.path.join(os.path.dirname(output_path),amico_model)
+    ae.set_config("ATOMS_path",tmp_dir)
     if amico_model == 'NODDI':
         LOGGER.info(f"Running Amico Model:\n{amico_model}")
         scheme = amico.util.fsl2scheme(bval, bvec)
@@ -63,6 +66,7 @@ def run_amico(participant, session, qsiprep_dir, output_path=None,path_suffix=""
         ae.load_kernels()
         ae.fit()
         ae.save_results(path_suffix=path_suffix)
+        rmtree(tmp_dir)
 
 def parse_params():
     parser = ArgumentParser(description="amico")

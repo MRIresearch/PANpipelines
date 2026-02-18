@@ -514,7 +514,7 @@ def main():
         shared_project_list  = projectmap[3]
 
         # obtain mappings for all subjects which will be handy for incremental
-        projectmap_all = get_projectmap(["ALL_SUBJECTS_ORDERED"],participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
+        projectmap_all = get_projectmap(["ALL_SUBJECTS"],participants_file,session_labels=session_label,sessions_file=sessions_file,subject_exclusions=subject_exclusions)
         participant_list_all = projectmap_all[0]
         project_list_all  = projectmap_all[1]
         session_list_all = projectmap_all[2]

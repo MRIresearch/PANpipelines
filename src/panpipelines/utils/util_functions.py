@@ -24,6 +24,7 @@ from bids import BIDSLayout
 from collections import OrderedDict
 
 UTLOGGER=nlogging.getLogger('nipype.utils')
+LOCK_SUFFIX=".lock"
 
 def logger_setup(logname, loglevel):
     LOGGER = logging.getLogger(logname)
@@ -464,6 +465,65 @@ def insert_bidstag(tag,file,overwrite=True):
     file = os.path.join(dir_name,file_name)
     return file
 
+
+def wait_for_file_complete(target_path, timeout_s=300, poll_s=1, stable_checks=3, min_size=1):
+    """
+    Very simple heuristic:
+      - file exists
+      - size >= min_size
+      - size is unchanged for `stable_checks` consecutive polls
+    """
+    deadline = time.time() + timeout_s
+    last_size = None
+    stable_count = 0
+
+    while time.time() < deadline:
+        if os.path.exists(target_path):
+            try:
+                size = os.path.getsize(target_path)
+            except OSError:
+                size = None
+
+            if size is not None and size >= min_size:
+                if size == last_size:
+                    stable_count += 1
+                    if stable_count >= stable_checks:
+                        print(f"wait_for_file_complete: {target_path} successfully created.")
+                        return True
+                else:
+                    stable_count = 0
+                    last_size = size
+
+        time.sleep(poll_s)
+
+    raise TimeoutError(f"Timed out waiting for file to be complete: {target_path}")
+
+def runCommandLock(command, target, lock_dir = None, wait_timeout_s=300):
+
+    if lock_dir:
+        lock_path_dataset = newfile(outputdir=lock_dir, assocfile=(target + LOCK_SUFFIX))
+    else:
+        lock_path_dataset = newfile(assocfile=(target + LOCK_SUFFIX))
+
+    lock_file_dataset = acquire_lock(lock_path_dataset)
+    try:
+        while not lock_file_dataset:
+            time.sleep(1)
+            lock_file_dataset= acquire_lock(lock_path_dataset)
+        runCommand(command)
+
+        if wait_timeout_s:
+            wait_for_file_complete(target, timeout_s=wait_timeout_s, poll_s=1, stable_checks=3, min_size=1)
+
+    except Exception as e:
+        UTLOGGER.error(f"Problem running {command} on {target}: {e}")
+    finally:
+        release_lock(lock_file_dataset)
+        try:
+            os.remove(lock_path_dataset)
+        except Exception as e:
+            pass
+
 def acquire_lock(lock_path):
     
     lock_file = open(lock_path,"w")
@@ -513,7 +573,6 @@ def getSubjectInfo(labels_dict, participant_label,session_label=None):
         return participant_label   
 
 
-LOCK_SUFFIX=".lock"
 def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,password,session_label=None):
 
     import random
@@ -1314,8 +1373,9 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
     if "project" not in df.columns and "pan_project" in df.columns:
         df["project"] = df["pan_project"]
 
-    if len(participants) == 1 and participants[0]=="ALL_SUBJECTS":
+    if len(participants) == 1 and participants[0]=="ALL_SUBJECTS_ORDERED":
         participants = list(set(df["bids_participant_id"].tolist()))
+        participants.sort()
 
 
     # process exclusions
@@ -1327,7 +1387,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
     participant_list=[]
     sessions_list=[]
 
-    if len(participants) == 1 and participants[0]=="ALL_SUBJECTS_ORDERED":
+    if len(participants) == 1 and participants[0]=="ALL_SUBJECTS":
         sessions_df = pd.read_table(sessions_file,sep="\t")
         df = sessions_df[(~pd.isna(sessions_df["bids_participant_id"]) & ~pd.isna(sessions_df["bids_session_id"]))]
         ses=[drop_ses(ses) for ses in list(df.bids_session_id.values)]                 
@@ -1362,7 +1422,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
                 pidx = pidx + 1
                 if sessions_given:
                     session_label = sessions_given[pidx]
-                    search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant)) & (sessions_df["bids_session_id"].str.contains(session_label))]
+                    search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant)) & (sessions_df["bids_session_id"]=="ses-" + drop_ses(session_label))]
                     if search_df.empty:
                         UTLOGGER.info(f"No values found for {participant} and {session_label} in {sessions_file}")
                         sub=[]
@@ -1389,7 +1449,7 @@ def get_projectmap(participants, participants_file,session_labels=[],sessions_fi
                         
                 else: 
                     for session_label in session_labels:
-                        search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant)) & (sessions_df["bids_session_id"].str.contains(session_label))]
+                        search_df = sessions_df[(sessions_df["bids_participant_id"]=="sub-" + drop_sub(participant)) & (sessions_df["bids_session_id"]=="ses-" + drop_ses(session_label))]
                         if search_df.empty:
                             UTLOGGER.info(f"No values found for {participant} and {session_label} in {sessions_file}")
                             sub=[]
@@ -1466,7 +1526,7 @@ def get_projectmap_query(sessions_file, panquery,subject_exclusions=[],participa
 
     query_df=pd.DataFrame()
     for query in panquery_list:
-        new_list = [f"'{x}'" for x in participants]
+        new_list = [f"'{drop_sub(x)}'" for x in participants]
         query = query.replace("<PARTICIPANTS>", ",".join(new_list))
         combine="OR"
         if query_df.empty:
@@ -2298,14 +2358,15 @@ def create_3d_hemi_aseg(atlas_file,roi_list,panpipe_labels,special_atlas_type):
     command=f"{command_base} mris_volmask "\
             "--save_ribbon "\
             f"{sub} "
-    runCommand(command)
-
     ribbon = f"{subjects_dir}/{sub}/mri/ribbon.mgz"
+    lock_dir = getParams(panpipe_labels,"LOCK_DIR")
+    runCommandLock(command, ribbon, lock_dir)
+   
     ribbon_nii=newfile(outputdir=workdir, assocfile=ribbon,extension=".nii.gz")
     command=f"{command_base}  mri_convert "\
                 f"{ribbon} "\
                 f"{ribbon_nii} "
-    runCommand(command)
+    runCommandLock(command, ribbon_nii, lock_dir)
 
     ribbon_img = nib.load(ribbon_nii)
     ribbon_data = ribbon_img.get_fdata()
