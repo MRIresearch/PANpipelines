@@ -34,7 +34,7 @@ mkdir -p $ROOTDIR
 ```
 
 ## Create Python environment
-Use a python virtual environment manager to create an environment for the panpipelines 1.1.6 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
+Use a python virtual environment manager to create an environment for the panpipelines 1.1.7 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
 
 ### Install `virtualenv` and prepare virtual environment
 Install `virtualenv` in python environment:
@@ -52,11 +52,11 @@ module load python/3.11/3.11.4
 virtualenv -p python3 $ENVLOC/$ENVNAME
 ```
 
-Activate environment and Install version 1.1.6 of PAN pipelines using `pip`
+Activate environment and Install version 1.1.7 of PAN pipelines using `pip`
 ```
 module load python/3.11/3.11.4
 source $ENVLOC/$ENVNAME/bin/activate
-pip install panpipelines==1.1.6
+pip install panpipelines==1.1.7
 ```
 
 ## Deployment Folder Structure
