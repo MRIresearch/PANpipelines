@@ -165,7 +165,7 @@ if __name__ == "__main__":
     else:
         result = pd.DataFrame()
 
-    if ADD_CUMULATIVE and LAST_OUTPUT_FILES and not result.empty:
+    if ADD_CUMULATIVE and os.path.exists(LAST_OUTPUT_FILES) and not result.empty:
         prev_result = pd.read_table(LAST_OUTPUT_FILES,sep=",")
         new_rows = result.merge(prev_result[collate_join_left], on=collate_join_left, how="left", indicator=True)
         new_rows = new_rows[new_rows["_merge"] == "left_only"].drop(columns="_merge")
@@ -175,7 +175,8 @@ if __name__ == "__main__":
 
         # mask excluded subjects at the very end
         result = mask_excludedrows(new_result, subject_exclusions, collate_join_left)
-
+    elif not result.empty:
+        result = mask_excludedrows(result, subject_exclusions, collate_join_left)
 
     # Save the DataFrame to a CSV file
     if not result.empty:
