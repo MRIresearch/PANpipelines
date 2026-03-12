@@ -466,7 +466,7 @@ def insert_bidstag(tag,file,overwrite=True):
     return file
 
 
-def wait_for_file_complete(target_path, timeout_s=300, poll_s=1, stable_checks=3, min_size=1):
+def wait_for_file_complete(target_path, timeout_s=60, poll_s=1, stable_checks=1, min_size=1):
     """
     Very simple heuristic:
       - file exists
@@ -498,7 +498,7 @@ def wait_for_file_complete(target_path, timeout_s=300, poll_s=1, stable_checks=3
 
     raise TimeoutError(f"Timed out waiting for file to be complete: {target_path}")
 
-def runCommandLock(command, target, lock_dir = None, wait_timeout_s=300):
+def runCommandLock(command, target, lock_dir = None, wait_timeout_s=60, overwrite=False):
 
     if lock_dir:
         lock_path_dataset = newfile(outputdir=lock_dir, assocfile=(target + LOCK_SUFFIX))
@@ -510,7 +510,8 @@ def runCommandLock(command, target, lock_dir = None, wait_timeout_s=300):
         while not lock_file_dataset:
             time.sleep(1)
             lock_file_dataset= acquire_lock(lock_path_dataset)
-        runCommand(command)
+        if not os.path.exists(target) or overwrite:
+            runCommand(command, interactive=True)
 
         if wait_timeout_s:
             wait_for_file_complete(target, timeout_s=wait_timeout_s, poll_s=1, stable_checks=3, min_size=1)
