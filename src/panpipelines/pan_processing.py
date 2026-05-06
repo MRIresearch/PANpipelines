@@ -40,6 +40,7 @@ def parse_params():
     parser.add_argument("--all_group", default="True")
     parser.add_argument("--force_bids_download",default="False")
     parser.add_argument("--run_dependent_pipelines",nargs="+")
+    parser.add_argument("--run_parent_pipelines",nargs="+")
     parser.add_argument("--run_interactive",default="True")
     parser.add_argument("--force_run",default="False")
     parser.add_argument("--participant_query", nargs="+", help="Apply query on pandas. works in exclusion to all other participant query filters")
@@ -174,8 +175,8 @@ def main():
         LOGGER.info(f"Retrieving subjects and sessions from XNAT project {projects}")
 
     INFO_DELTA = isTrue(args.info_delta)
-    ALL_GROUP = isTrue(args.all_group)
-    if not ALL_GROUP:
+    ALL_GROUP_GLOBAL = isTrue(args.all_group)
+    if not ALL_GROUP_GLOBAL:
         panpipe_labels = updateParams(panpipe_labels,"ALL_GROUP","N")
     else:
         panpipe_labels = updateParams(panpipe_labels,"ALL_GROUP","Y")       
@@ -252,6 +253,14 @@ def main():
         RUN_DEPENDENT_PIPELINES = False
         dependent_pipelines=[]
 
+    parent_pipelines = args.run_parent_pipelines
+    if parent_pipelines:
+        RUN_PARENT_PIPELINES = True
+    else:
+        RUN_PARENT_PIPELINES = False
+        parent_pipelines=[]
+
+
     FORCE_BIDS_DOWNLOAD = isTrue(args.force_bids_download)
     if FORCE_BIDS_DOWNLOAD:
         panpipe_labels = updateParams(panpipe_labels,"FORCE_BIDS_DOWNLOAD","Y")
@@ -325,6 +334,12 @@ def main():
         dependent_results_only = list(set(dependent_results) - set(dependent_pipelines))
         pipelines.extend(dependent_results_only)
         panpipe_labels = updateParams(panpipe_labels, "RUN_DEPENDENT_PIPELINES","Y")
+
+    if RUN_PARENT_PIPELINES:
+        parent_results = get_parent_pipelines(panpipeconfig_json,parent_pipelines,ALL_PIPELINES)
+        parent_results_only = list(set(parent_results) - set(parent_pipelines))
+        pipelines.extend(parent_results_only)
+        panpipe_labels = updateParams(panpipe_labels, "RUN_PARENT_PIPELINES","Y")
 
     if pipeline_exclude and pipelines:
         LOGGER.info(f"Excluding pipelines {pipeline_exclude} from this run.")
@@ -525,6 +540,11 @@ def main():
         panpipe_labels = process_labels(panpipeconfig_json,panpipeconfig_file,panpipe_labels,pipeline)
 
         ALL_GROUP = isTrue(getParams(panpipe_labels,"ALL_GROUP"))
+        # Force to use only selected participants per pipeline
+        # if --all_group is False
+        if ALL_GROUP and not ALL_GROUP_GLOBAL:
+            panpipe_labels = updateParams(panpipe_labels,"ALL_GROUP","N")
+            ALL_GROUP = False
 
         analysis_level = getParams(panpipe_labels,"ANALYSIS_LEVEL")
         if analysis_level == "group":
