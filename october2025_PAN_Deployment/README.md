@@ -34,7 +34,7 @@ mkdir -p $ROOTDIR
 ```
 
 ## Create Python environment
-Use a python virtual environment manager to create an environment for the panpipelines 1.1.8 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
+Use a python virtual environment manager to create an environment for the panpipelines 1.1.9 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
 
 ### Install `virtualenv` and prepare virtual environment
 Install `virtualenv` in python environment:
@@ -52,11 +52,11 @@ module load python/3.11/3.11.4
 virtualenv -p python3 $ENVLOC/$ENVNAME
 ```
 
-Activate environment and Install version 1.1.8 of PAN pipelines using `pip`
+Activate environment and Install version 1.1.9 of PAN pipelines using `pip`
 ```
 module load python/3.11/3.11.4
 source $ENVLOC/$ENVNAME/bin/activate
-pip install panpipelines==1.1.8
+pip install panpipelines==1.1.9
 ```
 
 ## Deployment Folder Structure
@@ -140,9 +140,26 @@ The following singularity images should be generated and stored in an accessible
 
 `docker://jqmcginnis/lst-ai:v1.2.0`   > `lstai.sif`
 
+`docker://nipreps/mriqc:24.0.2`   > `mriqc-24.0.2.sif`
+
 
 ## Apptainer Provenance
 Details of all the apptainers except 2 are provided in relevant references from the associated institutions. The other two apptainers  (`aacazxnat/panproc-minimal:0.2` and `aacazxnat/panproc-apps:0.1`) are custom made containers, the recipes for which are provided here https://github.com/MRIresearch/panproc-minimal (using v0.2 tag for this release) and https://github.com/MRIresearch/panproc-minimal/tree/main/panproc-apps respectively.
+
+## mriqc - additional details
+To manage the occasional error with `mriqc:24.0.2` as described here https://github.com/nipreps/mriqc/issues/1406 a workaround to allow mriqc to complete processing for certain subjects is to patch `anatomical_interface.py` and `anatomical.py` (look for label `# CPU` in code) to handle `NaN` and to return `null` values but not crash when the above issue is encountered. This is achieved in `pan.config` as follows:
+
+```
+    "mriqc":
+    {
+       "PIPELINE_CLASS": "mriqc_panpipeline",
+       "ANATCODE_HOST" : "<PROC_DIR>/config/anatomical.py",
+       "ANATCODE_IMAGE" : "/opt/conda/lib/python3.11/site-packages/mriqc/qc/anatomical.py",
+       "ANATCODEINT_HOST" : "<PROC_DIR>/config/anatomical_interface.py",
+       "ANATCODEINT_IMAGE" : "/opt/conda/lib/python3.11/site-packages/mriqc/interfaces/anatomical.py",
+       "MRIQC_CONTAINER_RUN_OPTIONS": "singularity run --cleanenv --no-home -B <PIPELINE_DIR>:/pipeline_dir -B <PROC_DIR>:/proc_dir -B <CWD>:/cwd -B <ANATCODE_HOST>:<ANATCODE_IMAGE> -B <ANATCODEINT_HOST>:<ANATCODEINT_IMAGE>"
+    }
+```
 
 ## Edit `pan.config.oct2025`
 If the above folder configuration is used then there should be minimal changes in the the config file.  Please update the `CONTAINER_DIR` reference for example if you have built the containers in another location other than `<rootdir>/containers`
