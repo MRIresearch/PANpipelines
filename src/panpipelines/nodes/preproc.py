@@ -198,6 +198,12 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
     if not os.path.exists(artefact_outputdir):
         os.makedirs(artefact_outputdir, exist_ok=True)
 
+    # quickly return if chemshift mask already created
+    if MULTIPLD:
+        chemshift_mask = newfile(artefact_outputdir,assocfile=f"{subject}_{session}_asl_chemical_shift_artefact.nii.gz")
+        if os.path.exists(chemshift_mask):
+            return
+
 
     subjects_dir = getParams(labels_dict,'SUBJECTS_DIR')
     outer_skull=os.path.join(subjects_dir,subject,'bem','outer_skull.surf')
@@ -268,7 +274,7 @@ def derive_asl_artefact_v2(asl_acq,labels_dict,command_base,participant_label,pa
 
     t1_out_dims = outer_skull_vol.shape
     if DO_T1_SHIFT:
-        asl_ref = getParams(labels_dict,'TRANSFORM_REF')
+        asl_ref = transform_ref
         asl_img = nibabel.load(getGlob(asl_ref))
         t1_ori = get_orientation_from_file(outer_skull_img_file,"image")[0]
         T1_PHASEAXIS  = t1_ori.index("A")
@@ -601,9 +607,6 @@ def preproc_proc(labels_dict,bids_dir=""):
 
             if not asl_acq:
                 asl_acq = "default"
-
-            if asl_acq in ["acq-pcasl1800","acq-pcasl2100","acq-pcasl2500","acq-pcasl3000"]:
-                continue
                 
             if "dir-AP" in os.path.basename(asl.filename):
                 asl_acq = "dir-AP"
@@ -628,7 +631,7 @@ def preproc_proc(labels_dict,bids_dir=""):
                         derive_asl_artefact_v1(asl_acq,labels_dict, command_base, m0_file,m0_file_brain,m0_file_brain_mask,work_dir,artefact_outputdir)
 
             except Exception as exp:
-                IFLOGGER.info(f"Problem calculating mask for {asl}: Did Basil run successfully?")
+                IFLOGGER.info(f"Exception raised {exp}. Problem calculating mask for {asl}: Did Basil run successfully?")
 
 
     return {
