@@ -1,5 +1,7 @@
 #!/bin/bash
-export SINGULARITY_CACHEDIR=/xdisk/trouard/chidiugonna/PAN/april2025_repro/containers/singularitycache 
+export ROOTDIR=$HOME/PanOctober
+export SINGULARITY_CACHEDIR=$ROOTDIR/containers/singularitycache
+
 SINGNAME=panprocminimal-v0.2.sif
 DOCKERURI=docker://aacazxnat/panproc-minimal:0.2
 singularity build $SINGNAME $DOCKERURI
@@ -26,4 +28,8 @@ singularity build $SINGNAME $DOCKERURI
 
 SINGNAME=lstai.sif
 DOCKERURI=docker://jqmcginnis/lst-ai:v1.2.0
+singularity build $SINGNAME $DOCKERURI
+
+SINGNAME=mriqc-24.0.2.sif
+DOCKERURI=docker://nipreps/mriqc:24.0.2
 singularity build $SINGNAME $DOCKERURI
