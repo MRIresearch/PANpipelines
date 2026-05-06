@@ -239,6 +239,8 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
         #create sorted output
         if ENABLE_SORT_COLUMNS:
+        	# Use construct below to handle duplicate columns as a result of legacy tables
+            cum_df_inner_left  = cum_df_inner_left.T.groupby(level=0, sort=False).first().T
             cum_df_inner_left = cum_df_inner_left.reindex(sorted(cum_df_inner_left.columns), axis=1)
 
         if collate_prefix_left:
@@ -257,6 +259,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
         #create sorted output
         if ENABLE_SORT_COLUMNS:
+            cum_df_outer_left = cum_df_outer_left.T.groupby(level=0, sort=False).first().T
             cum_df_outer_left = cum_df_outer_left.reindex(sorted(cum_df_outer_left.columns), axis=1)
         if collate_prefix_left:
             orig_cols = cum_df_outer_left.columns.tolist()
@@ -488,6 +491,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
         #create sorted output
         if ENABLE_SORT_COLUMNS:
+            cum_df_inner_right = cum_df_inner_right.T.groupby(level=0, sort=False).first().T
             cum_df_inner_right = cum_df_inner_right.reindex(sorted(cum_df_inner_right.columns), axis=1)
         if collate_prefix_right:
             orig_cols = cum_df_inner_right.columns.tolist()
@@ -504,6 +508,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
         #create sorted output
         if ENABLE_SORT_COLUMNS:
+            cum_df_outer_right = cum_df_outer_right.T.groupby(level=0, sort=False).first().T
             cum_df_outer_right = cum_df_outer_right.reindex(sorted(cum_df_outer_right.columns), axis=1)
         if collate_prefix_right:
             orig_cols = cum_df_outer_right.columns.tolist()
@@ -804,6 +809,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
         #create sorted output
         if ENABLE_SORT_COLUMNS:
+            cum_df_inner = cum_df_inner.T.groupby(level=0, sort=False).first().T
             cum_df_inner = cum_df_inner.reindex(sorted(cum_df_inner.columns), axis=1)
         index_col_list = [collate_join_left.index(x) for x in cum_df_inner.columns if x in collate_join_left]
         index_col_list.sort()
@@ -862,6 +868,7 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
         #create sorted output
         if ENABLE_SORT_COLUMNS:
+            cum_df_outer = cum_df_outer.T.groupby(level=0, sort=False).first().T
             cum_df_outer = cum_df_outer.reindex(sorted(cum_df_outer.columns), axis=1)
 
         index_col_list = [collate_join_left.index(x) for x in cum_df_outer.columns if x in collate_join_left]
