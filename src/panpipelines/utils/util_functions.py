@@ -22,9 +22,10 @@ import fcntl
 import time
 from bids import BIDSLayout
 from collections import OrderedDict
+import errno
 
 UTLOGGER=nlogging.getLogger('nipype.utils')
-LOCK_SUFFIX=".lock"
+LOCK_EXTENSION=".lock"
 
 def logger_setup(logname, loglevel):
     LOGGER = logging.getLogger(logname)
@@ -498,23 +499,29 @@ def wait_for_file_complete(target_path, timeout_s=60, poll_s=1, stable_checks=1,
 
     raise TimeoutError(f"Timed out waiting for file to be complete: {target_path}")
 
-def runCommandLock(command, target, lock_dir = None, wait_timeout_s=60, overwrite=False):
+def runCommandLock(command, target, lock_suffix= None, lock_dir = None, wait_timeout_s=480, overwrite=False):
+
+    if not lock_suffix:
+        lock_suffix="commandlock"
 
     if lock_dir:
-        lock_path_dataset = newfile(outputdir=lock_dir, assocfile=(target + LOCK_SUFFIX))
+        lock_path_dataset = newfile(outputdir=lock_dir, assocfile=(target + LOCK_EXTENSION), suffix=lock_suffix)
     else:
-        lock_path_dataset = newfile(assocfile=(target + LOCK_SUFFIX))
+        lock_path_dataset = newfile(assocfile=(target + LOCK_EXTENSION),suffix=lock_suffix)
 
     lock_file_dataset = acquire_lock(lock_path_dataset)
     try:
+        count=0
         while not lock_file_dataset:
-            time.sleep(1)
             lock_file_dataset= acquire_lock(lock_path_dataset)
+            if not lock_file_dataset:
+                time.sleep(1)
+                count=count+1
         if not os.path.exists(target) or overwrite:
             runCommand(command, interactive=True)
 
-        if wait_timeout_s:
-            wait_for_file_complete(target, timeout_s=wait_timeout_s, poll_s=1, stable_checks=3, min_size=1)
+            if wait_timeout_s:
+                wait_for_file_complete(target, timeout_s=wait_timeout_s, poll_s=1, stable_checks=3, min_size=1)
 
     except Exception as e:
         UTLOGGER.error(f"Problem running {command} on {target}: {e}")
@@ -525,16 +532,32 @@ def runCommandLock(command, target, lock_dir = None, wait_timeout_s=60, overwrit
         except Exception as e:
             pass
 
-def acquire_lock(lock_path):
-    
-    lock_file = open(lock_path,"w")
+def acquire_lock(lock_path, retries=3, delay=0.2):
+    parent = os.path.dirname(lock_path)
 
-    try:
-        fcntl.lockf(lock_file,fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return lock_file
-    except IOError:
-        UTLOGGER.debug(f"Could not acquire lock at {lock_path}. Waiting...")
-        return None
+    for attempt in range(retries):
+        try:
+            lock_file = open(lock_path, "w")
+            try:
+                fcntl.lockf(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return lock_file
+            except IOError:
+                UTLOGGER.debug(f"Could not acquire lock at {lock_path}. Waiting...")
+                lock_file.close()
+                return None
+
+        except OSError as e:
+            if e.errno == errno.ESTALE:
+                try:
+                    os.stat(parent)
+                    os.listdir(parent)
+                except OSError:
+                    pass
+                time.sleep(delay)
+                continue
+            raise
+
+    return None
 
 def release_lock(lock_file):
     try:
@@ -542,7 +565,6 @@ def release_lock(lock_file):
             lock_file.close()
     except Exception as e:
         UTLOGGER.debug(f"problem closing lockfile {lock_file}.\n{e}")
-
 
 def getSubjectInfo(labels_dict, participant_label,session_label=None):
     sessions_file = getParams(labels_dict,"SESSIONS_FILE")
@@ -584,7 +606,7 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
 
     LOCKINT=random.randint(1,MAXLOCKS)
 
-    lock_path = os.path.join(getParams(labels_dict,"LOCK_DIR"),str(LOCKINT) + LOCK_SUFFIX)
+    lock_path = os.path.join(getParams(labels_dict,"LOCK_DIR"),str(LOCKINT) + LOCK_EXTENSION)
     lock_file = acquire_lock(lock_path)
 
     xnat_host = getParams(labels_dict,"XNAT_HOST")
@@ -593,9 +615,10 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
     # 6 minutes timeout - this should be enough!
     #TIMEOUT=360
     while not lock_file:
-        time.sleep(1)
-        count = count + 1
         lock_file = acquire_lock(lock_path)
+        if not lock_file:
+            time.sleep(1)
+            count = count + 1
         # prevent indefinite loop; take our chance on a downstream error.
         #if count >= TIMEOUT:
         #    break
@@ -677,17 +700,18 @@ def getSubjectSessionsFTP(bids_dir,participant_label,labels_dict,session_label=N
     if not os.path.exists(target_dataset_desc):
         lock_dir = getParams(labels_dict,"LOCK_DIR")
         if lock_dir:
-            lock_path_dataset = os.path.join(lock_dir,"dataset_description" + LOCK_SUFFIX)
+            lock_path_dataset = os.path.join(lock_dir,"dataset_description" + LOCK_EXTENSION)
         else:
-            lock_path_dataset = os.path.join("/tmp","dataset_description" + LOCK_SUFFIX)
+            lock_path_dataset = os.path.join("/tmp","dataset_description" + LOCK_EXTENSION)
 
         lock_file_dataset = acquire_lock(lock_path_dataset)
         try:
             count=0
             while not lock_file_dataset:
-                time.sleep(1)
-                count = count + 1
                 lock_file_dataset= acquire_lock(lock_path_dataset)
+                if not lock_file_dataset:
+                    time.sleep(1)
+                    count = count + 1
             ftp_download(remote_dataset_desc, target_dataset_desc,anonymous_hostpath,"anonymous",None,22)
         except Exception as e:
             UTLOGGER.error(f"Cannot download dataset description: {e}")
@@ -705,17 +729,18 @@ def getSubjectSessionsFTP(bids_dir,participant_label,labels_dict,session_label=N
     if not os.path.exists(target_participants_tsv):
         lock_dir = getParams(labels_dict,"LOCK_DIR")
         if lock_dir:
-            lock_path_dataset = os.path.join(lock_dir,"participants_tsv" + LOCK_SUFFIX)
+            lock_path_dataset = os.path.join(lock_dir,"participants_tsv" + LOCK_EXTENSION)
         else:
-            lock_path_dataset = os.path.join("/tmp","participants_tsv" + LOCK_SUFFIX)
+            lock_path_dataset = os.path.join("/tmp","participants_tsv" + LOCK_EXTENSION)
 
         lock_file_dataset = acquire_lock(lock_path_dataset)
         try:
             count=0
             while not lock_file_dataset:
-                time.sleep(1)
-                count = count + 1
                 lock_file_dataset= acquire_lock(lock_path_dataset)
+                if not lock_file_dataset:
+                    time.sleep(1)
+                    count = count + 1
             ftp_download(remote_participants_tsv, target_participants_tsv,anonymous_hostpath,"anonymous",None,22)
         except Exception as e:
             UTLOGGER.error(f"Cannot download participant tsv: {e}")
@@ -814,17 +839,18 @@ def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,us
                         target_dataset_desc =os.path.join(bids_dir,"dataset_description.json")
                         if not os.path.exists(target_dataset_desc):
                             if labels_dict:
-                                lock_path_dataset = os.path.join(getParams(labels_dict,"LOCK_DIR"),"dataset_description" + LOCK_SUFFIX)
+                                lock_path_dataset = os.path.join(getParams(labels_dict,"LOCK_DIR"),"dataset_description" + LOCK_EXTENSION)
                             else:
-                                lock_path_dataset = os.path.join("/tmp","dataset_description" + LOCK_SUFFIX)
+                                lock_path_dataset = os.path.join("/tmp","dataset_description" + LOCK_EXTENSION)
 
                             lock_file_dataset = acquire_lock(lock_path_dataset)
                             try:
                                 count=0
                                 while not lock_file_dataset:
-                                    time.sleep(1)
-                                    count = count + 1
                                     lock_file_dataset= acquire_lock(lock_path_dataset)
+                                    if not lock_file_dataset:
+                                        time.sleep(1)
+                                        count = count + 1
                                 if dataset_description:
                                     shutil.copy(dataset_description,target_dataset_desc)
                                 else:
@@ -838,20 +864,21 @@ def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,us
 
                     if participantsTSV:
                         if labels_dict:
-                            lock_path_participant = os.path.join(getParams(labels_dict,"LOCK_DIR"),"participants_tsv" + LOCK_SUFFIX)
+                            lock_path_participant = os.path.join(getParams(labels_dict,"LOCK_DIR"),"participants_tsv" + LOCK_EXTENSION)
                             PART_SORT_COLS = getParams(labels_dict,"PARTICIPANTTSV_SORT_COLS")
                             if not PART_SORT_COLS:
                                 PART_SORT_COLS = ["participant_id", "session_id"]
                         else:
-                            lock_path_participant = os.path.join("/tmp","participants_tsv" + LOCK_SUFFIX)
+                            lock_path_participant = os.path.join("/tmp","participants_tsv" + LOCK_EXTENSION)
                             PART_SORT_COLS=["participant_id", "session_id"]
                         lock_file_participant = acquire_lock(lock_path_participant)
                         try:
                             count=0
                             while not lock_file_participant:
-                                time.sleep(1)
-                                count = count + 1
                                 lock_file_participant= acquire_lock(lock_path_participant)
+                                if not lock_file_participant:
+                                    time.sleep(1)
+                                    count = count + 1
 
                             target_participantsTSV =os.path.join(bids_dir,"participants.tsv")
                             if os.path.exists(target_participantsTSV):
@@ -1651,7 +1678,7 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
     
     if analysis_level == "participant":
 
-        outlog =f"log-%a_{pipeline}_{panlabel}.panout"
+        outlog =f"log-%a_{pipeline}_{panlabel}_%j.panout"
         jobname = f"{pipeline}_pan_ss"
 
         array = create_array(participants, participants_file,projects_list = projects_list, sessions_list=sessions_list, sessions_file = sessions_file)
@@ -1663,7 +1690,7 @@ def submit_script(participants, participants_file, pipeline, panpipe_labels,job_
         " " + dependencies + \
         " " + script_file
     else:
-        outlog =f"log-group_{pipeline}_{panlabel}.panout"
+        outlog =f"log-group_{pipeline}_{panlabel}_%j.panout"
         jobname = f"{pipeline}_pan_grp"
 
         command = "sbatch"\
@@ -2356,18 +2383,23 @@ def create_3d_hemi_aseg(atlas_file,roi_list,panpipe_labels,special_atlas_type):
     os.environ["SUBJECTS_DIR"]=subjects_dir
     os.environ["SINGULARITYENV_SUBJECTS_DIR"]=translate_binding(command_base,subjects_dir)
 
+    COMMANDLOCK_OVERWRITE =  isTrue(getParams(panpipe_labels,'COMMANDLOCK_OVERWRITE'))
+    COMMANDLOCK_WAITTIME =  isTrue(getParams(panpipe_labels,'COMMANDLOCK_WAITTIME'))
+    if not COMMANDLOCK_WAITTIME:
+        COMMANDLOCK_WAITTIME=480
+
     command=f"{command_base} mris_volmask "\
             "--save_ribbon "\
             f"{sub} "
     ribbon = f"{subjects_dir}/{sub}/mri/ribbon.mgz"
     lock_dir = getParams(panpipe_labels,"LOCK_DIR")
-    runCommandLock(command, ribbon, lock_dir)
+    runCommandLock(command, ribbon, lock_suffix=sub,lock_dir=lock_dir, wait_timeout_s=COMMANDLOCK_WAITTIME, overwrite=COMMANDLOCK_OVERWRITE)
    
     ribbon_nii=newfile(outputdir=workdir, assocfile=ribbon,extension=".nii.gz")
     command=f"{command_base}  mri_convert "\
                 f"{ribbon} "\
                 f"{ribbon_nii} "
-    runCommandLock(command, ribbon_nii, lock_dir)
+    runCommandLock(command, ribbon_nii, lock_suffix=sub, lock_dir=lock_dir, wait_timeout_s=COMMANDLOCK_WAITTIME, overwrite=COMMANDLOCK_OVERWRITE)
 
     ribbon_img = nib.load(ribbon_nii)
     ribbon_data = ribbon_img.get_fdata()
@@ -2844,6 +2876,26 @@ def recurse_dependencies(target_pipeline,json_dict,ALL_PIPELINES,pipe_list):
                 pipe_list = recurse_dependencies(check_pipe,json_dict,ALL_PIPELINES,pipe_list)
     return pipe_list
 
+def get_parent_pipelines(json_dict,pipelines,ALL_PIPELINES):
+    pipe_list=[]
+    for pipeline in pipelines:
+        pipe_list.append(pipeline)
+        pipe_list = recurse_parents(pipeline,json_dict,ALL_PIPELINES,pipe_list)    
+    return list(set(pipe_list))
+
+def recurse_parents(target_pipeline,json_dict,ALL_PIPELINES,pipe_list):
+    if "DEPENDENCY" in json_dict[target_pipeline]:
+        dependency = json_dict[target_pipeline]["DEPENDENCY"]
+        if dependency:
+            if not isinstance(dependency,list):
+                dependency = [dependency]
+        else:
+            dependency=[]
+        for parent_pipe in dependency:
+            pipe_list.append(parent_pipe)
+            pipe_list = recurse_parents(parent_pipe,json_dict,ALL_PIPELINES,pipe_list)
+    return pipe_list
+
     
 def arrangePipelines(jsondict,pipelines=[]):
     # build up dictionary of pipelines and dependencies
@@ -2981,7 +3033,8 @@ def map_bindings(command):
                         x = itemvalue
                         break
                     elif isinstance(x,str):
-                        x = x.replace(itemkey,itemvalue)
+                        if not x.endswith(".sif"):
+                            x = x.replace(itemkey,itemvalue)
                 new_command_list.append(x)
         command_list = new_command_list
 
