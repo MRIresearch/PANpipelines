@@ -43,6 +43,7 @@ def parse_params():
     parser.add_argument("--pipeline_config_file", type=Path, help="Pipeline Config File")
     parser.add_argument("--participants_label",nargs='*',help="list of participants")
     parser.add_argument("--participants_project",nargs='*',help="list of projects")
+    parser.add_argument("--participants_shared_project",nargs='*',help="list of shared projects")
     parser.add_argument("--participants_sessions",nargs='*',help="list of sessions")
     return parser
 
@@ -72,12 +73,15 @@ if __name__ == "__main__":
         cwd = getParams(labels_dict,"CWD")
         participants_label = getParams(labels_dict,'GROUP_PARTICIPANTS_LABEL')
         participants_project = getParams(labels_dict,'GROUP_PARTICIPANTS_XNAT_PROJECT')
+        participants_shared_project = getParams(labels_dict,'GROUP_PARTICIPANTS_XNAT_SHARED_PROJECT')
         participants_session = getParams(labels_dict,'GROUP_SESSION_LABEL')
         ADD_CUMULATIVE = isTrue(getParams(labels_dict,"ADD_CUMULATIVE"))
         LAST_OUTPUT_FILES = getParams(labels_dict,"LAST_OUTPUT_FILES")
         participant_exclusions = getParams(labels_dict,"EXCLUDED_PARTICIPANTS")
         if participant_exclusions:
             subject_exclusions = process_exclusions(participant_exclusions)
+        else:
+            subject_exclusions = []
         collate_join_left= getParams(labels_dict,"COLLATECOLS_JOIN_LEFT")
         if not collate_join_left:
             collate_join_left=["subject_id","session_id"]
@@ -86,6 +90,7 @@ if __name__ == "__main__":
         cwd = os.path.dirname(tempfile.mkstemp()[1])
         participants_label = args.participants_label
         participants_project = args.participants_project
+        participants_shared_project = args.participants_shared_project
         participants_session = args.participants_session
         ADD_CUMULATIVE=False
         LAST_OUTPUT_FILES=None
@@ -114,18 +119,22 @@ if __name__ == "__main__":
         table_header.append(f"wmh_num_vox_{reg.lower()}")
         table_header.append(f"wmh_volume_{reg.lower()}")
 
-    for part_vals in zip(participants_label,participants_project,participants_session):
+    if not participants_shared_project:
+        participants_shared_project = participants_project.copy()
+
+    for part_vals in zip(participants_label,participants_project, participants_shared_project, participants_session):
         table_row = initializeRow()
         hml_id = part_vals[0]
         site_id = part_vals[1]
-        session_label = part_vals[2]
+        sharedsite_id = part_vals[2]
+        session_label = part_vals[3]
         subject_id = f"sub-{hml_id}"
         session_id = f"ses-{session_label}"
 
         loadParams(table_row,"hml_id",hml_id)
         loadParams(table_row,"subject_id",subject_id)
         loadParams(table_row,"session_id",session_id)
-        loadParams(table_row,"site",site_dict[site_id])
+        loadParams(table_row,"site",site_dict[sharedsite_id])
         loadParams(table_row,"site_id",site_id)
 
         labels_dict = updateParams(labels_dict,"PARTICIPANT_LABEL",hml_id)
