@@ -10,6 +10,10 @@ SINGNAME=qsiprep-0.21.4.sif
 DOCKERURI=docker://pennbbl/qsiprep:0.21.4
 singularity build $SINGNAME $DOCKERURI
 
+SINGNAME=qsiprep-0.20.0.sif
+DOCKERURI=docker://pennbbl/qsiprep:0.20.0
+singularity build $SINGNAME $DOCKERURI
+
 SINGNAME=fmriprep-24.1.1.sif
 DOCKERURI=docker://nipreps/fmriprep:24.1.1 
 singularity build $SINGNAME $DOCKERURI

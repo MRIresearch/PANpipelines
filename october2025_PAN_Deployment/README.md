@@ -34,7 +34,7 @@ mkdir -p $ROOTDIR
 ```
 
 ## Create Python environment
-Use a python virtual environment manager to create an environment for the panpipelines 1.1.9 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
+Use a python virtual environment manager to create an environment for the panpipelines 1.1.10 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
 
 ### Install `virtualenv` and prepare virtual environment
 Install `virtualenv` in python environment:
@@ -52,65 +52,66 @@ module load python/3.11/3.11.4
 virtualenv -p python3 $ENVLOC/$ENVNAME
 ```
 
-Activate environment and Install version 1.1.9 of PAN pipelines using `pip`
+Activate environment and Install version 1.1.10 of PAN pipelines using `pip`
 ```
 module load python/3.11/3.11.4
 source $ENVLOC/$ENVNAME/bin/activate
-pip install panpipelines==1.1.9
+pip install panpipelines==1.1.10
+```
+
+To avoid issues with `mne` please also run the following code to pin `setuptools` to the version of `mne` shipped with `panpipelines`. 
+
+```
+python -m pip install "setuptools==80.9.0"
 ```
 
 ## Deployment Folder Structure
 For the October 2025 release we will be copying the data first from the `april2025_PAN_Deployment` folder and then appending additional files from `october2025_PAN_Deployment`
 
 ## Clone Panpipelines repository and copy folders
-In a separate folder clone the Panpipelines repository and from the `april2025_PAN_Deployment` folder copy the folders   **atlas**, **batch_scripts** , **config**, **containers** and  **external_scripts** to your root directory.
+In a separate folder clone the `Panpipelines` repository (`git clone https://github.com/MRIresearch/PANpipelines.git`) and from the `april2025_PAN_Deployment` folder, copy the folders  **atlas**, **batch_scripts** , **config**, **containers** and  **external_scripts** to your root directory.
 
 Obtain the weights for the tractseg container by downloading  `tractseg_home.zip` from  the OSF PANpipeline repositiry at`https://osf.io/fpbkn/files/osfstorage` to the root directory and unzip it.
 
 From `october2025_PAN_Deployment`, merge in the following **config**, **containers**, **external_scripts** and `runpan_october.sh` into your root directory. The files `external_scripts/amico/amico_noddi.py` and `containers/build_all.sh` will be overwritten.
 
-## Prune unnecessary files
-The following files should be removed as they are not necessary. If you decide to retain them then that is fine too as they will not be used. These files are as follows:
-
-`runpan.sh` in the `ROOTDIR`.
-`sessions.tsv` in `config` directory.
-`pan.config.april2025` in `config` directory.
-
 
 Your root directory should look like this now:
 
- <br/>
-├── atlas<br/>
-│   ├── Arterial <br/>
-│   ├── freesurfer_atlas <br/>
-│   ├── tractseg <br/>
-│   └── xcpd_custom_atlases <br/>
-├── batch_scripts <br/>
-│   ├── group_template.pbs <br/>
-│   ├── headers <br/>
-│   └── participant_template.pbs <br/>
-├── config <br/>
-│   ├── PAN_dataset_description.json <br/>
-│   ├── anatomical.py <br/>
-│   ├── anatomical_interface.py <br/>
-│   ├── april_october_combo.csv <br/>
-│   ├── credentials
-│   │   └── credentials.json
-│   ├── freesurfer_outputs_april.csv <br/>
-│   ├── gm_model.json <br/>
-│   ├── hml_ids_list_241231.csv <br/>
-│   ├── license.txt <br/>
-│   ├── pan.config.oct2025 <br/>
-│   ├── pan_eddyparams_cuda.json <br/>
-│   └── style.css <br/>
-├── containers <br/>
-│   ├── build_all.sh<br/>
-├── external_scripts <br/>
-│   └── amico <br/>
-│   └── wm_measures <br/>
-├── runpan_october.sh <br/>
-├── tractseg_home <br/>
-├── venvs <br/>
+```
+├── atlas 
+│   ├── Arterial  
+│   ├── freesurfer_atlas  
+│   ├── tractseg  
+│   └── xcpd_custom_atlases  
+├── batch_scripts  
+│   ├── group_template.pbs  
+│   ├── headers  
+│   └── participant_template.pbs  
+├── config  
+│   ├── PAN_dataset_description.json  
+│   ├── anatomical.py  
+│   ├── anatomical_interface.py  
+│   ├── april_october_combo.csv  
+│   ├── credentials
+│   │   └── credentials.json
+│   ├── freesurfer_outputs_april.csv  
+│   ├── gm_model.json  
+│   ├── hml_ids_list_241231.csv  
+│   ├── license.txt  
+│   ├── pan.config.oct2025  
+│   ├── pan_eddyparams_cuda.json  
+│   ├── sessions.tsv  
+│   └── style.css  
+├── containers  
+│   ├── build_all.sh 
+├── external_scripts  
+│   └── amico  
+│   └── wm_measures  
+├── runpan_october.sh  
+├── tractseg_home  
+├── venvs  
+```
 
 ## Create associated Apptainers
 The PAN pipelines rely on a number of apptainer images which are required to successfully run the pipelines. These are available as docker images which can be converted to singularity images. Provided is an example for panprocminimal-v0.2.sif
@@ -122,15 +123,23 @@ DOCKERURI=docker://aacazxnat/panproc-minimal:0.2
 singularity build $SINGNAME $DOCKERURI
 ```
 
-The script `build_all.sh` in `containers` folder will enable you to build the containers. You will need a reasonable amount of memory to complete the build so obtain reasonable size of resources on the HPC before building.
+The script `build_all.sh` in `containers` folder will enable you to build the containers. You will need a reasonable amount of memory to complete the build so obtain reasonable size of resources on the HPC before building. Ensure that in the script you define `ROOTDIR` to point to the valid root directory you have used.
 
-The following singularity images should be generated and stored in an accessible location on your file system for example `/rootdir/containers`
+```
+ export ROOTDIR=$HOME/PanOctober
+``` 
+
+Now run the script as `./build_all.sh` to build the containers needed.
+
+The following singularity images should be generated and stored in an accessible location on your file system. If using the default setup then the containers will be built and stored in `$ROOTDIR/containers`.
 
 `docker://aacazxnat/panproc-minimal:0.2` > `panprocminimal-v0.2.sif`
 
 `docker://pennbbl/qsiprep:0.21.4` > `qsiprep-0.21.4.sif` 
 
-`docker://nipreps/fmriprep:0.21.4` > `fmriprep-24.1.1.sif`
+`docker://pennbbl/qsiprep:0.20.0` > `qsiprep-0.20.0.sif` 
+
+`docker://nipreps/fmriprep:24.1.1` > `fmriprep-24.1.1.sif`
 
 `docker://wasserth/tractseg_container:master` > `tractseg.sif` 
 
@@ -161,11 +170,24 @@ To manage the occasional error with `mriqc:24.0.2` as described here https://git
     }
 ```
 
+## Data Source
+Some features of the pipeline depend on the what source is used for the BIDS data files. If these are acquired from the XNAT then in the config file `pan.config.oct2025` described below, set the `"BIDS_SOURCE"`parameter to `"XNAT"`. It is more likely that users will instead download the data from [OpenNeuro](https://openneuro.org/datasets/ds007522). It is planned to integrate this directly into the workflow in the near future. In the meantime users should manually download all the data from **OpenNeuro** to the `"BIDS_DIR"` folder which also depends on the `"DATA_DIR"` defintion in `pan.config.oct2025`.
+
+For example the definition below will require users to download all the BIDS subject folders to `/mnt/pan_data/BIDS`.
+
+```
+      "BIDS_SOURCE" : "LOCAL",
+      "DATA_DIR": "/mnt/pan_data/",
+      "BIDS_DIR": "<DATA_DIR>/BIDS",
+```
+
 ## Edit `pan.config.oct2025`
-If the above folder configuration is used then there should be minimal changes in the the config file.  Please update the `CONTAINER_DIR` reference for example if you have built the containers in another location other than `<rootdir>/containers`
+If the default configuration as defined in `pan.config.oct2025` is used then there should be minimal changes in the the config file.  Please update the `CONTAINER_DIR` reference for example if you have built the containers in another location other than `<ROOTDIR>/containers`
 
 ## Edit `credentials.json` in `credentials` directory
-Change `USERNAME` and `PASSWORD` to your XNAT access credentials. You may also want to change the access permissions of the `credentials` folder to `500` and the `credentials.json` file to `400` if you are on a shared system.
+The `credentials` directory and `credentials.json` file are only relevant if the data source to be used is XNAT. In the `pan.config.oct2025` this would mean the definition provided is `"BIDS_SOURCE" : "XNAT"`.
+
+Change `USERNAME` and `PASSWORD` in `credentials.json` to your XNAT access credentials. You may also want to change the access permissions of the `credentials` folder to `500` and the `credentials.json` file to `400` if you are on a shared system.
 
 ## Freesurfer license
 Update the provided freesurfer license in `<rootdir>/config/license.txt` with your personal license if you have one. The pipeline will run with the existing license but it is good practice to use your own license. You can get a license from the Freesurfer main website.
