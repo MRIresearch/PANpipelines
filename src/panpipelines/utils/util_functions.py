@@ -532,6 +532,34 @@ def runCommandLock(command, target, lock_suffix= None, lock_dir = None, wait_tim
         except Exception as e:
             pass
 
+def get_tmpdir():
+    tmpdir = os.path.dirname(tempfile.mkstemp()[1])
+    return tmpdir
+
+def stagger_start(lock_file=None, timeout=20, delay=5):
+    if not lock_file:
+        tmpdir = get_tmpdir()
+        lock_file = os.path.join(tmpdir,"stagger_start.lock")
+
+    data_lock = acquire_lock(lock_file)
+    try:
+        timeout_start = time.time()
+        while not data_lock:
+            time.sleep(timeout)
+            if time.time() > (timeout_start + timeout):
+                UTLOGGER.info(f"stagger_start: Breaking out of stagger_start loop after {timeout} seconds")
+                break
+            data_lock= acquire_lock(lock_file)
+
+    except Exception as e:
+        pass
+    finally:
+        if data_lock:
+            time.sleep(delay)
+            UTLOGGER.info(f"stagger_start: Release lock")
+            release_lock(data_lock)
+
+
 def acquire_lock(lock_path, retries=3, delay=0.2):
     parent = os.path.dirname(lock_path)
 
@@ -702,7 +730,7 @@ def getSubjectSessionsFTP(bids_dir,participant_label,labels_dict,session_label=N
         if lock_dir:
             lock_path_dataset = os.path.join(lock_dir,"dataset_description" + LOCK_EXTENSION)
         else:
-            lock_path_dataset = os.path.join("/tmp","dataset_description" + LOCK_EXTENSION)
+            lock_path_dataset = os.path.join(get_tmpdir(),"dataset_description" + LOCK_EXTENSION)
 
         lock_file_dataset = acquire_lock(lock_path_dataset)
         try:
@@ -731,7 +759,7 @@ def getSubjectSessionsFTP(bids_dir,participant_label,labels_dict,session_label=N
         if lock_dir:
             lock_path_dataset = os.path.join(lock_dir,"participants_tsv" + LOCK_EXTENSION)
         else:
-            lock_path_dataset = os.path.join("/tmp","participants_tsv" + LOCK_EXTENSION)
+            lock_path_dataset = os.path.join(get_tmpdir(),"participants_tsv" + LOCK_EXTENSION)
 
         lock_file_dataset = acquire_lock(lock_path_dataset)
         try:
@@ -841,7 +869,7 @@ def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,us
                             if labels_dict:
                                 lock_path_dataset = os.path.join(getParams(labels_dict,"LOCK_DIR"),"dataset_description" + LOCK_EXTENSION)
                             else:
-                                lock_path_dataset = os.path.join("/tmp","dataset_description" + LOCK_EXTENSION)
+                                lock_path_dataset = os.path.join(get_tmpdir(),"dataset_description" + LOCK_EXTENSION)
 
                             lock_file_dataset = acquire_lock(lock_path_dataset)
                             try:
@@ -869,7 +897,7 @@ def getSubjectSessionsXNAT(bids_dir,subject_label,resource_label,project,host,us
                             if not PART_SORT_COLS:
                                 PART_SORT_COLS = ["participant_id", "session_id"]
                         else:
-                            lock_path_participant = os.path.join("/tmp","participants_tsv" + LOCK_EXTENSION)
+                            lock_path_participant = os.path.join(get_tmpdir(),"participants_tsv" + LOCK_EXTENSION)
                             PART_SORT_COLS=["participant_id", "session_id"]
                         lock_file_participant = acquire_lock(lock_path_participant)
                         try:

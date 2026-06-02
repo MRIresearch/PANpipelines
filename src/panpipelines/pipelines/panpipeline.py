@@ -36,7 +36,40 @@ class panpipeline:
                 if part_info[1]:
                     log_message = log_message + f"session {part_info[1]} in "
                     if part_info[2]:
-                        log_message = log_message + f"project {part_info[2]}\n" 
+                        log_message = log_message + f"project {part_info[2]}\n"
+
+        stagger_delay = getParams(self.labels_dict,"STAGGER_DELAY")
+        stagger_timeout = getParams(self.labels_dict,"STAGGER_TIMEOUT")
+        if stagger_timeout:
+            if self.LOGGER:
+                self.LOGGER.info("Stagger_timeout: Add staggered timeout to pipeline.")  
+            try:
+                stagger_timeout = int(stagger_timeout)
+            except Exception as exc:
+                stagger_timeout=0
+
+            if not stagger_delay:
+                stagger_delay=0
+            else:
+                try:
+                    stagger_delay = int(stagger_delay)
+                except Exception as exc:
+                    stagger_delay=0
+
+            lock_dir = getParams(self.labels_dict,"LOCK_DIR")
+            if lock_dir:
+                lock_file = os.path.join(lock_dir,f"{self.name}.lock")
+            else:
+                lock_file = os.path.join(get_tmpdir(),f"{self.name}.lock")
+
+            if stagger_timeout > 0 and stagger_delay > 0:
+                stagger_start(lock_file=lock_file, timeout=stagger_timeout, delay=stagger_delay)
+            elif stagger_timeout > 0:
+                stagger_start(lock_file=lock_file, timeout=stagger_timeout)
+            else:
+                stagger_start(lock_file=lock_file)
+
+
         if self.LOGGER:
             self.LOGGER.info(log_message)     
 
