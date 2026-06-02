@@ -460,8 +460,26 @@ def main():
 
     LOGGER.info(f"Participant Details:\n {pretty_participant_list}.\n")
     time.sleep(1)
+    num_participants=len(participant_list)
+    LOGGER.info(f"{num_participants} participants to be processed.\n")
+    time.sleep(1)
     LOGGER.info(f"Pipelines to be processed :\n {pipelines}\n")
     time.sleep(1)
+    n_sub=0
+    n_group=0
+    for pipeline in pipelines:
+        if pipeline in panpipeconfig_json.keys():
+            if "ANALYSIS_LEVEL" in panpipeconfig_json[pipeline].keys():
+                if panpipeconfig_json[pipeline]["ANALYSIS_LEVEL"] == "group":
+                    n_group = n_group + 1
+                else:
+                    n_sub = n_sub + 1
+            else:
+                n_sub = n_sub + 1
+    
+    LOGGER.info(f"Number of single subject pipelines :{n_sub}")
+    LOGGER.info(f"Number of group pipelines :{n_group}")
+    LOGGER.info(f"Estimated Number of jobs to be submitted :{(n_sub*num_participants) + n_group}")
 
     key=""
     if RUN_INTERACTIVE:
