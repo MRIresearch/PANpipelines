@@ -63,6 +63,18 @@ def aslprep_proc(labels_dict,bids_dir=""):
     aslprep_dict = updateParams(aslprep_dict,"--fs-license-file","<FSLICENSE>")
     aslprep_dict = updateParams(aslprep_dict,"-w","<CWD>/aslprep_work")
 
+    USE_BIDS_FILTER = isTrue(getParams(labels_dict,"BIDS_FILTER"))
+    if USE_BIDS_FILTER:
+        bids_filter_dict={}
+        bids_filter_dict["asl"] = {}
+        bids_filter_dict["asl"]["session"] =  participant_session
+        bids_filter_dict["t1w"] = {}
+        bids_filter_dict["t1w"]["session"] =  participant_session
+        bids_filter_file = os.path.join(cwd,f"{participant_label}_{participant_session}_bids_filter_file.json")
+        export_labels(bids_filter_dict,bids_filter_file)
+        IFLOGGER.info(f"Specifying session filter: exporting {bids_filter_dict} to {bids_filter_file}")
+        aslprep_dict = updateParams(aslprep_dict,"--bids-filter-file",bids_filter_file)
+
     # Additional params
     ASLPREP_OVERRIDE_PARAMS = getParams(labels_dict,"ASLPREP_OVERRIDE_PARAMS")
     if ASLPREP_OVERRIDE_PARAMS and isinstance(ASLPREP_OVERRIDE_PARAMS,dict):

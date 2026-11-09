@@ -645,7 +645,9 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
     SINGLE_PLD=["_acq-prod_","_acq-pcasl_","_acq-plusM0_"]
     asl = [x for x in all_asl if any(keyword in x.filename for keyword in SINGLE_PLD)]
 
-    if len(asl) > 0:
+    JUST_MULTIPLD=isTrue(getParams(labels_dict,"JUST_MULTIPLD"))
+
+    if len(asl) > 0 and not JUST_MULTIPLD:
         asl_bidsfile=asl[0]
         asl_file=asl_bidsfile.path
 
@@ -840,7 +842,13 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
 
     if multi_asl:
 
-        MULTIPLD_PIPELINE="topup_all"
+        MULTIPLD_PIPELINE = getParams(labels_dict,"MULTIPLD_PIPELINE")
+        if not MULTIPLD_PIPELINE:
+            MULTIPLD_PIPELINE="topup_all"
+
+        MULTIPLD_OUTPUTDIR = getParams(labels_dict,"MULTIPLD_OUTPUTDIR")
+        if not MULTIPLD_OUTPUTDIR:
+            MULTIPLD_OUTPUTDIR ="basiloutput_multipld"
 
         m0scans=layout.get(subject=participant_label,session=participant_session,suffix='m0scan', extension='nii.gz')
         IFLOGGER.info(f"Found Multi-pld ASL acquisition for subject {participant_label} and session {participant_session}. Attempting Basil multi-pld ")
@@ -856,7 +864,7 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
             IFLOGGER.info(f"Found full set of Multi-pld ASL acquisition for subject {participant_label} and session {participant_session}.Multi-PLD processing can proceed")
             IFLOGGER.info(f"Running Multi-PLD processing pipeline {MULTIPLD_PIPELINE}")
             if MULTIPLD_PIPELINE=="topup_all":
-                multipld_output_dir=os.path.join(cwd,"basiloutput_multipld")
+                multipld_output_dir=os.path.join(cwd,MULTIPLD_OUTPUTDIR)
                 if not os.path.exists(multipld_output_dir):
                     os.makedirs(multipld_output_dir,exist_ok=True)
 
@@ -908,12 +916,12 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 applytopup_basil(command_base, MO_DC, [MO_AP_mc, MO_PA_aligned], [1, 2], acqparams, topupresult, method="jac")
 
                 asldc_list=[]
-                asldc_list.append(align_multipld_asl(AP1260[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
-                asldc_list.append(align_multipld_asl(PA1500[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
-                asldc_list.append(align_multipld_asl(AP1800[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
-                asldc_list.append(align_multipld_asl(PA2100[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
-                asldc_list.append(align_multipld_asl(AP2500[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
-                asldc_list.append(align_multipld_asl(PA3000[0], MO, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(AP1260[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(PA1500[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(AP1800[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(PA2100[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(AP2500[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_list.append(align_multipld_asl(PA3000[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
 
 
                 MULTIASL=newfile(outputdir=multipld_work_dir,assocfile=f"sub-{participant_label}_ses-{participant_session}_acq-multipld_asl.nii.gz")
@@ -924,10 +932,84 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 evaluated_command=substitute_labels(command, labels_dict)
                 runCommand(evaluated_command,IFLOGGER)
 
+            elif MULTIPLD_PIPELINE=="topup_separate":
+                IFLOGGER.info(f"All scans in AP and PA directions will be processed separately after Topup")
+                multipld_output_dir=os.path.join(cwd,MULTIPLD_OUTPUTDIR)
+                if not os.path.exists(multipld_output_dir):
+                    os.makedirs(multipld_output_dir,exist_ok=True)
+
+                multipld_work_dir=os.path.join(multipld_output_dir,"basilwork_multipld")
+                if not os.path.exists(multipld_work_dir):
+                    os.makedirs(multipld_work_dir,exist_ok=True)
+
+                MO_AP_mc = newfile(outputdir=multipld_work_dir,assocfile=MO_AP[0],suffix="mc")
+                mcflirt_basil(command_base,MO_AP[0],MO_AP_mc)
+
+                MO_PA_mc = newfile(outputdir=multipld_work_dir,assocfile=MO_PA[0],suffix="mc")
+                mcflirt_basil(command_base,MO_PA[0],MO_PA_mc)
+
+                # rigid registration of 
+                interMO = newfile(outputdir=multipld_work_dir,assocfile="MO_PA_in_AP_mutualinfo.nii.gz")
+                interMOMAT = newfile(outputdir=multipld_work_dir,assocfile="MO_PA_in_AP_trans_mututalinfo.mat")
+                flirt_basil(command_base,MO_PA_mc,MO_AP_mc,interMO,interMOMAT)
+
+                MO_PA_aligned = newfile(outputdir=multipld_work_dir,assocfile="MO_PA_aligned.nii.gz")
+                applyflirt_basil(command_base, MO_PA_mc , MO_AP_mc, MO_PA_aligned, interMOMAT)
+
+                MO = newfile(outputdir=multipld_work_dir,assocfile=f"sub-{participant_label}_ses-{participant_session}_acq-pcasl3000_m0scan.nii.gz")
+                fslmerge_basil(command_base, MO, [MO_AP_mc,MO_PA_aligned])
+
+                TRT=0.0635
+                topuparams_init=os.path.join(multipld_work_dir,"topuparams_init.txt")
+                with open(topuparams_init,"w") as outfile:
+                    outfile.write(f"0 -1 0 {TRT}\n")
+                    outfile.write(f"0 -1 0 {TRT}\n")
+                    outfile.write(f"0 -1 0 {TRT}\n")
+                    outfile.write(f"0 -1 0 {TRT}\n")
+                    outfile.write(f"0 1 0 {TRT}\n")
+                    outfile.write(f"0 1 0 {TRT}\n")
+                    outfile.write(f"0 1 0 {TRT}\n")
+                    outfile.write(f"0 1 0 {TRT}\n")
+
+                topupresult = os.path.join(multipld_work_dir,"topupresult_M0")
+                topupresult_fmap = os.path.join(multipld_work_dir,"topupresult_fmap_M0")
+                topup_basil(command_base, MO, topuparams_init, topupresult, topupresult_fmap)
+
+                acqparams=os.path.join(multipld_work_dir,"acqparams.txt")
+                with open(acqparams,"w") as outfile:
+                    outfile.write(f"0 -1 0 {TRT}\n")
+                    outfile.write(f"0 1 0 {TRT}\n")
+
+                MO_DC = newfile(outputdir=multipld_work_dir,assocfile=MO, suffix="dc")
+                applytopup_basil(command_base, MO_DC, [MO_AP_mc, MO_PA_aligned], [1, 2], acqparams, topupresult, method="jac")
+
+                asldc_AP_list=[]
+                asldc_AP_list.append(align_multipld_asl(AP1260[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_AP_list.append(align_multipld_asl(AP1800[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_AP_list.append(align_multipld_asl(AP2500[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_PA_list=[]                
+                asldc_PA_list.append(align_multipld_asl(PA1500[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))    
+                asldc_PA_list.append(align_multipld_asl(PA2100[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
+                asldc_PA_list.append(align_multipld_asl(PA3000[0], MO_DC, multipld_work_dir,command_base, acqparams, topupresult))
+
+                MULTIASL_AP=newfile(outputdir=multipld_work_dir,assocfile=f"sub-{participant_label}_ses-{participant_session}_acq-multipld_dir-AP_asl.nii.gz")
+                fslmerge_basil(command_base, MULTIASL_AP, asldc_AP_list)
+                MULTIASL_PA=newfile(outputdir=multipld_work_dir,assocfile=f"sub-{participant_label}_ses-{participant_session}_acq-multipld_dir-PA_asl.nii.gz")
+                fslmerge_basil(command_base, MULTIASL_PA, asldc_PA_list)
+
+                # process AP
+                command=f"{command_base} oxford_asl -i={MULTIASL_AP} --iaf=ct --ibf=tis --casl --bolus=1.8 --rpts=2,2,2 --tis=3.06,3.6,4.3 --fslanat={fslanat_dir} -c={MO_DC} --cmethod=voxel --tr=5.6 --cgain=10 -o={multipld_output_dir}/output_AP --t1=1.3 --t1b=1.65 --alpha=0.85 --spatial=1 --pvcorr --debug"
+                evaluated_command=substitute_labels(command, labels_dict)
+                runCommand(evaluated_command,IFLOGGER)
+
+                command=f"{command_base} oxford_asl -i={MULTIASL_PA} --iaf=ct --ibf=tis --casl --bolus=1.8 --rpts=2,2,2 --tis=3.3,3.9,4.8 --fslanat={fslanat_dir} -c={MO_DC} --cmethod=voxel --tr=5.6 --cgain=10 -o={multipld_output_dir}/output_PA --t1=1.3 --t1b=1.65 --alpha=0.85 --spatial=1 --pvcorr --debug"
+                evaluated_command=substitute_labels(command, labels_dict)
+                runCommand(evaluated_command,IFLOGGER)
+
             else:
                 IFLOGGER.info(f"All scans in AP and PA directions will be processed together in BASIL and then merged at the end")
  
-                multipld_output_dir=os.path.join(cwd,"basiloutput_multipld")
+                multipld_output_dir=os.path.join(cwd,MULTIPLD_OUTPUTDIR)
                 if not os.path.exists(multipld_output_dir):
                     os.makedirs(multipld_output_dir,exist_ok=True)
 
@@ -942,12 +1024,12 @@ def basil_proc(labels_dict,bids_dir="",fslanat_dir=""):
                 runCommand(evaluated_command,IFLOGGER)
 
                 # process AP
-                command=f"{command_base} oxford_asl -i={ASL_AP} --iaf=ct --ibf=tis --casl --bolus=1.8 --rpts=2,2,2 --tis=3.06,3.6,4.3 --fslanat={fslanat_dir} -c={MO_AP[0]} --cmethod=voxel --tr=5.6 --cgain=10 --echospacing=0.0005 --pedir=-y --cblip={MO_PA[0]} -o={multipld_output_dir}/output_AP --bat=0 --t1=1.65 --t1b=1.65 --alpha=0.85 --spatial=1 --fixbolus --mc --pvcorr --wp --debug"
+                command=f"{command_base} oxford_asl -i={ASL_AP} --iaf=ct --ibf=tis --casl --bolus=1.8 --rpts=2,2,2 --tis=3.06,3.6,4.3 --fslanat={fslanat_dir} -c={MO_AP[0]} --cmethod=voxel --tr=5.6 --cgain=10 --echospacing=0.0005 --pedir=-y --cblip={MO_PA[0]} -o={multipld_output_dir}/output_AP --t1=1.3 --t1b=1.65 --alpha=0.85 --spatial=1  --mc --pvcorr --debug"
                 evaluated_command=substitute_labels(command, labels_dict)
                 runCommand(evaluated_command,IFLOGGER)
 
                 # process PA
-                command=f"{command_base} oxford_asl -i={ASL_PA} --iaf=ct --ibf=tis --casl --bolus=1.8 --rpts=2,2,2 --tis=3.3,3.9,4.8 --fslanat={fslanat_dir} -c={MO_PA[0]} --cmethod=voxel --tr=5.6 --cgain=10 --echospacing=0.0005 --pedir=-y --cblip={MO_AP[0]} -o={multipld_output_dir}/output_PA --bat=0 --t1=1.65 --t1b=1.65 --alpha=0.85 --spatial=1 --fixbolus --mc --pvcorr --wp --debug"
+                command=f"{command_base} oxford_asl -i={ASL_PA} --iaf=ct --ibf=tis --casl --bolus=1.8 --rpts=2,2,2 --tis=3.3,3.9,4.8 --fslanat={fslanat_dir} -c={MO_PA[0]} --cmethod=voxel --tr=5.6 --cgain=10 --echospacing=0.0005 --pedir=-y --cblip={MO_AP[0]} -o={multipld_output_dir}/output_PA --t1=1.3 --t1b=1.65 --alpha=0.85 --spatial=1  --mc --pvcorr  --debug"
                 evaluated_command=substitute_labels(command, labels_dict)
                 runCommand(evaluated_command,IFLOGGER)
 
