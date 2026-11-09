@@ -413,6 +413,52 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
         left_inner_cols=list(cum_df_inner_left.columns.values)
         left_outer_cols=list(cum_df_outer_left.columns.values)
+        LEFT_GLOBAL_RENAME = getParams(labels_dict,"LEFT_GLOBAL_RENAME")
+        LEFT_GLOBAL_RENAME_CASE = getParams(labels_dict,"LEFT_GLOBAL_RENAME_CASE")
+        if LEFT_GLOBAL_RENAME:
+            left_inner_dict={}
+            left_outer_dict={}
+            if isinstance(LEFT_GLOBAL_RENAME,dict):
+                for repcol in [x for x in list(cum_df_inner_left.columns.values) if x not in collate_join_left]:
+                    newrepcol = repcol
+                    for itemkey,itemvalue in LEFT_GLOBAL_RENAME.items():
+                        newrepcol = newrepcol.replace(itemkey,itemvalue)
+
+                    if LEFT_GLOBAL_RENAME_CASE == "lower":
+                        newrepcol = newrepcol.lower()
+                    elif LEFT_GLOBAL_RENAME_CASE == "upper":
+                        newrepcol = newrepcol.upper()
+
+                    if not repcol == newrepcol:
+                        left_inner_dict[repcol]= newrepcol
+                        repindex = left_inner_cols.index(repcol)
+                        left_inner_cols[repindex] = newrepcol
+
+                for repcol in [x for x in list(cum_df_outer_left.columns.values) if x not in collate_join_left]:
+                    newrepcol = repcol
+                    for itemkey,itemvalue in LEFT_GLOBAL_RENAME.items():
+                        newrepcol = newrepcol.replace(itemkey,itemvalue)
+
+                    if LEFT_GLOBAL_RENAME_CASE == "lower":
+                        newrepcol = newrepcol.lower()
+                    elif LEFT_GLOBAL_RENAME_CASE == "upper":
+                        newrepcol = newrepcol.upper()
+
+                    if not repcol == newrepcol:
+                        left_outer_dict[repcol]= newrepcol
+                        repindex = left_outer_cols.index(repcol)
+                        left_outer_cols[repindex] = newrepcol
+
+                if left_inner_dict:
+                    cum_df_inner_left = cum_df_inner_left.rename(columns=left_inner_dict)
+
+                if left_outer_dict:
+                    cum_df_outer_left = cum_df_outer_left.rename(columns=left_outer_dict)
+            else:
+                IFLOGGER.debug(f"LEFT_GLOBAL_RENAME should be a dictionary of values but {LEFT_GLOBAL_RENAME} passed")
+
+        left_inner_cols=list(cum_df_inner_left.columns.values)
+        left_outer_cols=list(cum_df_outer_left.columns.values)
         LEFT_COPY = getParams(labels_dict,"LEFT_COPY")
         if LEFT_COPY:
             if isinstance(LEFT_COPY,dict):
@@ -658,10 +704,53 @@ def collate_csv_group_proc(labels_dict, csv_list1,csv_list2, add_prefix):
 
                 if right_outer_dict:
                     cum_df_outer_right = cum_df_outer_right.rename(columns=right_outer_dict)
-
-
             else:
                 IFLOGGER.debug(f"RIGHT_RENAME should be a dictionary of values but {RIGHT_RENAME} passed")
+
+        right_inner_cols=list(cum_df_inner_right.columns.values)
+        right_outer_cols=list(cum_df_outer_right.columns.values)
+        RIGHT_GLOBAL_RENAME = getParams(labels_dict,"RIGHT_GLOBAL_RENAME")
+        RIGHT_GLOBAL_RENAME_CASE = getParams(labels_dict,"RIGHT_GLOBAL_RENAME_CASE")
+        if RIGHT_GLOBAL_RENAME:
+            right_inner_dict={}
+            right_outer_dict={}
+            if isinstance(RIGHT_GLOBAL_RENAME,dict):
+                for repcol in [x for x in list(cum_df_inner_right.columns.values) if x not in collate_join_right]:
+                    newrepcol = repcol
+                    for itemkey,itemvalue in RIGHT_GLOBAL_RENAME.items():
+                        newrepcol = newrepcol.replace(itemkey,itemvalue)
+
+                    if RIGHT_GLOBAL_RENAME_CASE == "lower":
+                        newrepcol = newrepcol.lower()
+                    elif RIGHT_GLOBAL_RENAME_CASE == "upper":
+                        newrepcol = newrepcol.upper()
+
+                    if not repcol == newrepcol:
+                        right_inner_dict[repcol]= newrepcol
+                        repindex = right_inner_cols.index(repcol)
+                        right_inner_cols[repindex] = newrepcol
+                for repcol in [x for x in list(cum_df_outer_right.columns.values) if x not in collate_join_right]:
+                    newrepcol = repcol
+                    for itemkey,itemvalue in RIGHT_GLOBAL_RENAME.items():
+                        newrepcol = newrepcol.replace(itemkey,itemvalue)
+
+                    if RIGHT_GLOBAL_RENAME_CASE == "lower":
+                        newrepcol = newrepcol.lower()
+                    elif RIGHT_GLOBAL_RENAME_CASE == "upper":
+                        newrepcol = newrepcol.upper()
+                        
+                    if not repcol == newrepcol:
+                        right_outer_dict[repcol]= newrepcol
+                        repindex = right_outer_cols.index(repcol)
+                        right_outer_cols[repindex] = newrepcol
+
+                if right_inner_dict:
+                    cum_df_inner_right = cum_df_inner_right.rename(columns=right_inner_dict)
+
+                if right_outer_dict:
+                    cum_df_outer_right = cum_df_outer_right.rename(columns=right_outer_dict)
+            else:
+                IFLOGGER.debug(f"RIGHT_GLOBAL_RENAME should be a dictionary of values but {RIGHT_GLOBAL_RENAME} passed")
 
         right_inner_cols=list(cum_df_inner_right.columns.values)
         right_outer_cols=list(cum_df_outer_right.columns.values)

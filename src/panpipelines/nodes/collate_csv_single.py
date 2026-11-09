@@ -35,18 +35,40 @@ def collate_csv_single_proc(labels_dict, csv_list1, add_prefix):
         os.makedirs(roi_output_dir,exist_ok=True)
 
     subject_project = getParams(labels_dict,'PARTICIPANT_XNAT_PROJECT')
+
     measures_prefixes = getParams(labels_dict,"MEASURES_PREFIXES")
     measures_prefixes_evaluated={}
     if measures_prefixes and isinstance(measures_prefixes,dict):
         for itemkey, itemvalue in measures_prefixes.items():
             measures_prefixes_evaluated[substitute_labels(itemkey,labels_dict)] = substitute_labels(itemvalue,labels_dict)
+    elif not measures_prefixes:
+        measures_prefixes_evaluated={}
     else:
         measures_prefixes_evaluated = substitute_labels(measures_prefixes,labels_dict)
 
+    measures_prefixes_mode = getParams(labels_dict,"MEASURES_PREFIXES_MODE")
+    if not measures_prefixes_mode:
+        measures_prefixes_mode = "creating_pipeline"
+
+    # new code to prepare suffixes
+    measures_suffixes = getParams(labels_dict,"MEASURES_SUFFIXES")
+    measures_suffixes_evaluated={}
+    if measures_suffixes and isinstance(measures_suffixes,dict):
+        for itemkey, itemvalue in measures_suffixes.items():
+            measures_suffixes_evaluated[substitute_labels(itemkey,labels_dict)] = substitute_labels(itemvalue,labels_dict)
+    elif not measures_suffixes:
+        measures_suffixes_evaluated={}
+    else:
+        measures_suffixes_evaluated = substitute_labels(measures_suffixes,labels_dict)
+
+    measures_suffixes_mode = getParams(labels_dict,"MEASURES_SUFFIXES_MODE")
+    if not measures_suffixes_mode:
+        measures_suffixes_mode = "creating_pipeline"
 
     out_files=[]
     roi_csv = None
     custom_prefix=""
+    custom_suffix=""
     if len(csv_list) > 0:
         cum_table_data = []
         cum_table_columns=[]
@@ -66,14 +88,64 @@ def collate_csv_single_proc(labels_dict, csv_list1, add_prefix):
             else:
                 prefix= filenames[0]
 
-            if measures_prefixes_evaluated:
-                if creating_pipeline in measures_prefixes_evaluated.keys():
+            custom_prefix=""
+            if measures_prefixes_evaluated or measures_prefixes_mode:
+                if  measures_prefixes_mode == "creating_pipeline" and creating_pipeline in measures_prefixes_evaluated.keys():
                     custom_prefix=measures_prefixes_evaluated[creating_pipeline]
+                elif measures_prefixes_mode == "filename":
+                    base_csv = os.path.basename(csv_file)
+                    for key in measures_prefixes_evaluated.keys():
+                        if key in base_csv:
+                            custom_prefix=measures_prefixes_evaluated[key]
+                            break
+                elif "fromfilename" in measures_prefixes_mode:
+                    base_csv = os.path.basename(csv_file)
+                    base_csv = base_csv.split(".")[0]
+                    custom_prefix_list=base_csv.split("_")
+
+                    ff_valid_indices=[]
+                    ff_index_list = measures_prefixes_mode.split("_")
+                    if len(ff_index_list) > 1:
+                        ff_valid_indices = [int(x) for x in ff_index_list[1:] if len(custom_prefix_list) > int(x)]
+                        ff_valid_tags = [custom_prefix_list[i] for i in ff_valid_indices]
+                        if len(ff_valid_tags) > 0:
+                            custom_prefix = "_".join(ff_valid_tags)
+                        else:
+                            custom_prefix=""
+                    else:
+                        custom_prefix=""
                 else:
                     custom_prefix=""
-            
-            elif measures_prefixes_evaluated:
-                custom_prefix=measures_prefixes_evaluated
+
+
+            custom_suffix=""
+            if measures_suffixes_evaluated or measures_suffixes_mode:
+                if  measures_suffixes_mode == "creating_pipeline" and creating_pipeline in measures_suffixes_evaluated.keys():
+                    custom_suffix=measures_suffixes_evaluated[creating_pipeline]
+                elif measures_suffixes_mode == "filename":
+                    base_csv = os.path.basename(csv_file)
+                    for key in measures_suffixes_evaluated.keys():
+                        if key in base_csv:
+                            custom_suffix=measures_suffixes_evaluated[key]
+                            break
+                elif "fromfilename" in measures_suffixes_mode:
+                    base_csv = os.path.basename(csv_file)
+                    base_csv = base_csv.split(".")[0]
+                    custom_suffix_list=base_csv.split("_")
+
+                    ff_valid_indices=[]
+                    ff_index_list = measures_suffixes_mode.split("_")
+                    if len(ff_index_list) > 1:
+                        ff_valid_indices = [int(x) for x in ff_index_list[1:] if len(custom_suffix_list) > int(x)]
+                        ff_valid_tags = [custom_suffix_list[i] for i in ff_valid_indices]
+                        if len(ff_valid_tags) > 0:
+                            custom_suffix = "_".join(ff_valid_tags)
+                        else:
+                            custom_suffix=""
+                    else:
+                        custom_suffix=""
+                else:
+                    custom_suffix=""
 
             if not add_prefix:
                 if custom_prefix:
@@ -85,6 +157,11 @@ def collate_csv_single_proc(labels_dict, csv_list1, add_prefix):
             else:
                 prefix=prefix + "."
 
+            if custom_suffix:
+                suffix = "." + custom_suffix
+            else:
+                suffix = ""
+
             df = pd.read_table(csv_file,sep=",")
             if "subject_id" in df.columns:
                 df = df.drop("subject_id",axis=1)
@@ -93,7 +170,7 @@ def collate_csv_single_proc(labels_dict, csv_list1, add_prefix):
             if "row_creation_datetime" in df.columns:
                 df = df.drop("row_creation_datetime",axis=1)
             table_columns = df.columns.tolist()
-            table_columns = [prefix+x for x in table_columns]
+            table_columns = [prefix+x+suffix for x in table_columns]
             cum_table_columns.extend(table_columns)
             cum_table_data.extend(df.values.tolist()[0])
             csv_file_count = csv_file_count + 1
