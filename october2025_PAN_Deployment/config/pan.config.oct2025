@@ -2,7 +2,7 @@
     "all_pipelines":
     {
       "SESSION_LABEL": ["ALL_SESSIONS"],
-      "BIDS_SOURCE" : "XNAT",
+      "BIDS_SOURCE" : "LOCAL",
       "FORCE_BIDS_DOWNLOAD" : "N",
       "FILTER_GROUP" : "Y",
       "PROCESSING_ENVIRONMENT": "slurm", 

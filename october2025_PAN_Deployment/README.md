@@ -221,6 +221,8 @@ Go through each of the different slurm headers to adjust times and credentials a
 ##  Deploy
 run as `./runpan_october.sh`. The script is currently set to run a selection of 10 subjects. To run all subjects then use "ALL_SUBJECTS" in the participant variable. Please note that some SLURM configurations place limits on the numbers of jobs that can be run. Each subject will require about 40 jobs for the single subject pipeline. And there are 11 group jobs. So for N subjects a total of `40*N + 11` Jobs will be required. To run all the subjects you may need to run them in batches of Nmax depending on your SLURM constraints and pass different participants to run using the setting `SESSIONSFILE="--sessions_file $CURRDIR/config/sessions.tsv"` with a different `sessions.tsv` file for each batch.
 
+To get a more accurate assessent of the number of slurm jobs that will be required then comment out the line `NOCHECK="--run_interactive False"` so that the the script runs in interactive mode. You will be provided with information about the number of slurm jobs to be submitted with an option to continue or quit. 
+
 Another approach is to use the `--participant_query` parameter. For example this parameter `-participant_query (df.hml_id.isin([<PARTICIPANTS>])) & (df.index > 0) & (df.index < 41)` will select all patients specified in the `--participants_label` parameter and that have index between `1` and `40`.
 
 
