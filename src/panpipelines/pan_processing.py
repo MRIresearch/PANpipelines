@@ -479,7 +479,21 @@ def main():
     
     LOGGER.info(f"Number of single subject pipelines :{n_sub}")
     LOGGER.info(f"Number of group pipelines :{n_group}")
-    LOGGER.info(f"Estimated Number of jobs to be submitted :{(n_sub*num_participants) + n_group}")
+    projected_jobs = (n_sub*num_participants) + n_group
+    LOGGER.info(f"Estimated Number of jobs to be submitted :{projected_jobs}")
+
+    try:
+        user_sqc=os.environ["USER"]
+        command=f"squeue -u {user_sqc} -h -t pending,running -r "
+        evaluated_command=substitute_labels(command, panpipe_labels)
+        results = runCommand(evaluated_command)
+        reslist=results.split('\n')
+        reslist=[x for x in reslist if x ]
+        current_jobs = len(reslist)
+        LOGGER.info(f"Current number of jobs in queue :{current_jobs}")
+        LOGGER.info(f"Total jobs that will be in queue after submissions:{current_jobs + projected_jobs}")
+    except Exception as exc:
+        pass
 
     key=""
     if RUN_INTERACTIVE:
