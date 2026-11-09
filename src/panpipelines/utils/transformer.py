@@ -99,6 +99,73 @@ def apply_transform_mni_to_mni2009_ants(TEMPLATEFLOW_HOME,input_file,out_file, C
     apply_transform_ants(input_file, mni2009_t1_ref,out_file,mninlin6_mni2009_trans,COMMANDBASE,reverse=reverse, costfunction=costfunction,output_type=output_type)
 
 
+
+def get_ants_image_type(filename, image_type="auto"):
+    """
+    Determine the appropriate antsApplyTransforms -e parameter.
+
+    Returns
+    -------
+    int
+        0 = Scalar
+        1 = Spatial vector (index coordinates)
+        2 = Tensor
+        3 = Time series / 4D scalar volumes
+        4 = Multichannel scalar image
+        6 = Spatial vector (physical coordinates)
+    """
+
+    types = {
+        "scalar": 0,
+        "vector": 1,
+        "tensor": 2,
+        "timeseries": 3,
+        "multichannel": 4,
+        "physical-vector": 6,
+    }
+
+    # Explicit override
+    if image_type != "auto":
+        return types[image_type]
+
+    img = nib.load(filename)
+    shape = img.shape
+    ndim = img.ndim
+    intent_code = int(img.header["intent_code"])
+
+    # NIfTI symmetric matrix intent (often diffusion tensors)
+    if intent_code == 1005:
+        return 2
+
+    # NIfTI vector and displacement-vector intents.
+    # The header does not reliably tell us which ANTs
+    # vector coordinate convention should be used.
+    if intent_code in (1006, 1007):
+        raise ValueError(
+            "Vector-valued image detected. Specify image_type="
+            "'vector', 'physical-vector', or 'multichannel'."
+        )
+
+    # Conventional scalar 3D image
+    if ndim == 3:
+        return 0
+
+    # Conventional 4D scalar image
+    if ndim == 4:
+        if shape[3] in (2, 3, 6, 9):
+            LOGGER.warn(
+                "4D image could represent vector/tensor components "
+                "rather than a time series. Assuming scalar volumes."
+            )
+        return 3
+
+
+    LOGGER.warn(
+        f"Cannot safely infer ANTs image type for shape {shape}. "
+        "Specify image_type explicitly."
+    )
+
+
 def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBASE, transform_ori=":",target_ori="", reverse=False, costfunction=None, output_type=None):
 
     input_file = os.path.abspath(input_file)
@@ -127,9 +194,7 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBA
     if len(img.header.get_data_shape()) > 3:
         dimz = img.header.get_data_shape()[3]
 
-    image_type = "1"
-    if dimz > 1:
-        image_type = "3"
+    image_type = get_ants_image_type(input_file)
 
     if output_type:
         output_type = f"-u {output_type}"
@@ -156,7 +221,7 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBA
             TRANSFORMS = " -t " + str(trans_mat) 
     # for labels, atlases consider -n NearestNeighbor
     params="-d 3" \
-        " -e " + image_type +\
+        " -e " + str(image_type) +\
         " -i " + str(input_file) +\
         " -f 0"\
         " --float 1"\
@@ -174,6 +239,7 @@ def apply_transform_ants_ori(input_file,ref_file, out_file, trans_mat, COMMANDBA
     results = ut.runCommand(command)
 
     # quick hack to fix issue with templateflow transfomr - 5 dims instead of 3 dims used in header
+    # this was caused by using e=1 erroneously above - do not think this is necessary anymore
     command=f"{COMMANDBASE} fslroi"\
             " "+out_file+" "+out_file + " 0 "+str(dimz)
     results = ut.runCommand(command)
@@ -205,9 +271,7 @@ def apply_transform_ants(input_file,ref_file, out_file, trans_mat, COMMANDBASE, 
     if len(img.header.get_data_shape()) > 3:
         dimz = img.header.get_data_shape()[3]
 
-    image_type = "1"
-    if dimz > 1:
-        image_type = "3"
+    image_type = get_ants_image_type(input_file)
 
     if output_type:
         output_type = f"-u {output_type}"
@@ -239,7 +303,7 @@ def apply_transform_ants(input_file,ref_file, out_file, trans_mat, COMMANDBASE, 
 
     # for labels, atlases consider -n NearestNeighbor
     params="-d 3" \
-        " -e " + image_type +\
+        " -e " + str(image_type) +\
         " -i " + str(input_file) +\
         " -f 0"\
         " --float 1"\
@@ -335,9 +399,7 @@ def resample_ants_ori(input_file,ref_file, out_file, COMMANDBASE,transform_ori="
     if len(img.header.get_data_shape()) > 3:
         dimz = img.header.get_data_shape()[3]
 
-    image_type = "1"
-    if dimz > 1:
-        image_type = "3"
+    image_type = get_ants_image_type(input_file)
 
     if costfunction is None:
         costfunction="LanczosWindowedSinc"
@@ -348,7 +410,7 @@ def resample_ants_ori(input_file,ref_file, out_file, COMMANDBASE,transform_ori="
         output_type = ""
 
     params="-d 3" \
-        " -e " + image_type +\
+        " -e " + str(image_type) +\
         " -i " + str(input_file) +\
         " -f 0"\
         " --float 1"\
@@ -384,9 +446,7 @@ def resample_ants(input_file,ref_file, out_file, COMMANDBASE, costfunction=None,
     if len(img.header.get_data_shape()) > 3:
         dimz = img.header.get_data_shape()[3]
 
-    image_type = "1"
-    if dimz > 1:
-        image_type = "3"
+    image_type = get_ants_image_type(input_file)
 
     if costfunction is None:
         costfunction="LanczosWindowedSinc"
@@ -397,7 +457,7 @@ def resample_ants(input_file,ref_file, out_file, COMMANDBASE, costfunction=None,
         output_type = ""
 
     params="-d 3" \
-        " -e " + image_type +\
+        " -e " + str(image_type) +\
         " -i " + str(input_file) +\
         " -f 0"\
         " --float 1"\
