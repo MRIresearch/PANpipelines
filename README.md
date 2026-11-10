@@ -37,7 +37,10 @@ For an example of using the package to process MRI data please refer to the `./d
 
 The scripts used to process data for the 1st 250 participants of the PAN project are available in `PAN250_Deployment`.
 
-The scripts used to process data for the April 2025 Deployment of the PAN project are available in `april2025_PAN_Deploymnent`
+The scripts used to process data for the April 2025 Deployment of the PAN project are available in `april2025_PAN_Deployment`
+
+The scripts used to process data for the October 2025 Deployment of the PAN project are available in `october2025_PAN_Deployment`. This folder also contains additional instructions for processing the 2nd and 3rd Releases of PAN made in June 2026 and October 2026 respectively. 
+
 
 # Running pan_processing.py
 The pan processing pipelines are run by simply calling the `pan_processing.py` as described in the script `run_pan250.sh` in the `PAN250_Deployment` directory.

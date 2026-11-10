@@ -1,30 +1,35 @@
-# Reproducing October 2025 MRI PAN Measures
-The following [instructions](https://github.com/MRIresearch/PANpipelines/tree/main/october2025_PAN_Deployment) can be followed to replicate the results provided as part of the October 2025 data release on a slurm-based HPC environment. This release also made some amendments to the April 2025 release.
+# Reproducing MRI PAN Measures
+The following [instructions](https://github.com/MRIresearch/PANpipelines/tree/main/october2025_PAN_Deployment) can be followed to replicate the results provided as part of the 3rd release (October 2026), 2nd Release (June 2026) and 1st release (October 2025)  on a slurm-based HPC environment.
 
-## Changes to April 2025 release
-* New White Matter Hyperintensities (WMH) measures provided for April 2025 release.
-* Subject HML0163 renamed to HML0162 for consistency with rest of Pan DB release.
-* Subject HML0700 added to release.
-
-## October 2025 release
+## 1st Release (October 2025)
 * Updates provided for all previous tablles released in April 2025.
 * New White Matter Hyperintensities (WMH) measures provided for October 2025 release.
 
+## 2nd Release (June 2026)
+* Updates provided for all tables produced as part of 1st release.
+
+## 3rd Release (October 2026)
+* Updates provided for all tables produced as part of 1st release.
+* Unreleased working tables for:
+     * multipld PCASL measures obtained from the arterial atlas and gray matter and white matter
+     * MRI quality metrics obtained from MRIQC, ASLPREP and QSIPREP
+     * NODDI and DTI measures measured within Freesurfers `aseg` segmentation
+
 ## Tables released
-* coree_chen_anat_measures.csv   (updated April 2025 release)
-* coree_chen_anat_measures_20251001.csv (new October 2025 release)
-* coree_chen_asl_measures.csv
-* coree_chen_asl_measures_20251001.csv
-* coree_chen_dwi_measures.csv
-* coree_chen_dwi_measures_20251001.csv
-* coree_chen_rsfmri_yeobuckner131_interconn_corticocereb.csv
-* coree_chen_rsfmri_yeobuckner131_interconn_corticocereb_20251001.csv
-* coree_chen_rsfmri_yeobuckner131_interconn_wholebrain.csv
-* coree_chen_rsfmri_yeobuckner131_interconn_wholebrain_20251001.csv
-* coree_chen_rsfmri_yeobuckner131_withinconn.csv
-* coree_chen_rsfmri_yeobuckner131_withinconn_20251001.csv
-* coree_chen_wmh_measures.csv
-* coree_chen_wmh_measures_20251001.csv
+[`SUFFIX`] is either `20251001` (Release 1), `Release2` or `Release3`.
+* coree_chen_anat_measures_[`SUFFIX`].csv
+* coree_chen_asl_measures_[`SUFFIX`].csv
+* coree_chen_dwi_measures_[`SUFFIX`].csv
+* coree_chen_rsfmri_yeobuckner131_interconn_corticocereb_[`SUFFIX`].csv
+* coree_chen_rsfmri_yeobuckner131_interconn_wholebrain_[`SUFFIX`].csv
+* coree_chen_rsfmri_yeobuckner131_withinconn_[`SUFFIX`].csv
+* coree_chen_wmh_measures_[`SUFFIX`].csv
+* coree_chen_mriquality_measures_release3.csv
+* coree_chen_multipld_asl_measures_release3.csv
+* coree_chen_multipld_asl_measures_release3.csv
+
+# Deployment Instructions
+The steps below provide instructions primarilly for recreating the `Release 1` (October 2025) results. In order to recreate results for `Release 2` or `Release 3` then a simple change to one variable in the run script `runpan_october.sh` is necessary. See Section the **Edit runpan_october.sh**.
 
 ## Create Root Directory
 Create a root directory `ROOTDIR`from which you will reproduce the analysis. For this example we will create a directory in our Home directory.
@@ -32,9 +37,8 @@ Create a root directory `ROOTDIR`from which you will reproduce the analysis. For
 ROOTDIR=$HOME/PanOctober
 mkdir -p $ROOTDIR
 ```
-
 ## Create Python environment
-Use a python virtual environment manager to create an environment for the panpipelines 1.1.10 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
+Use a python virtual environment manager to create an environment for the panpipelines 1.1.11 release. Options include `virtualenv`, `conda`, `micromamba` etc. We will use `virtualenv` in this example.
 
 ### Install `virtualenv` and prepare virtual environment
 Install `virtualenv` in python environment:
@@ -52,11 +56,11 @@ module load python/3.11/3.11.4
 virtualenv -p python3 $ENVLOC/$ENVNAME
 ```
 
-Activate environment and Install version 1.1.10 of PAN pipelines using `pip`
+Activate environment and Install version 1.1.11 of PAN pipelines using `pip`
 ```
 module load python/3.11/3.11.4
 source $ENVLOC/$ENVNAME/bin/activate
-pip install panpipelines==1.1.10
+pip install panpipelines==1.1.11
 ```
 
 To avoid issues with `mne` please also run the following code to pin `setuptools` to the version of `mne` shipped with `panpipelines`. 
@@ -92,7 +96,9 @@ Your root directory should look like this now:
 │   ├── PAN_dataset_description.json  
 │   ├── anatomical.py  
 │   ├── anatomical_interface.py  
-│   ├── april_october_combo.csv  
+│   ├── april_october_combo.csv
+│   ├── release2.csv  
+│   ├── release3.csv    
 │   ├── credentials
 │   │   └── credentials.json
 │   ├── freesurfer_outputs_april.csv  
@@ -100,6 +106,8 @@ Your root directory should look like this now:
 │   ├── hml_ids_list_241231.csv  
 │   ├── license.txt  
 │   ├── pan.config.oct2025  
+│   ├── pan.config.release2 
+│   ├── pan.config.release3 
 │   ├── pan_eddyparams_cuda.json  
 │   ├── sessions.tsv  
 │   └── style.css  
@@ -182,7 +190,7 @@ For example the definition below will require users to download all the BIDS sub
 ```
 
 ## Edit `pan.config.oct2025`
-If the default configuration as defined in `pan.config.oct2025` is used then there should be minimal changes in the the config file.  Please update the `CONTAINER_DIR` reference for example if you have built the containers in another location other than `<ROOTDIR>/containers`
+If the default configuration as defined in `pan.config.oct2025` (Release 1) is used then there should be minimal changes in the the config file.  Please update the `CONTAINER_DIR` reference for example if you have built the containers in another location other than `<ROOTDIR>/containers`. Please do exactly the same to `pan.config.release2` and/or `pan.config.release3` if you intend to create results for either of these releases instead.
 
 ## Edit `credentials.json` in `credentials` directory
 The `credentials` directory and `credentials.json` file are only relevant if the data source to be used is XNAT. In the `pan.config.oct2025` this would mean the definition provided is `"BIDS_SOURCE" : "XNAT"`.
@@ -196,6 +204,11 @@ Update the provided freesurfer license in `<rootdir>/config/license.txt` with yo
 Add/amend commands required to instantiate your python environment e.g. module load env, conda activate env, source env etc. In the provided example `source /xdisk/trouard/chidiugonna/PAN/oct2025_repro/venvs/pan_oct2025_env/bin/activate` is defined and this will need to be changed to match your own environment.
 
 Change the call to PYTHON depending on how it is invoked in your environment. Some environments require Python version 3 to be invoked as `python3`. In that case set `PYTHON=python3`
+
+Change the definition of `CONFIG` to point to the required configuration file for the release you intend to recreate. For `Release 3` for example this would be:
+```
+CONFIG=$ROOTDIR/config/pan.config.release3
+```
 
 Change `PKG_DIR` to point to the directory that contains the pipelines package:
 `PKG_DIR=[Path to]/PANpipelines/src`. This will be in your conda or python or virtual env environment if you installed PANpipelines using `pip`. If you are using the code directly from the repository then this will be the path to the cloned repository.
@@ -219,7 +232,7 @@ export PYTHONPATH=${PKG_DIR}:$PYTHONPATH
 Go through each of the different slurm headers to adjust times and credentials as necessary. These are referenced in the config entries as `SLURM_CPU_HEADER` and `SLURM_GPU_HEADER` as required.
 
 ##  Deploy
-run as `./runpan_october.sh`. The script is currently set to run a selection of 10 subjects. To run all subjects then use "ALL_SUBJECTS" in the participant variable. Please note that some SLURM configurations place limits on the numbers of jobs that can be run. Each subject will require about 40 jobs for the single subject pipeline. And there are 11 group jobs. So for N subjects a total of `40*N + 11` Jobs will be required. To run all the subjects you may need to run them in batches of Nmax depending on your SLURM constraints and pass different participants to run using the setting `SESSIONSFILE="--sessions_file $CURRDIR/config/sessions.tsv"` with a different `sessions.tsv` file for each batch.
+run as `./runpan_october.sh`. The script is currently set to run a selection of 10 subjects. To run all subjects then use "ALL_SUBJECTS" in the participant variable. Please note that some SLURM configurations place limits on the numbers of jobs that can be run. Depending on the release version, each subject will require between 54 to 65 jobs for the single subject pipeline. And there are between 40 to 63 group jobs. So for N subjects a total of `S*N + G` Jobs will be required where S is the number of single-subject jobs and G is the number of group jobs. To run all the subjects you may need to run them in batches of `Nmax` depending on your SLURM constraints and pass different participants to run using the setting `SESSIONSFILE="--sessions_file $CURRDIR/config/sessions.tsv"` with a different `sessions.tsv` file for each batch.
 
 To get a more accurate assessent of the number of slurm jobs that will be required then comment out the line `NOCHECK="--run_interactive False"` so that the the script runs in interactive mode. You will be provided with information about the number of slurm jobs to be submitted with an option to continue or quit. 
 
