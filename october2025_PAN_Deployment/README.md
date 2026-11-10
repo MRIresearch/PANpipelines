@@ -26,7 +26,7 @@ The following [instructions](https://github.com/MRIresearch/PANpipelines/tree/ma
 * coree_chen_wmh_measures_[`SUFFIX`].csv
 * coree_chen_mriquality_measures_release3.csv
 * coree_chen_multipld_asl_measures_release3.csv
-* coree_chen_multipld_asl_measures_release3.csv
+* coree_chen_dwi_aseg_measures_release3.csv
 
 # Deployment Instructions
 The steps below provide instructions primarilly for recreating the `Release 1` (October 2025) results. In order to recreate results for `Release 2` or `Release 3` then a simple change to one variable in the run script `runpan_october.sh` is necessary. See Section the **Edit runpan_october.sh**.
