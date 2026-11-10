@@ -623,6 +623,81 @@ def getSubjectInfo(labels_dict, participant_label,session_label=None):
         UTLOGGER.info(f"No Subject_ID values found for {participant_label} in {sessions_file}. Returning passed value.")
         return participant_label   
 
+def create_context(context_file, contents):
+    with open(context_file,"w") as outfile:
+        outfile.write(contents)
+
+def updatejson(jsonfile, params):
+    with open(jsonfile,"r") as infile:
+        data = json.load(infile)
+
+    for itemkey, itemvalue in params.items():
+        data[itemkey] = itemvalue
+
+    with open(jsonfile, "w") as outfile:
+        json.dump(data, outfile, indent=4, sort_keys=False)
+
+def addbids_aslspecs(bids_session_folder, subject, session):
+    print(f"{subject}_{session}: Add BackgroundSuppresion and TotalAcquiredPairs to PASL and PCASL")
+    asls_a=[]
+    pasls=glob.glob(f"{bids_session_folder}/perf/*acq-prod_asl.json")
+    pcasls=glob.glob(f"{bids_session_folder}/perf/*acq-pcasl_asl.json")
+    plus=glob.glob(f"{bids_session_folder}/perf/*acq-plusM0_asl.json")
+    asls_a.extend(pasls)
+    asls_a.extend(pcasls)
+    asls_a.extend(plus)
+    
+    params = {
+        "BackgroundSuppression" : True,
+        "TotalAcquiredPairs" : 10
+        }
+    
+    for asl_a in asls_a:
+        updatejson(asl_a, params)
+    
+    
+    print(f"{subject}_{session}: Add BolusCutOffFlag to PASL")
+    asls_b=[]
+    asls_b.extend(pasls)
+    asls_b.extend(plus)
+    params = {
+        "BolusCutOffFlag" : True
+        }
+    for asl_b in asls_b:
+        updatejson(asl_b, params)
+    
+    print(f"{subject}_{session}: Prepare multi-pld PCASL in longitudinal scans")
+    params = {
+        "BackgroundSuppression" : True,
+        "TotalAcquiredPairs" : 2,
+        "ArterialSpinLabelingType": "PCASL",
+        "RepetitionTimePreparation": 5.6,
+        "EffectiveEchoSpacing": 0.0005,
+        "LabelingDuration" : 1.8,
+        "M0Type": "Separate",
+        }
+    multipcasls=glob.glob(f"{bids_session_folder}/perf/*acq-pcasl*_dir-*asl.json")
+    for asl_c in multipcasls:
+        match = re.search(r'acq-pcasl(\d+)',asl_c)
+        if match:
+            pld = int(match.group(1))/1000
+            params["PostLabelingDelay"] = pld
+        updatejson(asl_c, params)
+        context_file = asl_c.split("_asl.json")[0] + "_aslcontext.tsv"
+        create_context(context_file,"volume_type\ncontrol\nlabel\ncontrol\nlabel\n")
+    
+    print(f"{subject}_{session}: Prepare m0Scan for multipld PCASL")
+    multim0s=glob.glob(f"{bids_session_folder}/perf/*acq-pcasl*_dir-*m0scan.json")
+    params = {
+        "RepetitionTimePreparation": 5.6
+        }
+    for m0 in multim0s:
+        pcasls_mult = glob.glob(os.path.join(os.path.dirname(m0),"*acq-pcasl*_dir-*asl.nii.gz"))
+        intended = ["/".join(x.split(bids_session_folder)[1].split("/")[2:]) for x in pcasls_mult]
+        if intended:
+            intended = [f"{session}/perf/{x}" for x in intended]
+            params["IntendedFor"] = intended
+        updatejson(m0, params)
 
 def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,password,session_label=None):
 
@@ -697,6 +772,9 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
                 UTLOGGER.info("Downloading started from XNAT.")
                 subject_id = getSubjectInfo(labels_dict,participant_label,session_label=session_label)
                 getSubjectSessionsXNAT(bids_dir,participant_label,"BIDS-AACAZ",xnat_project,xnat_host,user,password,subject_id=subject_id,session_label=session_label,dataset_description=dataset_description,labels_dict=labels_dict,only_defaced=ONLY_DEFACED)
+                    # if download was successful, then lets attempt some additional bids specification tweaks
+                if os.path.exists(bids_session_folder):
+                    addbids_aslspecs(bids_session_folder,"sub-"+participant_label,"ses-"+session_label)
             elif ANON_FTP:
                 getSubjectSessionsFTP(bids_dir,participant_label,labels_dict,session_label=session_label)
             else:
@@ -707,6 +785,7 @@ def getSubjectBids(labels_dict,bids_dir,participant_label,xnat_project,user,pass
 
         else:
             print(f"BIDS folder for {participant_label} already present. No need to retrieve")
+
 
     finally:
         release_lock(lock_file)
@@ -1992,11 +2071,12 @@ def add_atlas_roi(atlas_file, roi_in, roi_value, panpipe_labels, high_thresh=Non
         new_roi_transformed = newfile(trans_workdir, new_roi)
         shutil.move(new_roi, new_roi_transformed)
 
-    # make output file into int. This was initially don in ANTS above but had issues with rois that had value of 1
+    # Problem with antstransform creating negative values with the freesurfer transform - use abs value to correct this issue
     command = f"{command_base} fslmaths"\
             f"  {new_roi_transformed}"\
+            f" -abs"\
             f" {new_roi_transformed}" \
-             " -odt int"
+            " -odt int"
     evaluated_command=substitute_labels(command,panpipe_labels)
     results = runCommand(evaluated_command)
 
@@ -2421,8 +2501,16 @@ def create_3d_hemi_aseg(atlas_file,roi_list,panpipe_labels,special_atlas_type):
             f"{sub} "
     ribbon = f"{subjects_dir}/{sub}/mri/ribbon.mgz"
     lock_dir = getParams(panpipe_labels,"LOCK_DIR")
-    runCommandLock(command, ribbon, lock_suffix=sub,lock_dir=lock_dir, wait_timeout_s=COMMANDLOCK_WAITTIME, overwrite=COMMANDLOCK_OVERWRITE)
-   
+    if not os.path.exists(ribbon):
+        runCommandLock(command, ribbon, lock_suffix=sub,lock_dir=lock_dir, wait_timeout_s=COMMANDLOCK_WAITTIME, overwrite=COMMANDLOCK_OVERWRITE)
+        renum_command=f"{command_base} mri_binarize --i {ribbon}"\
+             "--replaceonly 10 3"\
+             "--replaceonly 20 2"\
+             "--replaceonly 120 41"\
+             "--replaceonly 110 42"\
+             "--o {ribbon}"
+        runCommandLock(renum_command, ribbon, lock_suffix=sub,lock_dir=lock_dir, wait_timeout_s=COMMANDLOCK_WAITTIME, overwrite=COMMANDLOCK_OVERWRITE)
+  
     ribbon_nii=newfile(outputdir=workdir, assocfile=ribbon,extension=".nii.gz")
     command=f"{command_base}  mri_convert "\
                 f"{ribbon} "\
@@ -2432,10 +2520,11 @@ def create_3d_hemi_aseg(atlas_file,roi_list,panpipe_labels,special_atlas_type):
     ribbon_img = nib.load(ribbon_nii)
     ribbon_data = ribbon_img.get_fdata()
 
-    left_gm_mask = ribbon_data == 10
-    right_gm_mask = ribbon_data == 110
-    left_wm_mask = ribbon_data == 20
-    right_wm_mask = ribbon_data == 120
+    left_gm_mask = ribbon_data == 3
+    right_gm_mask = ribbon_data == 42
+    left_wm_mask = ribbon_data == 2
+    right_wm_mask = ribbon_data == 41
+
     combined_gm_mask = np.logical_or.reduce([left_gm_mask,right_gm_mask])
     combined_wm_mask = np.logical_or.reduce([left_wm_mask,right_wm_mask])
     combined_mask = np.logical_or.reduce([combined_gm_mask,combined_wm_mask])
@@ -3718,17 +3807,30 @@ def calc_inter(node_df,nodes1,nodes2,nodecol="Node"):
     corrval_sum=0
     for pair in pairings:
         corrval=node_df[node_df[nodecol]== pair[0]][pair[1]].values[0]
-        corrval_sum = corrval_sum + corrval     
-    return corrval_sum/num_pairings
+        if np.isfinite(corrval):
+            corrval_sum = corrval_sum + corrval
+        else:
+            num_pairings = num_pairings - 1
+
+    if num_pairings > 0:
+        return corrval_sum/num_pairings
+    else:
+        return np.nan
 
 def calc_inter_flat(node_df,nodes):
     num_pairings=len(nodes)
     corrval_sum=0
     for node in nodes:
         corrval=float(node_df[node].values[0])
-        corrval_sum = corrval_sum + corrval
-        
-    return corrval_sum/num_pairings
+        if np.isfinite(corrval):
+            corrval_sum = corrval_sum + corrval
+        else:
+            num_pairings = num_pairings - 1
+
+    if num_pairings > 0:
+        return corrval_sum/num_pairings
+    else:
+        return np.nan
 
 def calc_intra(node_df,nodes,nodecol="Node"):
     pairings = intranode_pairings(nodes)
@@ -3737,18 +3839,30 @@ def calc_intra(node_df,nodes,nodecol="Node"):
     corrval_sum=0
     for pair in pairings:
         corrval=node_df[node_df[nodecol]== pair[0]][pair[1]].values[0]
-        corrval_sum = corrval_sum + corrval
-        
-    return corrval_sum/num_pairings
+        if np.isfinite(corrval):
+            corrval_sum = corrval_sum + corrval
+        else:
+            num_pairings = num_pairings - 1
+            
+    if num_pairings > 0:
+        return corrval_sum/num_pairings
+    else:
+        return np.nan
 
 def calc_intra_flat(node_df,nodes):
     corrval_sum=0
     num_pairings=len(nodes)
     for node in nodes:
         corrval=float(node_df[node].values[0])
-        corrval_sum = corrval_sum + corrval
-        
-    return corrval_sum/num_pairings
+        if np.isfinite(corrval):
+            corrval_sum = corrval_sum + corrval
+        else:
+            num_pairings = num_pairings - 1
+
+    if num_pairings > 0:
+        return corrval_sum/num_pairings
+    else:
+        return np.nan
 
 def flatten(node_df,nodecol="Node",sep="_",replace={}):
     flat_df = pd.DataFrame()
